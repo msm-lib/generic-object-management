@@ -7,7 +7,7 @@ plugins {
 
 }
 
-group = "com.msm.objects"
+group = "com.msm"
 version = "1.0-SNAPSHOT"
 
 
