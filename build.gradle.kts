@@ -143,3 +143,13 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            groupId = project.group.toString()
+            artifactId = "generic-object-management"
+            version = project.version.toString()
+        }
+    }
+}
