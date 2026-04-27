@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 @Slf4j
-@Service
+//@Service
 public class GenericAttributeService {
 
     public Optional<ObjectMetadata> getObjectAttribute(String objectName) {
@@ -30,7 +30,6 @@ public class GenericAttributeService {
                 log.warn("Attribute resource {} not found", objectKey);
                 return Optional.empty();
             }
-//            ObjectAttribute config = new ObjectMapper().readValue(attributeResource.getInputStream(), new TypeReference<>() {});
             ObjectMetadata objectMetadata = new ObjectMapper().readValue(attributeResource.getInputStream(), new TypeReference<>() {});
             ObjectMetadataFactory.registerObjectMetadata(objectMetadata);
             ObjectAttributeFactory.register(objectKey,  objectMetadata);

@@ -7,7 +7,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
-@Component
+//@Component
 public class ObjectTransactionHook implements TransactionHook {
 
     @Override

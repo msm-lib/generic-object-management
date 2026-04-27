@@ -40,7 +40,7 @@ public enum ServiceErrorEnum {
     NOT_FOUND(ErrorCode.NOT_FOUND, "{0} not found with {}"),
     INVALID_ATTR_DATA_TYPE(ErrorCode.INVALID_ATTR_DATA_TYPE_CODE, "Invalid data type"),
     DUPLICATE_RECORD(ErrorCode.DUPLICATE_RECORD, "This {0} is already in use"),
-
+    OBJECT_META_DATA_NOT_FOUND(ErrorCode.OBJECT_META_DATA_NOT_FOUND, "Object metadata not found"),
 
     INVALID_JWT_SIGNATURE(ErrorCode.INVALID_JWT_SIGNATURE_CODE, "Invalid jwt token"),
     GENERIC_TECHNICAL_ERROR(ErrorCode.GENERIC_TECHNICAL_ERROR_CODE, "Generic Technical Error"),

@@ -4,16 +4,16 @@ import com.msm.core.commons.Utils;
 import com.msm.core.hook.anontation.crud.HookAfterCommitCreate;
 import com.msm.core.hook.anontation.crud.HookAfterCreate;
 import com.msm.core.hook.anontation.crud.HookBeforeCreate;
+import com.msm.core.hook.anontation.crud.HookBeforeUpdate;
 import com.msm.core.hook.context.ActionRequest;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.exception.ErrorDetail;
 import com.msm.core.objects.exception.Errors;
-import com.msm.core.objects.generic.service.GenericAttributeService;
+import com.msm.core.objects.generic.service.GenericObjectMetadataService;
 import com.msm.core.validate.domain.MessageError;
 import com.msm.core.validate.validation.AttributeValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -21,15 +21,15 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class GenericHookEvent {
     private final AttributeValidator defaultAttributeValidator;
-    private final GenericAttributeService genericAttributeService;
+    private final GenericObjectMetadataService genericObjectMetadataService;
 
     private void simpleFormula(ActionRequest<Map<String, Object>> ctx) {
         //fill free text and default value
-        Optional<ObjectMetadata> objectAttribute = genericAttributeService.getObjectAttribute(ctx.getObjectName());
+        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectAttribute(ctx.getObjectName());
         if(objectAttribute.isEmpty()) {
             return;
         }
@@ -50,9 +50,8 @@ public class GenericHookEvent {
         });
     }
 
-    @HookBeforeCreate
-    public void beforeEvent(ActionRequest<Map<String, Object>> ctx) {
-        Optional<ObjectMetadata> objectAttribute = genericAttributeService.getObjectAttribute(ctx.getObjectName());
+    private void validate(ActionRequest<Map<String, Object>> ctx) {
+        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectAttribute(ctx.getObjectName());
         if(objectAttribute.isEmpty()) {
             log.warn("No object attribute found with name {}", ctx.getObjectName());
             return;
@@ -65,7 +64,18 @@ public class GenericHookEvent {
             throw Errors.throwException(errorDetails);
         }
         simpleFormula(ctx);
+    }
+
+    @HookBeforeCreate
+    public void beforeEvent(ActionRequest<Map<String, Object>> ctx) {
+        validate(ctx);
         log.info("[BEFORE_EVENT] Generic before create object: {}", ctx.getObjectId());
+    }
+
+    @HookBeforeUpdate
+    public void hookBeforeUpdate(ActionRequest<Map<String, Object>> ctx) {
+        validate(ctx);
+        log.info("[AFTER_EVENT] Object created: {}", ctx);
     }
 
     @HookAfterCreate

@@ -1,5 +1,6 @@
-package com.msm.core.objects.config.genric;
+package com.msm.core.objects.config;
 
+import com.msm.core.dynamicquery.context.ObjectMetadataContextHolder;
 import com.msm.core.hook.*;
 import com.msm.core.hook.anontation.Handler;
 import com.msm.core.hook.anontation.Hook;
@@ -18,7 +19,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
@@ -26,15 +26,17 @@ import java.util.*;
 
 @SuppressWarnings({"unchecked"})
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
-public class ObjectConfigInitializer implements SmartInitializingSingleton {
+public class ObjectConfig implements SmartInitializingSingleton {
 
     private final ApplicationContext applicationContext;
 
     private final ObjectProvider<ValueValidationHandler> valueValidationHandlers;
     private final ObjectProvider<AttributeSimpleRule> attributeSimpleRules;
     private final ObjectProvider<TransactionHook> transactionHooks;
+    private final ObjectProvider<ObjectMetadataContext> objectMetadataContexts;
+
 
     @Override
     public void afterSingletonsInstantiated() {
@@ -42,7 +44,7 @@ public class ObjectConfigInitializer implements SmartInitializingSingleton {
         Map<String, List<HookDefinitionExecutor>> hookMap = new HashMap<>();
 
         // Scan bean with annotation
-        Map<String, Object> beans = applicationContext.getBeansWithAnnotation(Component.class);
+        Map<String, Object> beans = applicationContext.getBeansOfType(Object.class);
         for (Object bean : beans.values()) {
             Class<?> targetClass = getTargetClass(bean);
             if (!hasAnyCandidate(targetClass)) continue;
@@ -63,7 +65,7 @@ public class ObjectConfigInitializer implements SmartInitializingSingleton {
         attributeSimpleRules.forEach(AttributeSimpleRuleFactory::register);
 
         TransactionUtils.setHook(transactionHooks.getIfAvailable());
-
+        ObjectMetadataContextHolder.setObjectMetadataContextProvider(objectMetadataContexts.getIfAvailable());
         log.info("ObjectConfigInitializer initialized successfully");
     }
 

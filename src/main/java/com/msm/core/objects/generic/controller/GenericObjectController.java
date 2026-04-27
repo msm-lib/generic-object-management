@@ -2,8 +2,10 @@ package com.msm.core.objects.generic.controller;
 
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.generic.dto.ObjectConversionRequest;
 import com.msm.core.objects.generic.dto.QueryTemplate;
+import com.msm.core.objects.generic.service.GenericObjectMetadataService;
 import com.msm.core.objects.generic.service.GenericObjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,6 +38,7 @@ import java.util.UUID;
 public class GenericObjectController {
 
     private final GenericObjectService genericObjectService;
+    private final GenericObjectMetadataService genericObjectMetadataService;
 
 
     @Operation(summary = "Filter object", description = "list of object")
@@ -140,5 +143,37 @@ public class GenericObjectController {
     public ResponseEntity<Object> createQuery(
             @RequestBody QueryTemplate request) {
         return ResponseEntity.ok(genericObjectService.queryTemplate(request));
+    }
+
+    @Operation(
+            summary = "Create generic meta data",
+            description = """
+    ### Request Payload
+
+    ```json
+    {
+      "tableName": "table_name",
+      "schema": "bhc",
+      "serviceName": "order",
+      "excludeRef": ["id"],
+      "freeTextColumns": ["description", "note"],
+      "requiredColumns": ["name", "code"]
+    }
+    ```
+
+    ### Notes
+    - `excludeRef`: list column not generate ref
+    - `freeTextColumns`: columns are free text
+    - `requiredColumns`: columns are required if null that will check nullable of db column
+    """
+    )
+
+
+//    @Operation(summary = "Create generic meta data", description = "Returns generic object meta data")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PostMapping("/generic/objects/metadata")
+    public ResponseEntity<ObjectMetadata> createObjectMetadata(@RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(genericObjectMetadataService.autoGenerateObjectMetaDataHandler(request));
     }
 }

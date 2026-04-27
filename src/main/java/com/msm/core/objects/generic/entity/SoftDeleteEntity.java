@@ -14,7 +14,6 @@ import java.util.UUID;
 @MappedSuperclass
 public abstract class SoftDeleteEntity extends BusinessProcessEntity{
     @Column(name = "deleted_by")
-    @Size(max = 300)
     private String deletedBy;
 
     @Column(name = "deleted_by_id")

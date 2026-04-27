@@ -1,4 +1,4 @@
-package com.msm.core.objects.config.genric;
+package com.msm.core.objects.config;
 
 import com.msm.core.objects.generic.annotation.ActionRules;
 import jakarta.annotation.PostConstruct;
@@ -8,14 +8,12 @@ import org.jeasy.rules.api.Rule;
 import org.jeasy.rules.api.Rules;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class DynamicRulesFactory {
 

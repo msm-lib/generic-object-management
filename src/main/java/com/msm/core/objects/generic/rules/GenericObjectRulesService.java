@@ -1,14 +1,13 @@
 package com.msm.core.objects.generic.rules;
 
-import com.msm.core.objects.config.genric.DynamicRulesFactory;
+import com.msm.core.objects.config.DynamicRulesFactory;
 import lombok.RequiredArgsConstructor;
 import org.jeasy.rules.api.Facts;
 import org.jeasy.rules.api.RuleListener;
 import org.jeasy.rules.api.Rules;
 import org.jeasy.rules.core.DefaultRulesEngine;
-import org.springframework.stereotype.Service;
 
-@Service
+//@Service
 @RequiredArgsConstructor
 public class GenericObjectRulesService {
     private final DynamicRulesFactory rulesFactory;

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 @SuppressWarnings({"unchecked"})
 @Slf4j
-@Service
+//@Service
 @RequiredArgsConstructor
 public class GenericObjectService {
 
@@ -30,7 +30,6 @@ public class GenericObjectService {
     private final ActionExecutor actionExecutor;
     private final DefaultSoftDeleteFilter defaultSoftDeleteFilter;
     private final DynamicQueryService dynamicQueryService;
-    private final GenericAttributeService genericAttributeService;
 
     public PageResponse<Object> filter(ObjectFilterRequest filter) {
         ActionRequest<ObjectFilterRequest> actionRequest = ActionRequest
@@ -40,14 +39,8 @@ public class GenericObjectService {
                 .disableHookEvent(true)
                 .payload(filter)
                 .build();
-        genericAttributeService.getObjectAttribute(filter.getObjectInfo().getName());
-//        return actionExecutor.execute(actionRequest);
-//        GenericTypeResolverFactory.registerPackage("com.msm.digiretail.ordermgnt.dto.order.v2.*");
-//
-//        JavaType javaType = GenericTypeResolverFactory.resolve("List<CustomField>");
-        PageResponse<Object> pageResponse = dynamicQueryService.query(filter);
-        //Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(this::preprocessObject);
-        return pageResponse;
+//        return dynamicQueryService.query(filter);
+        return actionExecutor.execute(actionRequest);
     }
 
     public Object getObjectById(String objectName, UUID id, List<String> returnFields) {
@@ -61,14 +54,26 @@ public class GenericObjectService {
                 .filters(filterGroup)
                 .build();
         objectFilter.setReturnFields(returnFields);
-        defaultSoftDeleteFilter.addDefaultFilter(objectFilter);
-        List<Object> objects = advancedFilterService.filter(objectFilter).getContents();
-        if(Utils.CL.isEmpty(objects)) {
-            throw Errors.throwException(ServiceErrorEnum.NOT_FOUND, id);
-        }
-        Object result = objects.getFirst();
-        preprocessObject(result);
-        return result;
+//        defaultSoftDeleteFilter.addDefaultFilter(objectFilter);
+//        List<Object> objects = advancedFilterService.filter(objectFilter).getContents();
+//        if(Utils.CL.isEmpty(objects)) {
+//            throw Errors.throwException(ServiceErrorEnum.NOT_FOUND, id);
+//        }
+//        Object result = objects.getFirst();
+//        preprocessObject(result);
+
+
+        ActionRequest<ObjectFilterRequest> actionRequest = ActionRequest
+                .<ObjectFilterRequest>builder()
+                .objectName(objectName)
+                .action(Constants.GENERIC_FILTER_BY_ID_ACTION)
+                .disableHookEvent(true)
+                .payload(objectFilter)
+                .build();
+
+        return actionExecutor.execute(actionRequest);
+
+//        return result;
     }
 
     public List<Object> getAllObject(String objectName, List<String> returnFields) {
@@ -109,7 +114,6 @@ public class GenericObjectService {
 
     @Transactional
     public Object updateObject(String objectName, UUID id, Map<String, Object> request) {
-        genericAttributeService.getObjectAttribute(objectName);
         ActionRequest<Map<String, Object>> actionRequest = ActionRequest
                 .<Map<String, Object>>builder()
                 .objectName(objectName)

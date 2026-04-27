@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @SuppressWarnings({"unchecked"})
-@Component
+//@Component
 @RequiredArgsConstructor
 public class PreprocessCustomFieldValueService{
 

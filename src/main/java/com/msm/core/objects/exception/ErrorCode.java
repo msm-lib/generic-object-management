@@ -36,6 +36,8 @@ public final class ErrorCode {
     public static final String INVALID_INPUT_FIELD = "032";
     public static final String INVALID_ATTR_DATA_TYPE_CODE = "033";
     public static final String DUPLICATE_RECORD = "034";
+    public static final String OBJECT_META_DATA_NOT_FOUND = "035";
+
 
     public static final String UNAUTHORIZED_CODE = "097";
     public static final String GENERIC_TECHNICAL_ERROR_CODE = "098";

@@ -7,11 +7,9 @@ import com.msm.core.filter.domain.*;
 import com.msm.core.objects.generic.ObjectConstants;
 import jakarta.persistence.metamodel.EntityType;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 
-@Service
 @RequiredArgsConstructor
 public class DefaultSoftDeleteFilter {
 
