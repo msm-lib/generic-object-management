@@ -115,7 +115,7 @@ public class GenericObjectService {
                 .objectName(objectName)
                 .objectId(id)
                 .action(Constants.Action.DELETE)
-                .payload(Map.of("id", id))
+                .payload(Utils.CL.newHashMap())
                 .build();
         actionExecutor.execute(actionRequest);
     }

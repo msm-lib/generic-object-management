@@ -89,7 +89,7 @@ public class GenericObjectHandler {
     public <X> X delete(ActionRequest<Map<String, Object>> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getObjectName());
         applyAudit(objectMetadata, AuditAction.DELETE, request.getPayload());
-        Object rowEffected = dynamicQueryService.deleteById(objectMetadata, request.getObjectId());
+        Object rowEffected = dynamicQueryService.deleteById(objectMetadata, request.getObjectId(), request.getPayload());
         return (X) rowEffected;
     }
 
