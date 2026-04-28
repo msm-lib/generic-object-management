@@ -2,7 +2,6 @@ package com.msm.core.objects.generic.transaction;
 
 import com.msm.core.hook.common.TransactionHook;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 

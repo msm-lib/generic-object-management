@@ -4,14 +4,12 @@ import com.msm.core.hook.anontation.Handler;
 import com.msm.core.hook.context.ActionRequest;
 import com.msm.core.objects.generic.ObjectConstants;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 @SuppressWarnings({"unchecked"})
-//@Component
 @RequiredArgsConstructor
 public class PreprocessCustomFieldValueService{
 

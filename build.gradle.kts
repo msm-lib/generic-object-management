@@ -43,7 +43,7 @@ repositories {
 }
 extra["jooq.version"] = "3.21.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.4.9"
+val msmCommonVersion = "1.5.0"
 
 dependencies {
 

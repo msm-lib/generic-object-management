@@ -37,6 +37,8 @@ public final class ErrorCode {
     public static final String INVALID_ATTR_DATA_TYPE_CODE = "033";
     public static final String DUPLICATE_RECORD = "034";
     public static final String OBJECT_META_DATA_NOT_FOUND = "035";
+    public static final String OBJECT_NOT_FOUND = "036";
+    public static final String INVALID_UPDATE_PAYLOAD = "037";
 
 
     public static final String UNAUTHORIZED_CODE = "097";

@@ -9,7 +9,6 @@ import com.msm.core.objects.generic.ObjectConstants;
 import com.msm.core.validate.ObjectAttributeFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Optional;

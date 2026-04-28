@@ -1,12 +1,17 @@
 package com.msm.core.objects.config;
 
 import com.msm.core.dynamicquery.context.ObjectMetadataContextHolder;
-import com.msm.core.hook.*;
+import com.msm.core.hook.ActionDefinitionExecutor;
+import com.msm.core.hook.ActionHandlerFactory;
+import com.msm.core.hook.HookDefinitionExecutor;
+import com.msm.core.hook.HookDefinitionHandlerFactory;
+import com.msm.core.hook.TransactionUtils;
 import com.msm.core.hook.anontation.Handler;
 import com.msm.core.hook.anontation.Hook;
 import com.msm.core.hook.common.TransactionHook;
 import com.msm.core.hook.context.AnnotationConfig;
 import com.msm.core.hook.context.KeyDimensionResolver;
+import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.exception.UnableCreateInstanceException;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.ValueValidationHandlerFactory;
@@ -22,20 +27,24 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings({"unchecked"})
 @Slf4j
 //@Component
 @RequiredArgsConstructor
-public class ObjectConfig implements SmartInitializingSingleton {
+public class ObjectBeanConfigInitializing implements SmartInitializingSingleton {
 
     private final ApplicationContext applicationContext;
 
     private final ObjectProvider<ValueValidationHandler> valueValidationHandlers;
     private final ObjectProvider<AttributeSimpleRule> attributeSimpleRules;
     private final ObjectProvider<TransactionHook> transactionHooks;
-    private final ObjectProvider<ObjectMetadataContext> objectMetadataContexts;
+    private final ObjectProvider<ObjectMetadataProvider> objectMetadataContexts;
 
 
     @Override

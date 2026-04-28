@@ -29,7 +29,7 @@ public class GenericHookEvent {
 
     private void simpleFormula(ActionRequest<Map<String, Object>> ctx) {
         //fill free text and default value
-        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectAttribute(ctx.getObjectName());
+        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectMetadata(ctx.getObjectName());
         if(objectAttribute.isEmpty()) {
             return;
         }
@@ -51,7 +51,7 @@ public class GenericHookEvent {
     }
 
     private void validate(ActionRequest<Map<String, Object>> ctx) {
-        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectAttribute(ctx.getObjectName());
+        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectMetadata(ctx.getObjectName());
         if(objectAttribute.isEmpty()) {
             log.warn("No object attribute found with name {}", ctx.getObjectName());
             return;

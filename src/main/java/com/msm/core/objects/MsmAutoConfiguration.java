@@ -10,18 +10,29 @@ import com.msm.core.hook.DefaultHookEngine;
 import com.msm.core.hook.common.ActionExecutor;
 import com.msm.core.hook.common.HookEngine;
 import com.msm.core.hook.common.TransactionHook;
-import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.DynamicRulesFactory;
-import com.msm.core.objects.config.ObjectConfig;
-import com.msm.core.objects.config.ObjectMetadataContext;
+import com.msm.core.objects.config.GenericObjectConfigProperties;
+import com.msm.core.objects.config.ObjectBeanConfigInitializing;
+import com.msm.core.objects.config.provider.ObjectMetadataProvider;
+import com.msm.core.objects.generic.audit.AuditStrategy;
+import com.msm.core.objects.generic.audit.AuditStrategyResolverFactory;
+import com.msm.core.objects.generic.audit.DefaultAuditStrategy;
 import com.msm.core.objects.generic.controller.GenericObjectController;
-import com.msm.core.objects.generic.converter.GenericObjectConverter;
+import com.msm.core.objects.generic.converter.DefaultObjectMappingStrategy;
+import com.msm.core.objects.generic.converter.MappingStrategyResolverFactory;
+import com.msm.core.objects.generic.converter.ObjectMappingStrategy;
+import com.msm.core.objects.generic.handler.GenericObjectHandler;
 import com.msm.core.objects.generic.hook.GenericHookEvent;
 import com.msm.core.objects.generic.repository.DefaultRepositoryFactory;
 import com.msm.core.objects.generic.repository.RepositoryFactory;
 import com.msm.core.objects.generic.rules.GenericObjectRulesService;
-import com.msm.core.objects.generic.service.*;
+import com.msm.core.objects.generic.service.DefaultSoftDeleteFilter;
+import com.msm.core.objects.generic.service.GenericAttributeService;
+import com.msm.core.objects.generic.service.GenericObjectMetadataService;
+import com.msm.core.objects.generic.service.GenericObjectService;
+import com.msm.core.objects.generic.service.PreprocessCustomFieldValueService;
 import com.msm.core.objects.generic.transaction.ObjectTransactionHook;
+import com.msm.core.strategy.StrategyResolver;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.rules.AttributeSimpleRule;
 import com.msm.core.validate.validation.AttributeTypeValidator;
@@ -188,13 +199,13 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ObjectConfig objectConfigInitializer(ApplicationContext applicationContext,
-                                                ObjectProvider<ValueValidationHandler> valueValidationHandlers,
-                                                ObjectProvider<AttributeSimpleRule> attributeSimpleRules,
-                                                ObjectProvider<TransactionHook> transactionHooks,
-                                                ObjectProvider<ObjectMetadataContext> objectMetadataContexts) {
+    public ObjectBeanConfigInitializing objectConfigInitializer(ApplicationContext applicationContext,
+                                                                ObjectProvider<ValueValidationHandler> valueValidationHandlers,
+                                                                ObjectProvider<AttributeSimpleRule> attributeSimpleRules,
+                                                                ObjectProvider<TransactionHook> transactionHooks,
+                                                                ObjectProvider<ObjectMetadataProvider> objectMetadataContexts) {
 
-        return new ObjectConfig(
+        return new ObjectBeanConfigInitializing(
                 applicationContext,
                 valueValidationHandlers,
                 attributeSimpleRules,
@@ -213,12 +224,6 @@ public class MsmAutoConfiguration {
     @ConditionalOnMissingBean
     public GenericAttributeService genericAttributeService() {
         return new GenericAttributeService();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public GenericObjectConverter genericObjectConverter(EntityClassFactory entityClassFactory, GenericObjectMetadataService genericObjectMetadataService) {
-        return new GenericObjectConverter(entityClassFactory, genericObjectMetadataService);
     }
 
     @Bean
@@ -242,14 +247,55 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
+    public GenericObjectMetadataService genericObjectMetadataService(DSLContext dslContext) {
+        return new GenericObjectMetadataService(dslContext);
+    }
+
+    @Bean
     @ConditionalOnMissingBean
-    public GenericObjectExecutor genericObjectExecutor(
-            ActionExecutor actionExecutor,
-            DynamicQueryService dynamicQueryService
+    public AuditStrategy defaultAuditStrategy() {
+        return new DefaultAuditStrategy();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuditStrategyResolverFactory auditStrategyRegistry(List<AuditStrategy> auditStrategies, AuditStrategy defaultAuditStrategy) {
+        return new AuditStrategyResolverFactory(auditStrategies, defaultAuditStrategy);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ObjectMappingStrategy defaultObjectMappingStrategy() {
+        return new DefaultObjectMappingStrategy();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MappingStrategyResolverFactory objectMappingStrategyFactory(List<ObjectMappingStrategy> objectMappingStrategies, ObjectMappingStrategy defaultObjectMappingStrategy) {
+        return new MappingStrategyResolverFactory(objectMappingStrategies, defaultObjectMappingStrategy);
+    }
+
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public MappingStrategyResolverFactory0 objectMappingStrategyFactory0(List<ObjectMappingStrategy> objectMappingStrategies0, ObjectMappingStrategy defaultObjectMappingStrategy0) {
+//        return new MappingStrategyResolverFactory0(objectMappingStrategies0, defaultObjectMappingStrategy0);
+//    }
+
+
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GenericObjectHandler genericObjectExecutor(
+            DynamicQueryService dynamicQueryService,
+            GenericObjectMetadataService genericObjectMetadataService,
+            StrategyResolver<AuditStrategy> auditStrategyFactory,
+            StrategyResolver<ObjectMappingStrategy> objectMappingStrategyFactory
     ) {
-        return new GenericObjectExecutor(
-                actionExecutor,
-                dynamicQueryService
+        return new GenericObjectHandler(
+                dynamicQueryService,
+                genericObjectMetadataService,
+                auditStrategyFactory,
+                objectMappingStrategyFactory
         );
     }
 
@@ -268,17 +314,9 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GenericObjectService genericObjectService(
-            AdvancedFilterService advancedFilterService,
-            ActionExecutor actionExecutor,
-            DefaultSoftDeleteFilter defaultSoftDeleteFilter,
-            DynamicQueryService dynamicQueryService
+            ActionExecutor actionExecutor
     ) {
-        return new GenericObjectService(advancedFilterService, actionExecutor, defaultSoftDeleteFilter, dynamicQueryService);
-    }
-
-    @Bean
-    public GenericObjectMetadataService genericObjectMetadataService(DSLContext dslContext) {
-        return new GenericObjectMetadataService(dslContext);
+        return new GenericObjectService(actionExecutor);
     }
 
     @Bean
@@ -288,7 +326,7 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ObjectMetadataContext objectMetadataContext(GenericObjectMetadataService genericObjectMetadataService) {
-        return new ObjectMetadataContext(genericObjectMetadataService);
+    public ObjectMetadataProvider objectMetadataProvider(GenericObjectMetadataService genericObjectMetadataService) {
+        return new ObjectMetadataProvider(genericObjectMetadataService);
     }
 }

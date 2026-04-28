@@ -31,7 +31,7 @@ import static org.jooq.impl.DSL.selectOne;
 public class GenericObjectMetadataService {
     private final DSLContext dsl;
 
-    public Optional<ObjectMetadata> getObjectAttribute(String objectName) {
+    public Optional<ObjectMetadata> getObjectMetadata(String objectName) {
         String objectKey = Utils.STR.lowCase(objectName);
         Optional<ObjectMetadata> objectAttribute = ObjectMetadataFactory.getObjectMetadata(objectKey);
         if(objectAttribute.isPresent()) {
@@ -111,7 +111,8 @@ public class GenericObjectMetadataService {
                 .build();
 
         insert(objectMetadata, serviceName);
-        getObjectAttribute(objectName);
+        //add object metadata to cache
+        getObjectMetadata(objectName);
         return objectMetadata;
     }
 

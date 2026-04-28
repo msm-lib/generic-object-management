@@ -4,7 +4,6 @@ import com.msm.core.commons.Utils;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.core.ResolvableType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;

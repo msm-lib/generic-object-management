@@ -2,34 +2,30 @@ package com.msm.core.objects.generic.service;
 
 import com.msm.core.commons.Constants;
 import com.msm.core.commons.Utils;
-import com.msm.core.dynamicquery.DynamicQueryService;
-import com.msm.core.filter.AdvancedFilterService;
-import com.msm.core.filter.domain.*;
+import com.msm.core.filter.domain.FilterCondition;
+import com.msm.core.filter.domain.FilterGroup;
+import com.msm.core.filter.domain.FilterOperator;
+import com.msm.core.filter.domain.LogicalOperator;
+import com.msm.core.filter.domain.ObjectFilterRequest;
+import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.hook.common.ActionExecutor;
 import com.msm.core.hook.context.ActionRequest;
-import com.msm.core.objects.exception.Errors;
-import com.msm.core.objects.exception.ServiceErrorEnum;
-import com.msm.core.objects.generic.ObjectConstants;
 import com.msm.core.objects.generic.dto.ObjectConversionRequest;
 import com.msm.core.objects.generic.dto.QueryTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 @SuppressWarnings({"unchecked"})
 @Slf4j
-//@Service
 @RequiredArgsConstructor
 public class GenericObjectService {
 
-    private final AdvancedFilterService advancedFilterService;
     private final ActionExecutor actionExecutor;
-    private final DefaultSoftDeleteFilter defaultSoftDeleteFilter;
-    private final DynamicQueryService dynamicQueryService;
 
     public PageResponse<Object> filter(ObjectFilterRequest filter) {
         ActionRequest<ObjectFilterRequest> actionRequest = ActionRequest
@@ -39,7 +35,6 @@ public class GenericObjectService {
                 .disableHookEvent(true)
                 .payload(filter)
                 .build();
-//        return dynamicQueryService.query(filter);
         return actionExecutor.execute(actionRequest);
     }
 
@@ -54,14 +49,6 @@ public class GenericObjectService {
                 .filters(filterGroup)
                 .build();
         objectFilter.setReturnFields(returnFields);
-//        defaultSoftDeleteFilter.addDefaultFilter(objectFilter);
-//        List<Object> objects = advancedFilterService.filter(objectFilter).getContents();
-//        if(Utils.CL.isEmpty(objects)) {
-//            throw Errors.throwException(ServiceErrorEnum.NOT_FOUND, id);
-//        }
-//        Object result = objects.getFirst();
-//        preprocessObject(result);
-
 
         ActionRequest<ObjectFilterRequest> actionRequest = ActionRequest
                 .<ObjectFilterRequest>builder()
@@ -72,14 +59,11 @@ public class GenericObjectService {
                 .build();
 
         return actionExecutor.execute(actionRequest);
-
-//        return result;
     }
 
     public List<Object> getAllObject(String objectName, List<String> returnFields) {
         ObjectFilterRequest objectFilter = ObjectFilterRequest
                 .builder()
-                .filters(FilterGroup.builder().operator(LogicalOperator.AND).conditions(Utils.CL.newArrayList(defaultSoftDeleteFilter.defaultFilterGroup())).build())
                 .returnFields(returnFields)
                 .objectInfo(ObjectFilterRequest.ObjectInfo.of(objectName))
                 .build();
@@ -121,10 +105,7 @@ public class GenericObjectService {
                 .action(Constants.Action.UPDATE)
                 .payload(request)
                 .build();
-        Object object = actionExecutor.execute(actionRequest);
-        Map<String, Object> result = Utils.O.toMap(object);
-        preprocessObject(result);
-        return result;
+        return actionExecutor.execute(actionRequest);
     }
 
     @Transactional
@@ -156,17 +137,17 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
-    private void preprocessObject(Object object) {
-        if(Map.class.isAssignableFrom(object.getClass())) {
-            Map<String, Object> objectMap = (Map<String, Object>) object;
-            ActionRequest<Map<String, Object>> request = ActionRequest.<Map<String, Object>>builder()
-                    .action(ObjectConstants.UNWRAPPED_CUSTOM_VALUES)
-                    .payload(objectMap)
-                    .disableHookEvent(true)
-                    .build();
-            actionExecutor.execute(request);
-        }
-    }
+//    private void preprocessObject(Object object) {
+//        if(Map.class.isAssignableFrom(object.getClass())) {
+//            Map<String, Object> objectMap = (Map<String, Object>) object;
+//            ActionRequest<Map<String, Object>> request = ActionRequest.<Map<String, Object>>builder()
+//                    .action(ObjectConstants.UNWRAPPED_CUSTOM_VALUES)
+//                    .payload(objectMap)
+//                    .disableHookEvent(true)
+//                    .build();
+//            actionExecutor.execute(request);
+//        }
+//    }
 
     public Object queryTemplate(QueryTemplate request) {
         ActionRequest<QueryTemplate> actionRequest = ActionRequest

@@ -1,17 +1,6 @@
 package com.msm.core.objects.exception;
 
 
-import com.msm.core.exceptions.GenericBaseException;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.List;
-
 //@Slf4j
 //@RestControllerAdvice
 //@Order(Ordered.LOWEST_PRECEDENCE)

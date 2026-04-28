@@ -9,6 +9,7 @@ import com.msm.core.objects.generic.entity.ReferenceFields;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 @SuppressWarnings({"unchecked"})
@@ -45,6 +46,24 @@ public class GenericObjectUtils {
                newData.put(customFieldAttribute.getFieldName(), objectMap);
            }
        }
+    }
+
+    public static void processUnwrappedCustomValues(Object object) {
+        if(Map.class.isAssignableFrom(object.getClass())) {
+            Map<String, Object> objectMap = (Map<String, Object>) object;
+            Optional<Map.Entry<String, Object>> objectCustomEntry =  objectMap
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> ObjectConstants.CUSTOM_VALUE_FIELD_NAME.equals(entry.getKey()))
+                    .findAny();
+            if(objectCustomEntry.isPresent()) {
+                Map<String, Object> customFieldValues = (Map<String, Object>) objectCustomEntry.get().getValue();
+                if(Objects.nonNull(customFieldValues)) {
+                    objectMap.putAll(customFieldValues);
+                    objectMap.remove(objectCustomEntry.get().getKey());
+                }
+            }
+        }
     }
 
     public static void mapping(String targetKey, Object sourceKey, Map<String, Object> source, Map<String, Object> target) {

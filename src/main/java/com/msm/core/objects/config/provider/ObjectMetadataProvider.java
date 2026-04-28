@@ -1,4 +1,4 @@
-package com.msm.core.objects.config;
+package com.msm.core.objects.config.provider;
 
 import com.msm.core.dynamicquery.context.ObjectMetadataContextProvider;
 import com.msm.core.metadata.ObjectMetadata;
@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 import java.util.Optional;
 
 @RequiredArgsConstructor
-public class ObjectMetadataContext implements ObjectMetadataContextProvider {
+public class ObjectMetadataProvider implements ObjectMetadataContextProvider {
 
     private final GenericObjectMetadataService genericObjectMetadataService;
 
     @Override
     public Optional<ObjectMetadata> getObjectMetadata(String name) {
-        return genericObjectMetadataService.getObjectAttribute(name);
+        return genericObjectMetadataService.getObjectMetadata(name);
     }
 }
