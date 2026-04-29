@@ -18,16 +18,15 @@ import com.msm.core.objects.generic.audit.AuditStrategy;
 import com.msm.core.objects.generic.audit.AuditStrategyResolverFactory;
 import com.msm.core.objects.generic.audit.DefaultAuditStrategy;
 import com.msm.core.objects.generic.controller.GenericObjectController;
-import com.msm.core.objects.generic.converter.DefaultObjectMappingStrategy;
+import com.msm.core.objects.generic.converter.CustomValueMappingStrategy;
+import com.msm.core.objects.generic.converter.DefaultCustomValueMappingStrategy;
 import com.msm.core.objects.generic.converter.MappingStrategyResolverFactory;
-import com.msm.core.objects.generic.converter.ObjectMappingStrategy;
 import com.msm.core.objects.generic.handler.GenericObjectHandler;
 import com.msm.core.objects.generic.hook.GenericHookEvent;
 import com.msm.core.objects.generic.repository.DefaultRepositoryFactory;
 import com.msm.core.objects.generic.repository.RepositoryFactory;
 import com.msm.core.objects.generic.rules.GenericObjectRulesService;
 import com.msm.core.objects.generic.service.DefaultSoftDeleteFilter;
-import com.msm.core.objects.generic.service.GenericAttributeService;
 import com.msm.core.objects.generic.service.GenericObjectMetadataService;
 import com.msm.core.objects.generic.service.GenericObjectService;
 import com.msm.core.objects.generic.service.PreprocessCustomFieldValueService;
@@ -220,11 +219,11 @@ public class MsmAutoConfiguration {
         return new DefaultSoftDeleteFilter(entityClassFactory);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public GenericAttributeService genericAttributeService() {
-        return new GenericAttributeService();
-    }
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public GenericAttributeService genericAttributeService() {
+//        return new GenericAttributeService();
+//    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -265,14 +264,14 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ObjectMappingStrategy defaultObjectMappingStrategy() {
-        return new DefaultObjectMappingStrategy();
+    public CustomValueMappingStrategy defaultObjectMappingStrategy() {
+        return new DefaultCustomValueMappingStrategy();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public MappingStrategyResolverFactory objectMappingStrategyFactory(List<ObjectMappingStrategy> objectMappingStrategies, ObjectMappingStrategy defaultObjectMappingStrategy) {
-        return new MappingStrategyResolverFactory(objectMappingStrategies, defaultObjectMappingStrategy);
+    public MappingStrategyResolverFactory objectMappingStrategyFactory(List<CustomValueMappingStrategy> objectMappingStrategies, CustomValueMappingStrategy defaultCustomValueMappingStrategy) {
+        return new MappingStrategyResolverFactory(objectMappingStrategies, defaultCustomValueMappingStrategy);
     }
 
 //    @Bean
@@ -289,7 +288,7 @@ public class MsmAutoConfiguration {
             DynamicQueryService dynamicQueryService,
             GenericObjectMetadataService genericObjectMetadataService,
             StrategyResolver<AuditStrategy> auditStrategyFactory,
-            StrategyResolver<ObjectMappingStrategy> objectMappingStrategyFactory
+            StrategyResolver<CustomValueMappingStrategy> objectMappingStrategyFactory
     ) {
         return new GenericObjectHandler(
                 dynamicQueryService,

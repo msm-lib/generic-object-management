@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.util.Optional;
 
 @Slf4j
-//@Service
 public class GenericAttributeService {
 
     public Optional<ObjectMetadata> getObjectAttribute(String objectName) {

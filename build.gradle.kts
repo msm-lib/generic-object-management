@@ -43,7 +43,7 @@ repositories {
 }
 extra["jooq.version"] = "3.21.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.5.1"
+val msmCommonVersion = "1.5.3"
 
 dependencies {
 
@@ -76,9 +76,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 
 //    implementation(files("/Users/danhnh/Infomation/Development/Lib/common/build/libs/commons-1.0.0.jar"))
-    implementation("com.github.msm-lib:commons:${msmCommonVersion}") {
-        exclude(group = "org.slf4j")
-    }
+    implementation("com.github.msm-lib:commons:${msmCommonVersion}") { exclude(group = "org.slf4j") }
 
     implementation("com.querydsl:querydsl-core:5.1.0")
     implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")

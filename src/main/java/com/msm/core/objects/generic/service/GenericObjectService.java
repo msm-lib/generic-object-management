@@ -79,6 +79,17 @@ public class GenericObjectService {
     }
 
     @Transactional
+    public <T> T createObject(String objectName, Map<String, Object> request, Class<T> clazz) {
+        ActionRequest<Map<String, Object>> actionRequest = ActionRequest
+                .<Map<String, Object>>builder()
+                .objectName(objectName)
+                .action(Constants.Action.CREATE)
+                .payload(request)
+                .build();
+        return Utils.O.toObject((Map<String, Object>) actionExecutor.execute(actionRequest), clazz);
+    }
+
+    @Transactional
     public Object createObject(String objectName, Map<String, Object> request) {
 
         ActionRequest<Map<String, Object>> actionRequest = ActionRequest
