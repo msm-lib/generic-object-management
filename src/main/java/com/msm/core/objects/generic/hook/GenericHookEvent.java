@@ -27,14 +27,10 @@ public class GenericHookEvent {
     private final AttributeValidator defaultAttributeValidator;
     private final GenericObjectMetadataService genericObjectMetadataService;
 
-    private void simpleFormula(ActionRequest<Map<String, Object>> ctx) {
+    private void simpleFormula(ActionRequest<Map<String, Object>> ctx, ObjectMetadata objectMetadata) {
         //fill free text and default value
-        Optional<ObjectMetadata> objectAttribute = genericObjectMetadataService.getObjectMetadata(ctx.getObjectName());
-        if(objectAttribute.isEmpty()) {
-            return;
-        }
         Map<String, Object> payloadMap = ctx.getPayload();
-        objectAttribute.get().getAttributes().forEach(attr -> {
+        objectMetadata.getAttributes().forEach(attr -> {
             if(Boolean.TRUE.equals(attr.getIsFreeText())) {
                 Object value = payloadMap.get(attr.getFieldName());
                 if(Objects.nonNull(value) && value instanceof String) {
@@ -56,14 +52,13 @@ public class GenericHookEvent {
             log.warn("No object attribute found with name {}", ctx.getObjectName());
             return;
         }
-
+        simpleFormula(ctx, objectAttribute.get());
         List<MessageError> messageErrors =  defaultAttributeValidator.validate(objectAttribute.get(), ctx.getPayload());
         log.info(messageErrors.toString());
         if(!messageErrors.isEmpty()) {
             List<ErrorDetail> errorDetails = messageErrors.stream().map(msg -> ErrorDetail.create(msg.getCode(),msg.getMessage())).toList();
             throw Errors.throwException(errorDetails);
         }
-        simpleFormula(ctx);
     }
 
     @HookBeforeCreate
