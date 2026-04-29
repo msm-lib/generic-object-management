@@ -55,65 +55,8 @@ import java.util.List;
 import java.util.concurrent.Executor;
 
 @AutoConfiguration
-//@ConditionalOnClass(DSLContext.class) // 🔥 chỉ enable nếu có jOOQ
 @EnableConfigurationProperties(GenericObjectConfigProperties.class)
 public class MsmAutoConfiguration {
-
-//    @PersistenceContext
-//    private EntityManager entityManager;
-//
-//    @Bean(name = "hookTaskExecutor")
-//    public Executor hookTaskExecutor() {
-//        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-//        executor.setCorePoolSize(2);
-//        executor.setMaxPoolSize(20);
-//        executor.setThreadNamePrefix("HookTaskExecutor-");
-//        executor.initialize();
-//        return executor;
-//    }
-//
-//    @Bean
-//    @ConditionalOnMissingBean(DSLContext.class)
-//    public DynamicQueryService dynamicQueryService(DSLContext dslContext) {
-//        return new DynamicQueryService(dslContext);
-//    }
-//
-//    @Bean
-//    public JPAQueryFactory jpaQueryFactory() {
-//        return new JPAQueryFactory(entityManager);
-//    }
-//
-//    @Bean
-//    public EntityClassFactory entityClassFactory() {
-//        return new EntityClassFactory(entityManager);
-//    }
-//
-//    @Bean
-//    public AdvancedFilterService advancedFilterService(JPAQueryFactory queryFactory, EntityClassFactory entityClassFactory) {
-//        return new AdvancedFilterService(queryFactory, new DefaultPredicateFactory(), entityClassFactory);
-//    }
-//
-//    @Bean
-//    public HookEngine hookEngine(Executor hookTaskExecutor) {
-//        return new DefaultHookEngine(new DefaultAsyncExecutor(hookTaskExecutor));
-//    }
-//
-//    @Bean
-//    public ActionExecutor actionExecutor(HookEngine hookEngine) {
-//        return new DefaultActionExecutor(hookEngine);
-//    }
-//
-//    @Bean(name = "attributeTypeValidator")
-//    public AttributeValidator attributeDataTypeValidator() {
-//        return new AttributeTypeValidator();
-//    }
-//
-//    @Bean(name = "defaultAttributeValidator")
-//    public AttributeValidator attributeValidator(AttributeValidator attributeTypeValidator) {
-//        return new DefaultAttributeValidator(attributeTypeValidator);
-//    }
-
-
 
     // ========= EXECUTOR =========
     @Bean(name = "hookTaskExecutor")
@@ -198,7 +141,7 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ObjectBeanConfigInitializing objectConfigInitializer(ApplicationContext applicationContext,
+    public ObjectBeanConfigInitializing objectBeanConfigInitializing(ApplicationContext applicationContext,
                                                                 ObjectProvider<ValueValidationHandler> valueValidationHandlers,
                                                                 ObjectProvider<AttributeSimpleRule> attributeSimpleRules,
                                                                 ObjectProvider<TransactionHook> transactionHooks,
