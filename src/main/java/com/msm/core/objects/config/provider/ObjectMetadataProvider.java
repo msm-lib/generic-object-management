@@ -2,7 +2,7 @@ package com.msm.core.objects.config.provider;
 
 import com.msm.core.dynamicquery.context.ObjectMetadataContextProvider;
 import com.msm.core.metadata.ObjectMetadata;
-import com.msm.core.objects.generic.service.GenericObjectMetadataService;
+import com.msm.core.objects.service.GenericObjectMetadataService;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Optional;

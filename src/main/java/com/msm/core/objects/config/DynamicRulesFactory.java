@@ -1,6 +1,6 @@
 package com.msm.core.objects.config;
 
-import com.msm.core.objects.generic.annotation.ActionRules;
+import com.msm.core.objects.annotation.ActionRules;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

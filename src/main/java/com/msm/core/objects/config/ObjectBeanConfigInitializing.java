@@ -1,5 +1,6 @@
 package com.msm.core.objects.config;
 
+import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.context.ObjectMetadataContextHolder;
 import com.msm.core.hook.ActionDefinitionExecutor;
 import com.msm.core.hook.ActionHandlerFactory;
@@ -9,7 +10,7 @@ import com.msm.core.hook.TransactionUtils;
 import com.msm.core.hook.anontation.Handler;
 import com.msm.core.hook.anontation.Hook;
 import com.msm.core.hook.common.TransactionHook;
-import com.msm.core.hook.context.AnnotationConfig;
+import com.msm.core.hook.context.AnnotationUtility;
 import com.msm.core.hook.context.KeyDimensionResolver;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.exception.UnableCreateInstanceException;
@@ -27,11 +28,11 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 @SuppressWarnings({"unchecked"})
 @Slf4j
@@ -67,7 +68,7 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
         // sort + register hook
         hookMap.forEach((key, list) -> {
             list.sort(Comparator.comparingInt(HookDefinitionExecutor::getOrder));
-            HookDefinitionHandlerFactory.register(key, List.copyOf(list));
+            HookDefinitionHandlerFactory.register(key, list);
         });
 
         valueValidationHandlers.forEach(ValueValidationHandlerFactory::register);
@@ -94,25 +95,42 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
 
     private void registerHook(Object bean, Method method, Map<String, List<HookDefinitionExecutor>> hookMap) {
 
-        AnnotationConfig hookConfig = AnnotationConfig.fromHookMethod(method);
-        String hookKey = KeyDimensionResolver.resolve(hookConfig);
-        hookMap.computeIfAbsent(hookKey, k -> new ArrayList<>()).add(HookDefinitionExecutor.create(
+//        ActionType type = AnnotationConfig.getActionType(method);
+//        ActionKeyStrategyResolver<?,?,?> actionKeyStrategyResolver = resolveObject(type.contextKeyResolver());
+//        actionKeyStrategyResolver.resolve()
+//        String key = AnnotationConfig.fromHookMethod(method, (ActionKeyStrategyResolver<?, ?, AnnotatedElement>) actionKeyStrategyResolver);
+//        System.out.println(key);
+//        Map<String, Object> stringObjectMap = AnnotationUtility.getMergedAttributes(method, ActionType.class);
+//        System.out.println(stringObjectMap);
+//        ActionKeyStrategyResolver<?, String, AnnotatedElement> actionKeyStrategyResolver0 = (ActionKeyStrategyResolver<?, String, AnnotatedElement>) actionKeyStrategyResolver;
+//        AnnotationConfig hookConfig = AnnotationConfig.fromHookMethod(method);
+//        String hookKey = KeyDimensionResolver.resolve(hookConfig);
+        AnnotationUtility annotationUtility = AnnotationUtility.getAnnotationConfig(method);
+        String hookKey = KeyDimensionResolver.resolveHookKey(annotationUtility);
+        hookMap.computeIfAbsent(hookKey, k -> Utils.CL.newLinkedList()).add(HookDefinitionExecutor.create(
                 bean,
                 method,
-                hookConfig.order(),
-                resolveObject(hookConfig.condition()),
-                hookConfig.stopOnError()
+                annotationUtility.getOrder(),
+                resolveObject(annotationUtility.getCondition()),
+                annotationUtility.isStopOnError()
         ));
     }
 
     private void registerHandler(Object bean, Method method, Handler handler) {
+//        ActionType type = AnnotationConfig.getActionType(method);
+//        ActionKeyStrategyResolver<?,?,?> actionKeyStrategyResolver = resolveObject(type.contextKeyResolver());
+//        ActionKeyStrategyResolver<?, String, AnnotatedElement> actionKeyStrategyResolver0 = (ActionKeyStrategyResolver<?, String, AnnotatedElement>) actionKeyStrategyResolver;
 
-        AnnotationConfig hookConfig = AnnotationConfig.fromHandlerMethod(method);
-        String key = KeyDimensionResolver.resolveHandler(hookConfig);
-        ActionHandlerFactory.register(key, ActionDefinitionExecutor.create(
+//        AnnotationConfig hookConfig = AnnotationConfig.fromHandlerMethod(method);
+//        String name = method.getName();
+//        System.out.println(name);
+//        String key = KeyDimensionResolver.resolveHandler(hookConfig);
+        AnnotationUtility annotationUtility = AnnotationUtility.getAnnotationConfig(method);
+        String handlerKey = KeyDimensionResolver.resolveHandlerKey(annotationUtility);
+        System.out.println(handlerKey);
+        ActionHandlerFactory.register(handlerKey, ActionDefinitionExecutor.create(
                 bean,
                 method,
-                handler,
                 resolveObject(handler.condition()))
         );
     }

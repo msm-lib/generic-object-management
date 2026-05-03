@@ -14,23 +14,25 @@ import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
-import com.msm.core.objects.generic.audit.AuditStrategy;
-import com.msm.core.objects.generic.audit.AuditStrategyResolverFactory;
-import com.msm.core.objects.generic.audit.DefaultAuditStrategy;
-import com.msm.core.objects.generic.controller.GenericObjectController;
-import com.msm.core.objects.generic.converter.CustomValueMappingStrategy;
-import com.msm.core.objects.generic.converter.DefaultCustomValueMappingStrategy;
-import com.msm.core.objects.generic.converter.MappingStrategyResolverFactory;
-import com.msm.core.objects.generic.handler.GenericObjectHandler;
-import com.msm.core.objects.generic.hook.GenericHookEvent;
-import com.msm.core.objects.generic.repository.DefaultRepositoryFactory;
-import com.msm.core.objects.generic.repository.RepositoryFactory;
-import com.msm.core.objects.generic.rules.GenericObjectRulesService;
-import com.msm.core.objects.generic.service.DefaultSoftDeleteFilter;
-import com.msm.core.objects.generic.service.GenericObjectMetadataService;
-import com.msm.core.objects.generic.service.GenericObjectService;
-import com.msm.core.objects.generic.service.PreprocessCustomFieldValueService;
-import com.msm.core.objects.generic.transaction.ObjectTransactionHook;
+import com.msm.core.objects.audit.AuditStrategy;
+import com.msm.core.objects.audit.AuditStrategyResolverFactory;
+import com.msm.core.objects.audit.DefaultAuditStrategy;
+import com.msm.core.objects.controller.GenericObjectController;
+import com.msm.core.objects.converter.CustomValueMappingStrategy;
+import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
+import com.msm.core.objects.converter.MappingStrategyResolverFactory;
+import com.msm.core.objects.handler.GenericObjectHandler;
+import com.msm.core.objects.hook.GenericHookEvent;
+import com.msm.core.objects.hook.system.SystemHookEvent;
+import com.msm.core.objects.repository.DefaultRepositoryFactory;
+import com.msm.core.objects.repository.RepositoryFactory;
+import com.msm.core.objects.rules.GenericObjectRulesService;
+import com.msm.core.objects.service.DefaultSoftDeleteFilter;
+import com.msm.core.objects.service.GenericObjectMetadataService;
+import com.msm.core.objects.service.GenericObjectService;
+import com.msm.core.objects.service.ObjectUsageConfig;
+import com.msm.core.objects.service.PreprocessCustomFieldValueService;
+import com.msm.core.objects.transaction.ObjectTransactionHook;
 import com.msm.core.strategy.StrategyResolver;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.rules.AttributeSimpleRule;
@@ -70,9 +72,7 @@ public class MsmAutoConfiguration {
         return executor;
     }
 
-    // ========= JOOQ =========
     @Bean
-//    @ConditionalOnBean(DSLContext.class)
     @ConditionalOnMissingBean
     public DynamicQueryService dynamicQueryService(DSLContext dslContext) {
         return new DynamicQueryService(dslContext);
@@ -178,6 +178,19 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ObjectUsageConfig objectUsageConfig(GenericObjectMetadataService genericObjectMetadataService) {
+        return new ObjectUsageConfig(genericObjectMetadataService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+//    @ConditionalOnBean(ObjectUsageService.class)
+    public SystemHookEvent systemHookEvent(ObjectUsageConfig objectUsageService) {
+        return new SystemHookEvent(objectUsageService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public RepositoryFactory repositoryFactory(List<JpaRepository<?, ?>> repositories, ListableBeanFactory beanFactory) {
         return new DefaultRepositoryFactory(repositories, beanFactory);
     }
@@ -230,8 +243,8 @@ public class MsmAutoConfiguration {
     public GenericObjectHandler genericObjectExecutor(
             DynamicQueryService dynamicQueryService,
             GenericObjectMetadataService genericObjectMetadataService,
-            StrategyResolver<AuditStrategy> auditStrategyFactory,
-            StrategyResolver<CustomValueMappingStrategy> objectMappingStrategyFactory
+            StrategyResolver<String, AuditStrategy> auditStrategyFactory,
+            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory
     ) {
         return new GenericObjectHandler(
                 dynamicQueryService,
