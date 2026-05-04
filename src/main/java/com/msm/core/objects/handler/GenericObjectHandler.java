@@ -10,6 +10,7 @@ import com.msm.core.hook.anontation.Handler;
 import com.msm.core.hook.context.ActionContext;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.ObjectConstants;
 import com.msm.core.objects.exception.Errors;
 import com.msm.core.objects.exception.ServiceErrorEnum;
 import com.msm.core.objects.audit.AuditAction;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 public class GenericObjectHandler {
@@ -55,6 +57,12 @@ public class GenericObjectHandler {
 
     @Handler(action = Constants.Action.CREATE)
     public Map<String, Object> create(ActionContext<Map<String, Object>> request) {
+        Object code = request.getPayload().get("code");
+        if(Objects.isNull(code)) {
+            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(request.getResource())), () -> "");
+            int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+            request.getPayload().put("code", Utils.toCodeGenerator(prefix, len));
+        }
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
         applyAudit(objectMetadata, AuditAction.CREATE, request.getPayload());
         mapTo(objectMetadata, request.getPayload());
