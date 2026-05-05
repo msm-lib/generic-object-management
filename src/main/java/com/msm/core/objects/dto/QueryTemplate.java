@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * {
  *   "query": "order_summary",
- *   "params": {
+ *   "parameters": {
  *     "status": "PAID",
  *     "minItemCount": 2,
  *     "fromDate": "2025-01-01",

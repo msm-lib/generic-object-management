@@ -1,12 +1,11 @@
 package com.msm.core.objects.transaction;
 
-import com.msm.core.hook.common.TransactionHook;
+import com.msm.core.action.transaction.TransactionHook;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
-//@Component
 public class ObjectTransactionHook implements TransactionHook {
 
     @Override

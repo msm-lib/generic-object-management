@@ -7,7 +7,6 @@ import org.jeasy.rules.api.RuleListener;
 import org.jeasy.rules.api.Rules;
 import org.jeasy.rules.core.DefaultRulesEngine;
 
-//@Service
 @RequiredArgsConstructor
 public class GenericObjectRulesService {
     private final DynamicRulesFactory rulesFactory;

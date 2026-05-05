@@ -1,7 +1,7 @@
 package com.msm.core.objects.service;
 
-import com.msm.core.hook.anontation.Handler;
-import com.msm.core.hook.context.ActionContext;
+import com.msm.core.action.annotations.action.Handler;
+import com.msm.core.action.context.ActionContext;
 import com.msm.core.objects.ObjectConstants;
 import lombok.RequiredArgsConstructor;
 

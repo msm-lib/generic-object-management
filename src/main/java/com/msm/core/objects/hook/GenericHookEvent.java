@@ -1,9 +1,9 @@
 package com.msm.core.objects.hook;
 
+import com.msm.core.action.annotations.hook.crud.HookBeforeCreate;
+import com.msm.core.action.annotations.hook.crud.HookBeforeUpdate;
+import com.msm.core.action.context.ActionContext;
 import com.msm.core.commons.Utils;
-import com.msm.core.hook.anontation.crud.HookBeforeCreate;
-import com.msm.core.hook.anontation.crud.HookBeforeUpdate;
-import com.msm.core.hook.context.ActionContext;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.exception.ErrorDetail;
 import com.msm.core.objects.exception.Errors;
@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-//@Component
 @RequiredArgsConstructor
 public class GenericHookEvent {
     private final AttributeValidator defaultAttributeValidator;

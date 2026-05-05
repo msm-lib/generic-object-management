@@ -1,22 +1,22 @@
 package com.msm.core.objects;
 
+import com.msm.core.action.executor.ActionExecutor;
+import com.msm.core.action.executor.DefaultActionExecutor;
+import com.msm.core.action.executor.DefaultAsyncExecutor;
+import com.msm.core.action.hook.DefaultHookEngine;
+import com.msm.core.action.hook.HookEngine;
+import com.msm.core.action.transaction.TransactionHook;
 import com.msm.core.dynamicquery.DynamicQueryService;
 import com.msm.core.filter.AdvancedFilterService;
 import com.msm.core.filter.DefaultPredicateFactory;
 import com.msm.core.filter.EntityClassFactory;
-import com.msm.core.hook.DefaultActionExecutor;
-import com.msm.core.hook.DefaultAsyncExecutor;
-import com.msm.core.hook.DefaultHookEngine;
-import com.msm.core.hook.common.ActionExecutor;
-import com.msm.core.hook.common.HookEngine;
-import com.msm.core.hook.common.TransactionHook;
+import com.msm.core.objects.audit.AuditStrategy;
+import com.msm.core.objects.audit.AuditStrategyResolverFactory;
+import com.msm.core.objects.audit.DefaultAuditStrategy;
 import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
-import com.msm.core.objects.audit.AuditStrategy;
-import com.msm.core.objects.audit.AuditStrategyResolverFactory;
-import com.msm.core.objects.audit.DefaultAuditStrategy;
 import com.msm.core.objects.controller.GenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
@@ -60,7 +60,6 @@ import java.util.concurrent.Executor;
 @EnableConfigurationProperties(GenericObjectConfigProperties.class)
 public class MsmAutoConfiguration {
 
-    // ========= EXECUTOR =========
     @Bean(name = "hookTaskExecutor")
     @ConditionalOnMissingBean(name = "hookTaskExecutor")
     public Executor hookTaskExecutor(GenericObjectConfigProperties props) {
@@ -78,23 +77,19 @@ public class MsmAutoConfiguration {
         return new DynamicQueryService(dslContext);
     }
 
-    // ========= JPA =========
     @Bean
-//    @ConditionalOnBean(EntityManager.class)
     @ConditionalOnMissingBean
     public JPAQueryFactory jpaQueryFactory(EntityManager entityManager) {
         return new JPAQueryFactory(entityManager);
     }
 
     @Bean
-//    @ConditionalOnBean(EntityManager.class)
     @ConditionalOnMissingBean
     public EntityClassFactory entityClassFactory(EntityManager entityManager) {
         return new EntityClassFactory(entityManager);
     }
 
     @Bean
-//    @ConditionalOnBean({JPAQueryFactory.class, EntityClassFactory.class})
     @ConditionalOnMissingBean
     public AdvancedFilterService advancedFilterService(
             JPAQueryFactory queryFactory,
@@ -107,7 +102,6 @@ public class MsmAutoConfiguration {
         );
     }
 
-    // ========= HOOK =========
     @Bean
     @ConditionalOnMissingBean
     public HookEngine hookEngine(Executor hookTaskExecutor) {
@@ -120,7 +114,6 @@ public class MsmAutoConfiguration {
         return new DefaultActionExecutor(hookEngine);
     }
 
-    // ========= VALIDATOR =========
     @Bean(name = "attributeTypeValidator")
     @ConditionalOnMissingBean(name = "attributeTypeValidator")
     public AttributeValidator attributeTypeValidator() {
@@ -162,12 +155,6 @@ public class MsmAutoConfiguration {
         return new DefaultSoftDeleteFilter(entityClassFactory);
     }
 
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public GenericAttributeService genericAttributeService() {
-//        return new GenericAttributeService();
-//    }
-
     @Bean
     @ConditionalOnMissingBean
     public GenericHookEvent genericHookEvent(
@@ -184,7 +171,6 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-//    @ConditionalOnBean(ObjectUsageService.class)
     public SystemHookEvent systemHookEvent(ObjectUsageConfig objectUsageService) {
         return new SystemHookEvent(objectUsageService);
     }
@@ -230,14 +216,6 @@ public class MsmAutoConfiguration {
         return new MappingStrategyResolverFactory(objectMappingStrategies, defaultCustomValueMappingStrategy);
     }
 
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public MappingStrategyResolverFactory0 objectMappingStrategyFactory0(List<ObjectMappingStrategy> objectMappingStrategies0, ObjectMappingStrategy defaultObjectMappingStrategy0) {
-//        return new MappingStrategyResolverFactory0(objectMappingStrategies0, defaultObjectMappingStrategy0);
-//    }
-
-
-
     @Bean
     @ConditionalOnMissingBean
     public GenericObjectHandler genericObjectExecutor(
@@ -268,9 +246,7 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public GenericObjectService genericObjectService(
-            ActionExecutor actionExecutor
-    ) {
+    public GenericObjectService genericObjectService(ActionExecutor actionExecutor) {
         return new GenericObjectService(actionExecutor);
     }
 

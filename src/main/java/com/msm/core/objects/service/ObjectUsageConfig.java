@@ -1,6 +1,6 @@
 package com.msm.core.objects.service;
 
-import com.msm.core.hook.context.ActionContext;
+import com.msm.core.action.context.ActionContext;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;

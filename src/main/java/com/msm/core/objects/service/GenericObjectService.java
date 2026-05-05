@@ -1,5 +1,7 @@
 package com.msm.core.objects.service;
 
+import com.msm.core.action.context.ActionContext;
+import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Constants;
 import com.msm.core.commons.Utils;
 import com.msm.core.filter.domain.FilterCondition;
@@ -8,8 +10,6 @@ import com.msm.core.filter.domain.FilterOperator;
 import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
-import com.msm.core.hook.common.ActionExecutor;
-import com.msm.core.hook.context.ActionContext;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.QueryTemplate;
 import lombok.RequiredArgsConstructor;

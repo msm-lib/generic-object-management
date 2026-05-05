@@ -1,5 +1,7 @@
 package com.msm.core.objects.entity;
 
+import com.msm.core.metadata.annotation.AttributeDefinition;
+import com.msm.core.metadata.annotation.AttributeDefinitionRef;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Transient;
@@ -21,6 +23,7 @@ public abstract class BusinessProcessEntity extends AuditingEntity {
     @Column(name = "workflow_instance_id")
     private UUID workflowInstanceId;
 
+    @AttributeDefinition(attributeRef = @AttributeDefinitionRef(fieldName = "recordTypeIdReference", objectRef = "recordtypes"))
     @Column(name = "record_type_id")
     private UUID recordTypeId;
 

@@ -61,6 +61,18 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.filter(filter));
     }
 
+    @Operation(summary = "Lookup object", description = "List of object")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = PageResponse.class)))})
+    @PostMapping("/generic/objects/{objectName}/lookup")
+    public ResponseEntity<PageResponse<Object>> lookupObjects(
+            @PathVariable("objectName") String objectName,
+            @RequestBody ObjectFilterRequest filter) {
+
+        filter.setObjectInfo(ObjectFilterRequest.ObjectInfo.builder().name(objectName).build());
+        return ResponseEntity.ok(genericObjectService.filter(filter));
+    }
+
     @Operation(summary = "Get object by id", description = "Returns object")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
