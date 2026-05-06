@@ -104,7 +104,7 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public HookEngine hookEngine(Executor hookTaskExecutor) {
+    public HookEngine hookEngine(@Qualifier("hookTaskExecutor") Executor hookTaskExecutor) {
         return new DefaultHookEngine(new DefaultAsyncExecutor(hookTaskExecutor));
     }
 

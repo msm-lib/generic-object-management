@@ -23,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ReflectionUtils;
@@ -46,15 +48,16 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
     private final ObjectProvider<TransactionHook> transactionHooks;
     private final ObjectProvider<ObjectMetadataProvider> objectMetadataContexts;
 
-
     @Override
     public void afterSingletonsInstantiated() {
 
         Map<String, List<HookDefinitionExecutor>> hookMap = new HashMap<>();
 
         // Scan bean with annotation
-        Map<String, Object> beans = applicationContext.getBeansOfType(Object.class);
-        for (Object bean : beans.values()) {
+        String[] beanNames = applicationContext.getBeanDefinitionNames();
+        for (String beanName : beanNames) {
+            if(isStepScopedBean(beanName)) continue;
+            Object bean = applicationContext.getBean(beanName);
             Class<?> targetClass = getTargetClass(bean);
             if (!hasAnyCandidate(targetClass)) continue;
             ReflectionUtils.doWithMethods(
@@ -76,6 +79,12 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
         TransactionUtils.setHook(transactionHooks.getIfAvailable());
         ObjectMetadataContextHolder.setObjectMetadataContextProvider(objectMetadataContexts.getIfAvailable());
         log.info("ObjectConfigInitializer initialized successfully");
+    }
+
+    private boolean isStepScopedBean(String beanName) {
+        ConfigurableListableBeanFactory factory = (ConfigurableListableBeanFactory) applicationContext.getAutowireCapableBeanFactory();
+        BeanDefinition def = factory.getBeanDefinition(beanName);
+        return "step".equals(def.getScope());
     }
 
     private void processMethod(Object bean, Method method, Map<String, List<HookDefinitionExecutor>> hookMap) {
