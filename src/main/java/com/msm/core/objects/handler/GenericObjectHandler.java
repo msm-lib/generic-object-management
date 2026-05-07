@@ -87,9 +87,9 @@ public class GenericObjectHandler {
         }
         applyAudit(objectMetadata, AuditAction.UPDATE, oldData);
         mapTo(objectMetadata, oldData);
-        dynamicQueryService.updateById(objectMetadata, request.getObjectId(), oldData);
-        mapFrom(objectMetadata, oldData);
-        return oldData;
+        Map<String, Object> returnValueUpdated = dynamicQueryService.updateById(objectMetadata, request.getObjectId(), oldData);
+        mapFrom(objectMetadata, returnValueUpdated);
+        return returnValueUpdated;
     }
 
     @Handler(action = Constants.Action.DELETE)

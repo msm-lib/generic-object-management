@@ -108,6 +108,25 @@ public class MsmAutoConfiguration {
         return new DefaultHookEngine(new DefaultAsyncExecutor(hookTaskExecutor));
     }
 
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public RequestDataValidator defaultRequestDataValidator(
+//            @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator) {
+//        return new DefaultRequestDataValidator(defaultAttributeValidator);
+//    }
+
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public RequestDataProcessor defaultRequestDataProcessor(RequestDataValidator defaultRequestDataValidator) {
+//        return new DefaultRequestDataProcessor(defaultRequestDataValidator);
+//    }
+//
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public RequestDataProcessorFactory requestDataProcessorFactory(List<RequestDataProcessor> requestDataProcessors, RequestDataProcessor defaultRequestDataProcessor) {
+//        return new RequestDataProcessorFactory(requestDataProcessors, defaultRequestDataProcessor);
+//    }
+
     @Bean
     @ConditionalOnMissingBean
     public ActionExecutor actionExecutor(HookEngine hookEngine) {
@@ -171,8 +190,12 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SystemHookEvent systemHookEvent(ObjectUsageConfig objectUsageService) {
-        return new SystemHookEvent(objectUsageService);
+    public SystemHookEvent systemHookEvent(
+            ObjectUsageConfig objectUsageService,
+            @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator,
+            GenericObjectMetadataService genericObjectMetadataService
+    ) {
+        return new SystemHookEvent(objectUsageService, defaultAttributeValidator, genericObjectMetadataService);
     }
 
     @Bean
