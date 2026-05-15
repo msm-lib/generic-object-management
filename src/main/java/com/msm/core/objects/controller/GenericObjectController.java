@@ -4,6 +4,7 @@ import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.dto.ObjectConversionRequest;
+import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
@@ -132,8 +133,9 @@ public class GenericObjectController {
     @DeleteMapping("/generic/objects/{objectName}/{id}")
     public ResponseEntity<Object> deleteObject(
             @PathVariable("objectName") String objectName,
-            @PathVariable("id") UUID id) {
-        genericObjectService.deleteObject(objectName, id);
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "version", required = false) Long version) {
+        genericObjectService.deleteObject(objectName, id, version);
         return ResponseEntity.ok(id);
     }
 
@@ -143,9 +145,9 @@ public class GenericObjectController {
     @DeleteMapping("/generic/objects/{objectName}/bulk")
     public ResponseEntity<Object> deleteObjects(
             @PathVariable("objectName") String objectName,
-            @RequestBody List<UUID> ids) {
-        genericObjectService.deleteObject(objectName, ids);
-        return ResponseEntity.ok(ids);
+            @RequestBody List<ObjectDeleteRequest> deleteRequests) {
+        genericObjectService.deleteObject(objectName, deleteRequests);
+        return ResponseEntity.ok(deleteRequests.stream().toList());
     }
 
     @Operation(summary = "Conversion object", description = "Returns ids deleted")

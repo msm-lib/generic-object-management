@@ -11,6 +11,7 @@ import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.objects.dto.ObjectConversionRequest;
+import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,20 +106,20 @@ public class GenericObjectService {
     }
 
     @Transactional
-    public void deleteObject(String objectName, UUID id) {
+    public void deleteObject(String objectName, UUID id, Long version) {
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()
                 .resource(objectName)
                 .objectId(id)
                 .action(Constants.Action.DELETE)
-                .payload(Utils.CL.newHashMap())
+                .payload(Utils.CL.newHashMap(Constants.VERSION, version))
                 .build();
         actionExecutor.execute(actionRequest);
     }
 
     @Transactional
-    public void deleteObject(String objectName, List<UUID> ids) {
-        ids.forEach(id -> deleteObject(objectName, id));
+    public void deleteObject(String objectName, List<ObjectDeleteRequest> params) {
+        params.forEach(param -> deleteObject(objectName, param.getId(), param.getVersion()));
     }
 
     @Transactional
