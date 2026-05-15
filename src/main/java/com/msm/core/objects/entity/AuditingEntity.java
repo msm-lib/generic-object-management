@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @Data
 @MappedSuperclass
-public abstract class AuditingEntity implements ReferenceFields{
+public abstract class AuditingEntity {
 
     @Size(max = 300)
     @Column(name = "created_by")
