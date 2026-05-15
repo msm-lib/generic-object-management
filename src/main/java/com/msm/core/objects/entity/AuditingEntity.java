@@ -2,14 +2,12 @@ package com.msm.core.objects.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.Transient;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -49,7 +47,4 @@ public abstract class AuditingEntity {
         this.updatedBy = username;
         this.updatedAt = Instant.now();
     }
-
-    @Transient
-    public abstract List<String> referenceFields();
 }
