@@ -17,6 +17,7 @@ import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
+import com.msm.core.objects.connector.MasterDataApiService;
 import com.msm.core.objects.controller.GenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
@@ -30,7 +31,7 @@ import com.msm.core.objects.rules.GenericObjectRulesService;
 import com.msm.core.objects.service.DefaultSoftDeleteFilter;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
-import com.msm.core.objects.service.ObjectUsageConfig;
+import com.msm.core.objects.service.ObjectDependencyServiceImpl;
 import com.msm.core.objects.service.PreprocessCustomFieldValueService;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
 import com.msm.core.strategy.StrategyResolver;
@@ -52,6 +53,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -68,7 +71,7 @@ public class MsmAutoConfiguration {
         executor.setMaxPoolSize(props.getExecutor().getMax());
         executor.setThreadNamePrefix("HookTaskExecutor-");
         executor.initialize();
-        return executor;
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
     @Bean
@@ -184,14 +187,17 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ObjectUsageConfig objectUsageConfig(GenericObjectMetadataService genericObjectMetadataService) {
-        return new ObjectUsageConfig(genericObjectMetadataService);
+    public ObjectDependencyServiceImpl objectDependencyService(
+            GenericObjectHandler genericObjectHandler,
+            MasterDataApiService masterDataApiService
+    ) {
+        return new ObjectDependencyServiceImpl(genericObjectHandler, masterDataApiService);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public SystemHookEvent systemHookEvent(
-            ObjectUsageConfig objectUsageService,
+            ObjectDependencyServiceImpl objectUsageService,
             @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator,
             GenericObjectMetadataService genericObjectMetadataService
     ) {
@@ -283,4 +289,23 @@ public class MsmAutoConfiguration {
     public ObjectMetadataProvider objectMetadataProvider(GenericObjectMetadataService genericObjectMetadataService) {
         return new ObjectMetadataProvider(genericObjectMetadataService);
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MasterDataApiService masterDataApiService(RestClient restClient) {
+        return new MasterDataApiService(restClient);
+    }
+
+//    @Bean
+//    @ConditionalOnMissingBean
+//    public RestClient.Builder baseBuilder() {
+//        return RestClient.builder();
+//    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RestClient restClient(RestClient.Builder builder) {
+        return builder.build();
+    }
+
 }

@@ -14,8 +14,7 @@ import com.msm.core.objects.ObjectConstants;
 import com.msm.core.objects.audit.AuditAction;
 import com.msm.core.objects.audit.AuditStrategy;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
-import com.msm.core.objects.exception.Errors;
-import com.msm.core.objects.exception.ServiceErrorEnum;
+import com.msm.core.objects.exception.ObjectErrors;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.strategy.StrategyResolver;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,7 @@ public class GenericObjectHandler {
     private final StrategyResolver<String, AuditStrategy> auditStrategyFactory;
     private final StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory;
 
-    @Handler(action = Constants.GENERIC_FILTER_ACTION)
+    @Handler(action = Constants.FilterAction.FILTER_OBJECT)
     public PageResponse<Map<String, Object>> filter(ActionContext<ObjectFilterRequest> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
         PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request.getPayload());
@@ -39,7 +38,7 @@ public class GenericObjectHandler {
         return pageResponse;
     }
 
-    @Handler(action = Constants.GENERIC_ALL_OBJECT_ACTION)
+    @Handler(action = Constants.FilterAction.FILTER_ALL_OBJECT)
     public List<Map<String, Object>> findAllObject(ActionContext<ObjectFilterRequest> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
         PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request.getPayload());
@@ -47,12 +46,20 @@ public class GenericObjectHandler {
         return pageResponse.getContents();
     }
 
-    @Handler(action = Constants.GENERIC_FILTER_BY_ID_ACTION)
+    @Handler(action = Constants.FilterAction.FILTER_OBJECT_BY_ID)
     public Map<String, Object> findObjectById(ActionContext<ObjectFilterRequest> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
         PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request.getPayload());
         Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
         return Utils.CL.getFirst(pageResponse.getContents());
+    }
+
+    @Handler(action = Constants.FilterAction.FILTER_ALL_OBJECT_BY_IDS)
+    public List<Map<String, Object>> findAllObjectByIds(ActionContext<ObjectFilterRequest> request) {
+        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
+        PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request.getPayload());
+        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
+        return pageResponse.getContents();
     }
 
     @Handler(action = Constants.Action.CREATE)
@@ -71,19 +78,42 @@ public class GenericObjectHandler {
         return returnObject;
     }
 
+    @Handler(action = Constants.Action.BULK_CREATE)
+    public List<Map<String, Object>> bulkCreate(ActionContext<List<Map<String, Object>>> request) {
+        request.getPayload().forEach(objectMap -> {
+            Object code = objectMap.get("code");
+            if(Objects.isNull(code)) {
+                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(request.getResource())), () -> "");
+                int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+                objectMap.put("code", Utils.toCodeGenerator(prefix, len));
+            }
+        });
+
+        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
+        request.getPayload().forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+
+        List<Map<String, Object>> returnObjects = dynamicQueryService.insertReturning(objectMetadata, request.getPayload());
+        returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+
+        return returnObjects;
+    }
+
     @Handler(action = Constants.Action.UPDATE)
     public Map<String, Object> update(ActionContext<Map<String, Object>> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
         Map<String, Object> newData = request.getPayload();
         Map<String, Object> oldData = dynamicQueryService.findById(objectMetadata, request.getObjectId(), null);
         if (oldData == null) {
-            throw Errors.throwException(ServiceErrorEnum.OBJECT_NOT_FOUND, request.getObjectId());
+            throw ObjectErrors.notFound(objectMetadata.getName());
         }
         mapFrom(objectMetadata, oldData);
         try {
             Utils.O.updateValues(oldData, newData);
         } catch (JsonMappingException e) {
-            throw Errors.throwException(ServiceErrorEnum.INVALID_UPDATE_PAYLOAD, e.getOriginalMessage());
+            throw ObjectErrors.payloadInvalidException(objectMetadata.getName(), e.getMessage(), e);
         }
         applyAudit(objectMetadata, AuditAction.UPDATE, oldData);
         mapTo(objectMetadata, oldData);
@@ -102,10 +132,47 @@ public class GenericObjectHandler {
         return dynamicQueryService.deleteById(objectMetadata, request.getObjectId(), request.getPayload());
     }
 
+    public List<Map<String, Object>> bulkCreateIgnoreConflictOnConstraintName(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
+        request.forEach(objectMap -> {
+            Object code = objectMap.get("code");
+            if(Objects.isNull(code)) {
+                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+                int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+                objectMap.put("code", Utils.toCodeGenerator(prefix, len));
+            }
+        });
+
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        request.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+
+        List<Map<String, Object>> returnObjects = dynamicQueryService.insertReturningInsertedRows(objectMetadata, request, conflictOnConstraintName);
+        returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+
+        return returnObjects;
+    }
+
+    public Map<String, Object> createIgnoreConflictOnConstraintName(String objectName, Map<String, Object> request, String conflictOnConstraintName) {
+        Object code = request.get("code");
+        if(Objects.isNull(code)) {
+            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+            int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+            request.put("code", Utils.toCodeGenerator(prefix, len));
+        }
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        applyAudit(objectMetadata, AuditAction.CREATE, request);
+        mapTo(objectMetadata, request);
+        Map<String, Object> returnObject = dynamicQueryService.insertReturningInsertedRow(objectMetadata, request, conflictOnConstraintName);
+        mapFrom(objectMetadata, returnObject);
+        return returnObject;
+    }
+
     private ObjectMetadata getObjectMetadata(String objectName) {
         return genericObjectMetadataService
                 .getObjectMetadata(objectName)
-                .orElseThrow(() -> Errors.throwException(ServiceErrorEnum.OBJECT_META_DATA_NOT_FOUND));
+                .orElseThrow(() -> ObjectErrors.notFound(objectName));
     }
 
     private void mapFrom(ObjectMetadata objectMetadata, Map<String, Object> object) {

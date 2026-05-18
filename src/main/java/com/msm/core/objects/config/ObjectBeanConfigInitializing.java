@@ -13,7 +13,7 @@ import com.msm.core.action.transaction.TransactionUtils;
 import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.context.ObjectMetadataContextHolder;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
-import com.msm.core.objects.exception.UnableCreateInstanceException;
+import com.msm.core.objects.exception.ObjectErrors;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.ValueValidationHandlerFactory;
 import com.msm.core.validate.attr.rules.AttributeSimpleRule;
@@ -78,7 +78,6 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
 
         TransactionUtils.setHook(transactionHooks.getIfAvailable());
         ObjectMetadataContextHolder.setObjectMetadataContextProvider(objectMetadataContexts.getIfAvailable());
-        log.info("ObjectConfigInitializer initialized successfully");
     }
 
     private boolean isStepScopedBean(String beanName) {
@@ -150,7 +149,7 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
             try {
                 return clazz.getDeclaredConstructor().newInstance();
             } catch (Exception ex) {
-                throw new UnableCreateInstanceException("Cannot create instance: " + clazz, ex);
+                throw ObjectErrors.createInstanceException("Cannot create instance: " + clazz, ex);
             }
         }
     }

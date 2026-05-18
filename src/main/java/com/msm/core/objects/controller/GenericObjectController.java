@@ -89,7 +89,7 @@ public class GenericObjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = List.class)))})
     @GetMapping("/generic/objects/{objectName}")
-    public ResponseEntity<List<Object>> getAllObjects(
+    public ResponseEntity<List<Map<String, Object>>> getAllObjects(
             @PathVariable("objectName") String objectName,
             @RequestParam(value = "returnFields", required = false) List<String> returnFields) {
 
@@ -100,7 +100,7 @@ public class GenericObjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}")
-    public ResponseEntity<Object> createObjects(
+    public ResponseEntity<Map<String, Object>> createObjects(
             @PathVariable("objectName") String objectName,
             @RequestBody Map<String, Object> request) {
         return ResponseEntity.ok(genericObjectService.createObject(objectName, request));
@@ -110,7 +110,7 @@ public class GenericObjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}/bulk")
-    public ResponseEntity<Object> createBulkObject(
+    public ResponseEntity<List<Map<String, Object>>> createBulkObject(
             @PathVariable("objectName") String objectName,
             @RequestBody List<Map<String, Object>> request) {
         return ResponseEntity.ok(genericObjectService.createObjects(objectName, request));
@@ -120,7 +120,7 @@ public class GenericObjectController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PutMapping("/generic/objects/{objectName}/{id}")
-    public ResponseEntity<Object> updateObject(
+    public ResponseEntity<Map<String, Object>> updateObject(
             @PathVariable("objectName") String objectName,
             @PathVariable("id") UUID id,
             @RequestBody Map<String, Object> request) {
@@ -146,7 +146,7 @@ public class GenericObjectController {
     public ResponseEntity<Object> deleteObjects(
             @PathVariable("objectName") String objectName,
             @RequestBody List<ObjectDeleteRequest> deleteRequests) {
-        genericObjectService.deleteObject(objectName, deleteRequests);
+        genericObjectService.deleteObjects(objectName, deleteRequests);
         return ResponseEntity.ok(deleteRequests.stream().toList());
     }
 

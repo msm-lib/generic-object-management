@@ -31,13 +31,13 @@ public class GenericObjectService {
         ActionContext<ObjectFilterRequest> actionContext = ActionContext
                 .<ObjectFilterRequest>builder()
                 .resource(filter.getObjectInfo().getName())
-                .action(Constants.GENERIC_FILTER_ACTION)
+                .action(Constants.FilterAction.FILTER_OBJECT)
                 .payload(filter)
                 .build();
         return actionExecutor.execute(actionContext);
     }
 
-    public Object getObjectById(String objectName, UUID id, List<String> returnFields) {
+    public Map<String, Object> getObjectById(String objectName, UUID id, List<String> returnFields) {
         FilterGroup filterGroup = new FilterGroup();
         filterGroup.setOperator(LogicalOperator.AND);
         FilterCondition filterCondition = FilterCondition.create(Constants.OBJECT_PK, FilterOperator.EQUALS, id);
@@ -52,14 +52,36 @@ public class GenericObjectService {
         ActionContext<ObjectFilterRequest> actionRequest = ActionContext
                 .<ObjectFilterRequest>builder()
                 .resource(objectName)
-                .action(Constants.GENERIC_FILTER_BY_ID_ACTION)
+                .action(Constants.FilterAction.FILTER_OBJECT_BY_ID)
                 .payload(objectFilter)
                 .build();
 
         return actionExecutor.execute(actionRequest);
     }
 
-    public List<Object> getAllObject(String objectName, List<String> returnFields) {
+    public List<Map<String, Object>> getAllObjectByIds(String objectName, List<UUID> ids, List<String> returnFields) {
+        FilterGroup filterGroup = new FilterGroup();
+        filterGroup.setOperator(LogicalOperator.AND);
+        FilterCondition filterCondition = FilterCondition.create(Constants.OBJECT_PK, FilterOperator.IN, ids);
+        filterGroup.setConditions(Utils.CL.newArrayList(filterCondition));
+        ObjectFilterRequest objectFilter = ObjectFilterRequest
+                .builder()
+                .objectInfo(ObjectFilterRequest.ObjectInfo.of(objectName))
+                .filters(filterGroup)
+                .build();
+        objectFilter.setReturnFields(returnFields);
+
+        ActionContext<ObjectFilterRequest> actionRequest = ActionContext
+                .<ObjectFilterRequest>builder()
+                .resource(objectName)
+                .action(Constants.FilterAction.FILTER_ALL_OBJECT_BY_IDS)
+                .payload(objectFilter)
+                .build();
+
+        return actionExecutor.execute(actionRequest);
+    }
+
+    public List<Map<String, Object>> getAllObject(String objectName, List<String> returnFields) {
         ObjectFilterRequest objectFilter = ObjectFilterRequest
                 .builder()
                 .returnFields(returnFields)
@@ -68,7 +90,7 @@ public class GenericObjectService {
         ActionContext<ObjectFilterRequest> actionRequest = ActionContext
                 .<ObjectFilterRequest>builder()
                 .resource(objectName)
-                .action(Constants.GENERIC_ALL_OBJECT_ACTION)
+                .action(Constants.FilterAction.FILTER_ALL_OBJECT)
                 .payload(objectFilter)
                 .build();
 
@@ -76,7 +98,7 @@ public class GenericObjectService {
     }
 
     @Transactional
-    public Object createObject(String objectName, Map<String, Object> request) {
+    public Map<String, Object> createObject(String objectName, Map<String, Object> request) {
 
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()
@@ -89,12 +111,20 @@ public class GenericObjectService {
     }
 
     @Transactional
-    public List<Object> createObjects(String objectName, List<Map<String, Object>> request) {
-        return request.stream().map(objectMap -> createObject(objectName, objectMap)).toList();
+    public List<Map<String, Object>> createObjects(String objectName, List<Map<String, Object>> request) {
+
+        ActionContext<List<Map<String, Object>>> actionRequest = ActionContext
+                .<List<Map<String, Object>>>builder()
+                .resource(objectName)
+                .action(Constants.Action.BULK_CREATE)
+                .payload(request)
+                .build();
+
+        return actionExecutor.execute(actionRequest);
     }
 
     @Transactional
-    public Object updateObject(String objectName, UUID id, Map<String, Object> request) {
+    public Map<String, Object> updateObject(String objectName, UUID id, Map<String, Object> request) {
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()
                 .resource(objectName)
@@ -118,7 +148,7 @@ public class GenericObjectService {
     }
 
     @Transactional
-    public void deleteObject(String objectName, List<ObjectDeleteRequest> params) {
+    public void deleteObjects(String objectName, List<ObjectDeleteRequest> params) {
         params.forEach(param -> deleteObject(objectName, param.getId(), param.getVersion()));
     }
 

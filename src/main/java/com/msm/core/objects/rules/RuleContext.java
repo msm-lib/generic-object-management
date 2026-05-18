@@ -1,6 +1,6 @@
 package com.msm.core.objects.rules;
 
-import com.msm.core.objects.exception.ErrorDetail;
+import com.msm.core.objects.exception.ObjectErrorDetail;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -10,7 +10,7 @@ public class RuleContext<T> {
     private String groupName;
     private T source;
     private RuleResult ruleResult;
-    public void addError(ErrorDetail msg) {
+    public void addError(ObjectErrorDetail msg) {
         this.ruleResult.getErrors().add(msg);
     }
 }
