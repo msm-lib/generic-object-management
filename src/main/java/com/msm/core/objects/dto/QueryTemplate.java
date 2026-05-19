@@ -1,11 +1,13 @@
 package com.msm.core.objects.dto;
 
 import com.msm.core.filter.domain.pageable.PageRequest;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.Map;
 
 /**
+ * <pre>
  * {
  *   "query": "order_summary",
  *   "parameters": {
@@ -22,8 +24,10 @@ import java.util.Map;
  *     "size": 20
  *   }
  * }
+ * </pre>
  */
 @Data
+@Builder
 public class QueryTemplate {
     private String query;
     private Map<String, Object> parameters;
