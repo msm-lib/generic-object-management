@@ -56,56 +56,74 @@ public class GenericObjectHandler {
 
     @Handler(action = Constants.FilterAction.FILTER_ALL_OBJECT_BY_IDS)
     public List<Map<String, Object>> findAllObjectByIds(ActionContext<ObjectFilterRequest> request) {
-        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
-        PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request.getPayload());
-        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
-        return pageResponse.getContents();
+        return findAllObjectByIds(request.getResource(), request.getPayload());
     }
 
     @Handler(action = Constants.Action.CREATE)
     public Map<String, Object> create(ActionContext<Map<String, Object>> request) {
-        Object code = request.getPayload().get("code");
-        if(Objects.isNull(code)) {
-            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(request.getResource())), () -> "");
-            int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
-            request.getPayload().put("code", Utils.toCodeGenerator(prefix, len));
-        }
-        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
-        applyAudit(objectMetadata, AuditAction.CREATE, request.getPayload());
-        mapTo(objectMetadata, request.getPayload());
-        Map<String, Object> returnObject = dynamicQueryService.insertReturning(objectMetadata, request.getPayload());
-        mapFrom(objectMetadata, returnObject);
-        return returnObject;
+        return create(request.getResource(), request.getPayload());
     }
 
     @Handler(action = Constants.Action.BULK_CREATE)
     public List<Map<String, Object>> bulkCreate(ActionContext<List<Map<String, Object>>> request) {
-        request.getPayload().forEach(objectMap -> {
+        return bulkCreate(request.getResource(), request.getPayload());
+    }
+
+    @Handler(action = Constants.Action.UPDATE)
+    public Map<String, Object> update(ActionContext<Map<String, Object>> request) {
+        return update(request.getResource(), request.getObjectId(), request.getPayload());
+    }
+
+    @Handler(action = Constants.Action.DELETE)
+    public int delete(ActionContext<Map<String, Object>> request) {
+        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
+        if(!isSoftDeleted(objectMetadata)) {
+            return dynamicQueryService.forceDeleteById(objectMetadata, request.getObjectId());
+        }
+        applyAudit(objectMetadata, AuditAction.DELETE, request.getPayload());
+        return dynamicQueryService.deleteById(objectMetadata, request.getObjectId(), request.getPayload());
+    }
+
+    public Map<String, Object> create(String objectName, Map<String, Object> payload) {
+        Object code = payload.get("code");
+        if(Objects.isNull(code)) {
+            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+            int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+            payload.put("code", Utils.toCodeGenerator(prefix, len));
+        }
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        applyAudit(objectMetadata, AuditAction.CREATE, payload);
+        mapTo(objectMetadata, payload);
+        Map<String, Object> returnObject = dynamicQueryService.insertReturning(objectMetadata, payload);
+        mapFrom(objectMetadata, returnObject);
+        return returnObject;
+    }
+
+    public List<Map<String, Object>> bulkCreate(String objectName, List<Map<String, Object>> payload) {
+        payload.forEach(objectMap -> {
             Object code = objectMap.get("code");
             if(Objects.isNull(code)) {
-                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(request.getResource())), () -> "");
+                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
                 int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
                 objectMap.put("code", Utils.toCodeGenerator(prefix, len));
             }
         });
 
-        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
-        request.getPayload().forEach(objectMap -> {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        payload.forEach(objectMap -> {
             applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
             mapTo(objectMetadata, objectMap);
         });
 
-        List<Map<String, Object>> returnObjects = dynamicQueryService.insertReturning(objectMetadata, request.getPayload());
+        List<Map<String, Object>> returnObjects = dynamicQueryService.insertReturning(objectMetadata, payload);
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
 
         return returnObjects;
     }
 
-    @Handler(action = Constants.Action.UPDATE)
-    public Map<String, Object> update(ActionContext<Map<String, Object>> request) {
-        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
-        Map<String, Object> newData = request.getPayload();
-        Map<String, Object> oldData = dynamicQueryService.findById(objectMetadata, request.getObjectId(), null);
+    public Map<String, Object> update(String objectName, Object id, Map<String, Object> newData) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        Map<String, Object> oldData = dynamicQueryService.findById(objectMetadata, id, null);
         if (oldData == null) {
             throw ObjectErrors.notFound(objectMetadata.getName());
         }
@@ -117,19 +135,50 @@ public class GenericObjectHandler {
         }
         applyAudit(objectMetadata, AuditAction.UPDATE, oldData);
         mapTo(objectMetadata, oldData);
-        Map<String, Object> returnValueUpdated = dynamicQueryService.updateById(objectMetadata, request.getObjectId(), oldData);
+        Map<String, Object> returnValueUpdated = dynamicQueryService.updateById(objectMetadata, id, oldData);
         mapFrom(objectMetadata, returnValueUpdated);
         return returnValueUpdated;
     }
 
-    @Handler(action = Constants.Action.DELETE)
-    public int delete(ActionContext<Map<String, Object>> request) {
-        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
+    public int delete(String objectName, Object id, Long version) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         if(!isSoftDeleted(objectMetadata)) {
-            return dynamicQueryService.forceDeleteById(objectMetadata, request.getObjectId());
+            return dynamicQueryService.forceDeleteById(objectMetadata, id);
         }
-        applyAudit(objectMetadata, AuditAction.DELETE, request.getPayload());
-        return dynamicQueryService.deleteById(objectMetadata, request.getObjectId(), request.getPayload());
+        Map<String, Object> payload = Utils.CL.newHashMap(Constants.VERSION, version);
+        applyAudit(objectMetadata, AuditAction.DELETE, payload);
+        return dynamicQueryService.deleteById(objectMetadata, id, payload);
+    }
+
+    public Map<String, Object> findObjectById(String objectName, Object id, List<String> returnFields) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        Map<String, Object> objectMap = dynamicQueryService.findById(objectMetadata, id, returnFields);
+        mapFrom(objectMetadata, objectMap);
+        return objectMap;
+    }
+
+    public Map<String, Object> findObjectById(String objectName, Object id) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        Map<String, Object> objectMap = dynamicQueryService.findById(objectMetadata, id);
+        mapFrom(objectMetadata, objectMap);
+        return objectMap;
+    }
+
+    public List<Map<String, Object>> findAllObjectByIds(String objectName, ObjectFilterRequest request) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.filter(objectMetadata, request);
+        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
+        return pageResponse.getContents();
+    }
+
+    public List<Map<String, Object>> findAllObjectByIds(String objectName, List<Object> ids) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        return dynamicQueryService.findAllByIds(objectMetadata, ids);
+    }
+
+    public List<Map<String, Object>> findAllObjectByIds(String objectName, List<Object> ids, List<String> returnFields) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        return dynamicQueryService.findAllByIds(objectMetadata, ids, returnFields);
     }
 
     public List<Map<String, Object>> bulkCreateIgnoreConflictOnConstraintName(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
