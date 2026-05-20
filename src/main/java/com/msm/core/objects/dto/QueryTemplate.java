@@ -1,8 +1,11 @@
 package com.msm.core.objects.dto;
 
 import com.msm.core.filter.domain.pageable.PageRequest;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.Map;
 
@@ -26,7 +29,10 @@ import java.util.Map;
  * }
  * </pre>
  */
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class QueryTemplate {
     private String query;

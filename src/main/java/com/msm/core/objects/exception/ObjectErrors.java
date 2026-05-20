@@ -1,5 +1,8 @@
 package com.msm.core.objects.exception;
 
+import com.msm.core.exceptions.CommonErrors;
+import com.msm.core.exceptions.ObjectNotFoundException;
+
 import java.util.List;
 
 public class ObjectErrors {
@@ -12,7 +15,7 @@ public class ObjectErrors {
     }
 
     public static ObjectNotFoundException notFound(String name) {
-        return new ObjectNotFoundException(name);
+        return CommonErrors.objectNotFound(name);
     }
 
     public static PayloadInvalidException payloadInvalidException(String name, String msg, Throwable cause) {
