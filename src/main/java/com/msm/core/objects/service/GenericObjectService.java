@@ -162,7 +162,7 @@ public class GenericObjectService {
                 .resource(objectName)
                 .objectId(id)
                 .action(actionName)
-                .payload(request)
+                .payload(Utils.O.defaultIfNull(request, Utils.CL::newHashMap))
                 .build();
         return actionExecutor.execute(actionRequest);
     }
