@@ -152,6 +152,22 @@ public class GenericObjectService {
     }
 
     @Transactional
+    public Map<String, Object> objectAction(
+            String objectName,
+            UUID id,
+            String actionName,
+            Map<String, Object> request) {
+        ActionContext<Map<String, Object>> actionRequest = ActionContext
+                .<Map<String, Object>>builder()
+                .resource(objectName)
+                .objectId(id)
+                .action(actionName)
+                .payload(request)
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
     public void deleteObject(String objectName, UUID id, Long version) {
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()

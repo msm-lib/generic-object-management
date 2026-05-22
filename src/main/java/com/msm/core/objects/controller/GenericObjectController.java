@@ -96,7 +96,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.getAllObject(objectName, returnFields));
     }
 
-    @Operation(summary = "Create generic object", description = "Returns object created")
+    @Operation(summary = "Create object", description = "Returns object created")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}")
@@ -106,7 +106,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.createObject(objectName, request));
     }
 
-    @Operation(summary = "Create multiple generic object", description = "Returns objects created")
+    @Operation(summary = "Create bulk object", description = "Returns objects created")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}/bulk")
@@ -116,7 +116,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.createObjects(objectName, request));
     }
 
-    @Operation(summary = "Update generic object", description = "Returns object updated")
+    @Operation(summary = "Update object", description = "Returns object updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PutMapping("/generic/objects/{objectName}/{id}")
@@ -127,7 +127,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.updateObject(objectName, id, request));
     }
 
-    @Operation(summary = "Update generic object", description = "Returns object list updated")
+    @Operation(summary = "Update list object", description = "Returns object list updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PutMapping("/generic/objects/{objectName}/bulk")
@@ -137,7 +137,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.updateObjects(objectName, request));
     }
 
-    @Operation(summary = "Update generic object", description = "Returns id deleted")
+    @Operation(summary = "Delete object", description = "Returns id deleted")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @DeleteMapping("/generic/objects/{objectName}/{id}")
@@ -175,6 +175,19 @@ public class GenericObjectController {
     public ResponseEntity<Object> createQuery(
             @RequestBody QueryTemplate request) {
         return ResponseEntity.ok(genericObjectService.queryTemplate(request));
+    }
+
+    @Operation(summary = "Update generic object", description = "Returns id deleted")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PutMapping("/generic/objects/{objectName}/{id}/{actionName}")
+    public ResponseEntity<Map<String, Object>> objectAction(
+            @PathVariable("objectName") String objectName,
+            @PathVariable("id") UUID id,
+            @PathVariable("actionName") String actionName,
+            @RequestBody Map<String, Object> request) {
+
+        return ResponseEntity.ok(genericObjectService.objectAction(objectName, id, actionName, request));
     }
 
     @Operation(
