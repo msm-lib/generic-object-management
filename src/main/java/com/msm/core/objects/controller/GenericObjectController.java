@@ -185,7 +185,7 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @PathVariable("id") UUID id,
             @PathVariable("actionName") String actionName,
-            @RequestBody Map<String, Object> request) {
+            @RequestBody(required = false) Map<String, Object> request) {
 
         return ResponseEntity.ok(genericObjectService.objectAction(objectName, id, actionName, request));
     }
