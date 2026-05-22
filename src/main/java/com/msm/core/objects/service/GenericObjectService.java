@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -133,6 +134,21 @@ public class GenericObjectService {
                 .payload(request)
                 .build();
         return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> updateObjects(String objectName, List<Map<String, Object>> request) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        request.forEach((requestMap) -> {
+            Object id = requestMap.get(Constants.OBJECT_PK);
+            UUID objectUUID = null;
+            if (id != null) {
+                objectUUID = UUID.fromString(id.toString());
+            }
+            Map<String, Object> objectUpdatedMap = updateObject(objectName, objectUUID, requestMap);
+            results.add(objectUpdatedMap);
+        });
+        return results;
     }
 
     @Transactional

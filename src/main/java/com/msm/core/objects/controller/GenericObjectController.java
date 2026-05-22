@@ -127,6 +127,16 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.updateObject(objectName, id, request));
     }
 
+    @Operation(summary = "Update generic object", description = "Returns object list updated")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PutMapping("/generic/objects/{objectName}/bulk")
+    public ResponseEntity<List<Map<String, Object>>> updateObject(
+            @PathVariable("objectName") String objectName,
+            @RequestBody List<Map<String, Object>> request) {
+        return ResponseEntity.ok(genericObjectService.updateObjects(objectName, request));
+    }
+
     @Operation(summary = "Update generic object", description = "Returns id deleted")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
