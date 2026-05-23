@@ -168,6 +168,20 @@ public class GenericObjectService {
     }
 
     @Transactional
+    public List<Map<String, Object>> objectActionBulkUpdate(
+            String objectName,
+            String actionName,
+            List<Map<String, Object>> request) {
+        ActionContext<List<Map<String, Object>>> actionRequest = ActionContext
+                .<List<Map<String, Object>>>builder()
+                .resource(objectName)
+                .action(actionName)
+                .payload(Utils.O.defaultIfNull(request, Utils.CL::newArrayList))
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
     public void deleteObject(String objectName, UUID id, Long version) {
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()
