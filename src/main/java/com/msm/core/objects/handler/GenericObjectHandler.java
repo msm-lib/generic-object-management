@@ -173,12 +173,14 @@ public class GenericObjectHandler {
 
     public List<Map<String, Object>> findAllObjectByIds(String objectName, List<Object> ids) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        return dynamicQueryService.findAllByIds(objectMetadata, ids);
+        return findAllObjectByIds(objectName, ids, objectMetadata.getFieldNames());
     }
 
     public List<Map<String, Object>> findAllObjectByIds(String objectName, List<Object> ids, List<String> returnFields) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        return dynamicQueryService.findAllByIds(objectMetadata, ids, returnFields);
+        List<Map<String, Object>> results = dynamicQueryService.findAllByIds(objectMetadata, ids, returnFields);
+        Utils.CL.emptyIfNull(results).forEach(object -> mapFrom(objectMetadata, object));
+        return results;
     }
 
     public List<Map<String, Object>> bulkCreateIgnoreConflictOnConstraintName(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
