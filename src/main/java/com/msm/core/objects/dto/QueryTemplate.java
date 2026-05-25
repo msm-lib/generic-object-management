@@ -1,5 +1,6 @@
 package com.msm.core.objects.dto;
 
+import com.msm.core.filter.domain.SearchRequest;
 import com.msm.core.filter.domain.pageable.PageRequest;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +37,7 @@ import java.util.Map;
 @Builder
 public class QueryTemplate {
     private String query;
+    private SearchRequest search;
     private Map<String, Object> parameters;
     private PageRequest pageRequest;
 }
