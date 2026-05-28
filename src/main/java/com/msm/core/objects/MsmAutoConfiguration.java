@@ -18,6 +18,7 @@ import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.connector.MasterDataApiService;
+import com.msm.core.objects.connector.internal.InternalHttpClient;
 import com.msm.core.objects.controller.GenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
@@ -296,16 +297,16 @@ public class MsmAutoConfiguration {
         return new MasterDataApiService(restClient);
     }
 
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public RestClient.Builder baseBuilder() {
-//        return RestClient.builder();
-//    }
-
     @Bean
     @ConditionalOnMissingBean
     public RestClient restClient(RestClient.Builder builder) {
         return builder.build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public InternalHttpClient internalHttpClient(RestClient restClient) {
+        return new InternalHttpClient(restClient);
     }
 
 }
