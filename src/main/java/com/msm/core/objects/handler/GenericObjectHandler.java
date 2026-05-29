@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class GenericObjectHandler {
@@ -140,6 +141,15 @@ public class GenericObjectHandler {
         return returnValueUpdated;
     }
 
+    public List<Map<String, Object>> update(String objectName, List<Map<String, Object>> newDataList) {
+        return newDataList
+                .stream()
+                .map(newData -> {
+                    Object id = newData.get(Constants.OBJECT_PK);
+                    return update(objectName, id, newData);
+                }).collect(Collectors.toList());
+    }
+
     public int delete(String objectName, Object id, Long version) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         if(!isSoftDeleted(objectMetadata)) {
@@ -148,6 +158,16 @@ public class GenericObjectHandler {
         Map<String, Object> payload = Utils.CL.newHashMap(Constants.VERSION, version);
         applyAudit(objectMetadata, AuditAction.DELETE, payload);
         return dynamicQueryService.deleteById(objectMetadata, id, payload);
+    }
+
+    public int delete(String objectName, List<Map<String, Object>> payload) {
+        int totalRowEffect = 0;
+        for(Map<String, Object> map : payload) {
+            Object id = map.get(Constants.OBJECT_PK);
+            Long version = (Long) map.get(Constants.VERSION);
+            totalRowEffect = totalRowEffect + delete(objectName, id, version);
+        }
+        return totalRowEffect;
     }
 
     public Map<String, Object> findObjectById(String objectName, Object id, List<String> returnFields) {
