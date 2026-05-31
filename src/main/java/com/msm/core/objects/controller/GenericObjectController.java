@@ -113,7 +113,7 @@ public class GenericObjectController {
     public ResponseEntity<List<Map<String, Object>>> createBulkObject(
             @PathVariable("objectName") String objectName,
             @RequestBody List<Map<String, Object>> request) {
-        return ResponseEntity.ok(genericObjectService.createObjects(objectName, request));
+        return ResponseEntity.ok(genericObjectService.bulkCreateObject(objectName, request));
     }
 
     @Operation(summary = "Update object", description = "Returns object updated")
@@ -134,7 +134,7 @@ public class GenericObjectController {
     public ResponseEntity<List<Map<String, Object>>> updateObject(
             @PathVariable("objectName") String objectName,
             @RequestBody List<Map<String, Object>> request) {
-        return ResponseEntity.ok(genericObjectService.updateObjects(objectName, request));
+        return ResponseEntity.ok(genericObjectService.bulkUpdateObject(objectName, request));
     }
 
     @Operation(summary = "Delete object", description = "Returns id deleted")

@@ -7,6 +7,14 @@ import com.msm.core.action.hook.DefaultHookEngine;
 import com.msm.core.action.hook.HookEngine;
 import com.msm.core.action.transaction.TransactionHook;
 import com.msm.core.dynamicquery.DynamicQueryService;
+import com.msm.core.dynamicquery.command.DefaultDynamicDelete;
+import com.msm.core.dynamicquery.command.DefaultDynamicInsert;
+import com.msm.core.dynamicquery.command.DefaultDynamicUpdate;
+import com.msm.core.dynamicquery.command.DynamicDelete;
+import com.msm.core.dynamicquery.command.DynamicInsert;
+import com.msm.core.dynamicquery.command.DynamicUpdate;
+import com.msm.core.dynamicquery.query.DefaultDynamicFilterQuery;
+import com.msm.core.dynamicquery.query.DynamicFilterQuery;
 import com.msm.core.filter.AdvancedFilterService;
 import com.msm.core.filter.DefaultPredicateFactory;
 import com.msm.core.filter.EntityClassFactory;
@@ -75,10 +83,38 @@ public class MsmAutoConfiguration {
         return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
+    @Bean(name = "dynamicFilterQuery")
+    @ConditionalOnMissingBean
+    public DynamicFilterQuery dynamicFilterQuery(DSLContext dslContext) {
+        return new DefaultDynamicFilterQuery(dslContext);
+    }
+
+    @Bean(name = "dynamicInsert")
+    @ConditionalOnMissingBean
+    public DynamicInsert dynamicInsert(DSLContext dslContext) {
+        return new DefaultDynamicInsert(dslContext);
+    }
+
+    @Bean(name = "dynamicUpdate")
+    @ConditionalOnMissingBean
+    public DynamicUpdate dynamicUpdate(DSLContext dslContext) {
+        return new DefaultDynamicUpdate(dslContext);
+    }
+
+    @Bean(name = "dynamicDelete")
+    @ConditionalOnMissingBean
+    public DynamicDelete dynamicDelete(DSLContext dslContext, @Qualifier("dynamicUpdate") DynamicUpdate dynamicUpdate) {
+        return new DefaultDynamicDelete(dslContext, dynamicUpdate);
+    }
+
     @Bean
     @ConditionalOnMissingBean
-    public DynamicQueryService dynamicQueryService(DSLContext dslContext) {
-        return new DynamicQueryService(dslContext);
+    public DynamicQueryService dynamicQueryService(
+            @Qualifier("dynamicFilterQuery") DynamicFilterQuery dynamicFilterQuery,
+            @Qualifier("dynamicInsert") DynamicInsert dynamicInsert,
+            @Qualifier("dynamicUpdate") DynamicUpdate dynamicUpdate,
+            @Qualifier("dynamicDelete") DynamicDelete dynamicDelete) {
+        return new DynamicQueryService(dynamicFilterQuery, dynamicInsert, dynamicUpdate, dynamicDelete);
     }
 
     @Bean
@@ -198,11 +234,11 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SystemHookEvent systemHookEvent(
-            ObjectDependencyServiceImpl objectUsageService,
+            ObjectDependencyServiceImpl objectDependencyService,
             @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator,
             GenericObjectMetadataService genericObjectMetadataService
     ) {
-        return new SystemHookEvent(objectUsageService, defaultAttributeValidator, genericObjectMetadataService);
+        return new SystemHookEvent(objectDependencyService, defaultAttributeValidator, genericObjectMetadataService);
     }
 
     @Bean
