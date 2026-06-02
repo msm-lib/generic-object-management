@@ -10,10 +10,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MasterDataApiService {
 
-    private final RestClient restClient;
+    private final RestClient internalRestClient;
 
     public void post(List<Map<String, Object>> requests) {
-        restClient
+        internalRestClient
                 .post()
                 .uri("http://localhost:8090/master-data/api/v1/cn/portal/generic/objects/objectdependency/bulk")
                 .contentType(MediaType.APPLICATION_JSON)

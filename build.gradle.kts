@@ -89,6 +89,9 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq:3.21.1")
+
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
+    implementation("com.auth0:java-jwt:4.4.0")
 }
 
 tasks.jar {

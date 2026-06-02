@@ -6,6 +6,9 @@ import com.msm.core.exceptions.common.ErrorCode;
 public enum ObjectErrorCode implements ErrorCode {
     OBJECT_NOT_FOUND("OBJECT_NOT_FOUND"),
     INTERNAL_OBJECT_CLIENT("INTERNAL_OBJECT_CLIENT"),
+    INTEGRATION_REQUEST_ERROR("INTEGRATION_REQUEST_ERROR"),
+    AUTH_ERROR("AUTH_ERROR"),
+    RATE_LIMIT("RATE_LIMIT"),
     PAYLOAD_INVALID("PAYLOAD_INVALID");
 
     private final String code;

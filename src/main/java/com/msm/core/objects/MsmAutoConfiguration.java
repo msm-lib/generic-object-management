@@ -23,10 +23,10 @@ import com.msm.core.objects.audit.AuditStrategyResolverFactory;
 import com.msm.core.objects.audit.DefaultAuditStrategy;
 import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
+import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.connector.MasterDataApiService;
-import com.msm.core.objects.connector.internal.InternalHttpClient;
 import com.msm.core.objects.controller.GenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
@@ -34,12 +34,27 @@ import com.msm.core.objects.converter.MappingStrategyResolverFactory;
 import com.msm.core.objects.handler.GenericObjectHandler;
 import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
+import com.msm.core.objects.integration.DefaultRequestClient;
+import com.msm.core.objects.integration.IntegrationClient;
+import com.msm.core.objects.integration.IntegrationClientExchange;
+import com.msm.core.objects.integration.RequestClient;
+import com.msm.core.objects.integration.data.retry.RetryDefaultProperties;
+import com.msm.core.objects.integration.factory.AuthProviderRegistryFactory;
+import com.msm.core.objects.integration.middleware.AuthMiddleware;
+import com.msm.core.objects.integration.factory.AuthProviderRegistry;
+import com.msm.core.objects.integration.middleware.HttpMiddlewareChain;
+import com.msm.core.objects.integration.middleware.Middleware;
+import com.msm.core.objects.integration.retry.RetryConfigResolver;
+import com.msm.core.objects.integration.middleware.TracingMiddleware;
+import com.msm.core.objects.integration.retry.ResilienceRetryExecutor;
+import com.msm.core.objects.integration.retry.RetryExecutor;
 import com.msm.core.objects.repository.DefaultRepositoryFactory;
 import com.msm.core.objects.repository.RepositoryFactory;
 import com.msm.core.objects.rules.GenericObjectRulesService;
 import com.msm.core.objects.service.DefaultSoftDeleteFilter;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
+import com.msm.core.objects.service.IntegrationLogService;
 import com.msm.core.objects.service.ObjectDependencyServiceImpl;
 import com.msm.core.objects.service.PreprocessCustomFieldValueService;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
@@ -50,27 +65,80 @@ import com.msm.core.validate.validation.AttributeTypeValidator;
 import com.msm.core.validate.validation.AttributeValidator;
 import com.msm.core.validate.validation.DefaultAttributeValidator;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
+import lombok.extern.slf4j.Slf4j;
 import org.jooq.DSLContext;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
+import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+@Slf4j
 @AutoConfiguration
-@EnableConfigurationProperties(GenericObjectConfigProperties.class)
+@EnableConfigurationProperties({
+        GenericObjectConfigProperties.class,
+        IntegrationProperties.class
+})
 public class MsmAutoConfiguration {
+
+    @Bean
+    public BeanPostProcessor msmEntityManagerFactoryPostProcessor() {
+        System.out.println("=======> [MSM LIB] ĐÃ KHỞI TẠO BỘ CHẶN EM_FACTORY <=======");
+
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessBeforeInitialization(Object bean, String beanName) {
+                if (bean instanceof LocalContainerEntityManagerFactoryBean emfBean) {
+                    List<String> entityClassNames = new ArrayList<>();
+                    try {
+                        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
+                        MetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(resolver);
+                        String packagePath = "com/msm/core/objects/entity/integration/**/*.class";
+                        Resource[] resources = resolver.getResources("classpath*:" + packagePath);
+                        for (Resource resource : resources) {
+                            if (resource.isReadable()) {
+                                var reader = readerFactory.getMetadataReader(resource);
+                                if (reader.getAnnotationMetadata().hasAnnotation(Entity.class.getName())) {
+                                    entityClassNames.add(reader.getClassMetadata().getClassName());
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
+                    }
+
+                    if (!entityClassNames.isEmpty()) {
+                        emfBean.setPersistenceUnitPostProcessors(pui -> {
+                            for (String className : entityClassNames) {
+                                pui.addManagedClassName(className);
+                            }
+                        });
+                    }
+                }
+                return bean;
+            }
+        };
+    }
 
     @Bean(name = "hookTaskExecutor")
     @ConditionalOnMissingBean(name = "hookTaskExecutor")
@@ -329,20 +397,94 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MasterDataApiService masterDataApiService(RestClient restClient) {
+    public MasterDataApiService masterDataApiService(@Qualifier("internalRestClient") RestClient restClient) {
         return new MasterDataApiService(restClient);
     }
 
-    @Bean
+    @Bean("internalRestClient")
     @ConditionalOnMissingBean
-    public RestClient restClient(RestClient.Builder builder) {
+    @Qualifier("internalRestClient")
+    public RestClient internalRestClient(RestClient.Builder builder) {
         return builder.build();
     }
 
-    @Bean
+    @Bean(name = "internalRequestClient")
     @ConditionalOnMissingBean
-    public InternalHttpClient internalHttpClient(RestClient restClient) {
-        return new InternalHttpClient(restClient);
+    @Qualifier("internalRequestClient")
+    RequestClient internalRequestClient(@Qualifier("internalRestClient") RestClient restClient) {
+        return new DefaultRequestClient(restClient);
     }
 
+    @Bean("integrationRestClient")
+    @Qualifier("integrationRestClient")
+    public RestClient integrationRestClient(RestClient.Builder builder) {
+        return builder.build();
+    }
+
+    @Bean(name = "integrationRequestClient")
+    @Qualifier("integrationRequestClient")
+    RequestClient integrationRequestClient(@Qualifier("integrationRestClient") RestClient restClient) {
+        return new DefaultRequestClient(restClient);
+    }
+
+    @Bean
+    public AuthProviderRegistry authProviderRegistry(
+            RetryExecutor retryExecutor,
+            @Qualifier("integrationRequestClient") RequestClient requestClient,
+            IntegrationProperties integrationProperties) {
+        return new AuthProviderRegistryFactory().create(requestClient, retryExecutor, integrationProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    AuthMiddleware authMiddleware(AuthProviderRegistry authProviderRegistry) {
+        return new AuthMiddleware(authProviderRegistry);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    TracingMiddleware tracingMiddleware(IntegrationLogService integrationLogService) {
+        return new TracingMiddleware(integrationLogService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RetryConfigResolver retryConfigResolver(IntegrationProperties properties) {
+        return new RetryConfigResolver(properties, new RetryDefaultProperties());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RetryExecutor retryExecutor(RetryConfigResolver retryConfigResolver) {
+        return new ResilienceRetryExecutor(retryConfigResolver);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    HttpMiddlewareChain chain(List<Middleware> middlewares) {
+        return new HttpMiddlewareChain(middlewares);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IntegrationClientExchange integrationClientExchange(
+            @Qualifier("integrationRequestClient") RequestClient requestClient,
+            HttpMiddlewareChain chain,
+            RetryExecutor retryExecutor) {
+        return new IntegrationClientExchange(requestClient, chain, retryExecutor);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    IntegrationClient integrationClient(
+            IntegrationProperties integrationProperties,
+            IntegrationClientExchange integrationClientExchange) {
+        return new IntegrationClient(integrationProperties, integrationClientExchange);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    IntegrationLogService integrationService(GenericObjectHandler genericObjectHandler) {
+        return new IntegrationLogService(genericObjectHandler);
+    }
 }
