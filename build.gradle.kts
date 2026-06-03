@@ -43,12 +43,12 @@ repositories {
 }
 extra["jooq.version"] = "3.21.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.7.2"
+val msmCommonVersion = "1.7.3"
 
 dependencies {
 
     // Spring core
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.3.0"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.8"))
     implementation("org.springframework:spring-context")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     // Spring auto config
