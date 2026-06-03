@@ -1,5 +1,6 @@
 package com.msm.core.objects;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.action.executor.DefaultActionExecutor;
 import com.msm.core.action.executor.DefaultAsyncExecutor;
@@ -21,6 +22,7 @@ import com.msm.core.filter.EntityClassFactory;
 import com.msm.core.objects.audit.AuditStrategy;
 import com.msm.core.objects.audit.AuditStrategyResolverFactory;
 import com.msm.core.objects.audit.DefaultAuditStrategy;
+import com.msm.core.objects.cache.InMemoryCaches;
 import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
@@ -39,14 +41,14 @@ import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
 import com.msm.core.objects.integration.RequestClient;
 import com.msm.core.objects.integration.data.retry.RetryDefaultProperties;
+import com.msm.core.objects.integration.factory.AuthProviderRegistry;
 import com.msm.core.objects.integration.factory.AuthProviderRegistryFactory;
 import com.msm.core.objects.integration.middleware.AuthMiddleware;
-import com.msm.core.objects.integration.factory.AuthProviderRegistry;
 import com.msm.core.objects.integration.middleware.HttpMiddlewareChain;
 import com.msm.core.objects.integration.middleware.Middleware;
-import com.msm.core.objects.integration.retry.RetryConfigResolver;
 import com.msm.core.objects.integration.middleware.TracingMiddleware;
 import com.msm.core.objects.integration.retry.ResilienceRetryExecutor;
+import com.msm.core.objects.integration.retry.RetryConfigResolver;
 import com.msm.core.objects.integration.retry.RetryExecutor;
 import com.msm.core.objects.repository.DefaultRepositoryFactory;
 import com.msm.core.objects.repository.RepositoryFactory;
@@ -76,6 +78,8 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.Resource;
@@ -487,4 +491,21 @@ public class MsmAutoConfiguration {
     IntegrationLogService integrationService(GenericObjectHandler genericObjectHandler) {
         return new IntegrationLogService(genericObjectHandler);
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.registerCustomCache("IntegrationTokenCache", Caffeine.newBuilder()
+                .maximumSize(1000)
+                .build());
+        return cacheManager;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public InMemoryCaches inMemoryCaches(CacheManager cacheManager) {
+        return new InMemoryCaches(cacheManager);
+    }
+
 }

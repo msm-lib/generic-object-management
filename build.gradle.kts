@@ -92,6 +92,9 @@ dependencies {
 
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
     implementation("com.auth0:java-jwt:4.4.0")
+    implementation("com.jayway.jsonpath:json-path:3.0.0")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("com.github.ben-manes.caffeine:caffeine")
 }
 
 tasks.jar {
