@@ -187,10 +187,11 @@ public class ConnectorRequestBuilder {
                 .headers(headers)
                 .queryParams(queryParams)
                 .body(body)
+                .authConfig(connector.getAuth())
                 .authProvider(
                         authProvider != null
                                 ? authProvider
-                                : connector.getAuth().getType()
+                                : connector.getAuth().getProvider()
                 )
                 .retryAttempts(
                         retryAttempts != null

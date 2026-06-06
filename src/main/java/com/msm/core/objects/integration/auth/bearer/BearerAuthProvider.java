@@ -11,8 +11,12 @@ public class BearerAuthProvider implements AuthProvider {
     private final TokenProvider tokenProvider;
 
     @Override
-    public void apply(HttpRequestContext httpRequestContext) {
+    public String providerName() {
+        return "bearer-token";
+    }
 
-        httpRequestContext.getHeaders().setBearerAuth(tokenProvider.getToken(httpRequestContext));
+    @Override
+    public void apply(HttpRequestContext ctx) {
+        ctx.getHeaders().setBearerAuth(tokenProvider.getToken(ctx));
     }
 }

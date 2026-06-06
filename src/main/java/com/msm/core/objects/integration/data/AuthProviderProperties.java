@@ -1,25 +1,30 @@
 package com.msm.core.objects.integration.data;
 
-import com.msm.core.objects.integration.auth.apikey.ApiKeyProperties;
-import com.msm.core.objects.integration.data.outh2.OAuth2Properties;
 import lombok.Data;
+
+import java.util.Map;
 
 @Data
 public class AuthProviderProperties {
-    private String type;
+//    private String type;
 
     // bearer
-    private String token;
+//    private String token;
 
-    // basic
-    private BasicCredentials basic;
+//    // basic
+//    private BasicCredentials basic;
+//
+//    // apikey
+//    private ApiKeyProperties apikey;
+//
+//    // oauth2
+//    private OAuth2Properties oauth2;
+//
+//    // mtls
+//    private MtlsProperties mtls;
 
-    // apikey
-    private ApiKeyProperties apikey;
+//    private AuthConfig auth;
+    private String provider;
 
-    // oauth2
-    private OAuth2Properties oauth2;
-
-    // mtls
-    private MtlsProperties mtls;
+    private Map<String, Object> properties;
 }

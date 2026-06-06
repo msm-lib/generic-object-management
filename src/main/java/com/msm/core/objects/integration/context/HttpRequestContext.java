@@ -2,6 +2,7 @@ package com.msm.core.objects.integration.context;
 
 import com.msm.core.commons.Utils;
 import com.msm.core.objects.entity.integration.IntegrationLog;
+import com.msm.core.objects.integration.data.AuthProviderProperties;
 import com.msm.core.objects.integration.data.retry.RetryRequestConfig;
 import lombok.Builder;
 import lombok.Data;
@@ -49,6 +50,8 @@ public class HttpRequestContext {
     private String connectorName;
     private String authProvider;
 
+    private AuthProviderProperties authConfig;
+
     private String baseUrl;
 
     private String path;
@@ -75,10 +78,6 @@ public class HttpRequestContext {
 
     public String resolveUrl() {
         return Utils.STR.defaultIfBlank(baseUrl, () -> "") + Utils.STR.defaultIfBlank(path, () -> "");
-    }
-
-    public String resolveAuthKey() {
-        return Utils.STR.defaultIfBlank(connectorName, () -> "") + "." + Utils.STR.defaultIfBlank(authProvider, () -> "");
     }
 
 

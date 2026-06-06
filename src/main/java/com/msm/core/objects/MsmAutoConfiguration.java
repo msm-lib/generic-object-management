@@ -40,9 +40,19 @@ import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
 import com.msm.core.objects.integration.RequestClient;
+import com.msm.core.objects.integration.auth.apikey.ApiKeyAuthProvider;
+import com.msm.core.objects.integration.auth.apikey.ApiKeyQueryProvider;
+import com.msm.core.objects.integration.auth.basic.BasicEncodedProvider;
+import com.msm.core.objects.integration.auth.basic.BasicUsernamePasswordProvider;
+import com.msm.core.objects.integration.auth.common.AuthProvider;
+import com.msm.core.objects.integration.auth.common.TokenProvider;
+import com.msm.core.objects.integration.auth.oauth2.CachedOAuth2TokenProvider;
+import com.msm.core.objects.integration.auth.oauth2.OAuth2AuthProvider;
+import com.msm.core.objects.integration.auth.oauth2.password.CachedOAuth2PasswordTokenProvider;
+import com.msm.core.objects.integration.auth.oauth2.password.OAuth2PasswordAuthProvider;
 import com.msm.core.objects.integration.data.retry.RetryDefaultProperties;
 import com.msm.core.objects.integration.factory.AuthProviderRegistry;
-import com.msm.core.objects.integration.factory.AuthProviderRegistryFactory;
+import com.msm.core.objects.integration.factory.TokenProviderRegistry;
 import com.msm.core.objects.integration.middleware.AuthMiddleware;
 import com.msm.core.objects.integration.middleware.HttpMiddlewareChain;
 import com.msm.core.objects.integration.middleware.Middleware;
@@ -431,19 +441,74 @@ public class MsmAutoConfiguration {
         return new DefaultRequestClient(restClient);
     }
 
+
+
     @Bean
-    public AuthProviderRegistry authProviderRegistry(
-            RetryExecutor retryExecutor,
-            @Qualifier("integrationRequestClient") RequestClient requestClient,
-            IntegrationProperties integrationProperties) {
-        return new AuthProviderRegistryFactory().create(requestClient, retryExecutor, integrationProperties);
+    public AuthProvider apiKeyAuthProvider() {
+        return new ApiKeyAuthProvider();
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    public AuthProvider apiKeyQueryProvider() {
+        return new ApiKeyQueryProvider();
+    }
+
+    @Bean
+    public AuthProvider basicEncodedProvider() {
+        return new BasicEncodedProvider();
+    }
+
+    @Bean
+    public AuthProvider basicUsernamePasswordProvider() {
+        return new BasicUsernamePasswordProvider();
+    }
+
+    @Bean
+    public AuthProvider oAuth2AuthProvider(TokenProviderRegistry tokenProviderRegistry) {
+        return new OAuth2AuthProvider(tokenProviderRegistry);
+    }
+
+    @Bean
+    public AuthProvider oAuth2PasswordAuthProvider(TokenProviderRegistry tokenProviderRegistry) {
+        return new OAuth2PasswordAuthProvider(tokenProviderRegistry);
+    }
+
+    @Bean
+    public AuthProviderRegistry authProviderRegistry(List<AuthProvider> authProviders) {
+        return new AuthProviderRegistry(authProviders);
+    }
+
+    @Bean
     AuthMiddleware authMiddleware(AuthProviderRegistry authProviderRegistry) {
         return new AuthMiddleware(authProviderRegistry);
     }
+
+    @Bean
+    public TokenProvider cachedOAuth2TokenManager(
+            @Qualifier("integrationRequestClient") RequestClient requestClient,
+            RetryExecutor retryExecutor,
+            IntegrationProperties integrationProperties
+    ) {
+        return new CachedOAuth2TokenProvider(requestClient, retryExecutor, integrationProperties);
+    }
+
+    @Bean
+    public TokenProvider cachedOAuth2PasswordTokenManager(
+            @Qualifier("integrationRequestClient") RequestClient requestClient,
+            RetryExecutor retryExecutor,
+            IntegrationProperties integrationProperties
+    ) {
+        return new CachedOAuth2PasswordTokenProvider(requestClient, retryExecutor, integrationProperties);
+    }
+
+    @Bean
+    public TokenProviderRegistry tokenProviderRegistry(List<TokenProvider> providers) {
+        return new TokenProviderRegistry(providers);
+    }
+
+
+
+
 
     @Bean
     @ConditionalOnMissingBean

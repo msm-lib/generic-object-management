@@ -31,7 +31,7 @@ public class AuthMiddleware extends AbstractMiddleware {
             if ("mtls".equals(provider)) {
                 return;
             }
-            registry.get(context.resolveAuthKey()).apply(context);
+            registry.get(context.getAuthConfig().getProvider()).apply(context);
             context.addEvent(ExecutionEvent.builder()
                     .timestamp(Instant.now())
                     .component(name())

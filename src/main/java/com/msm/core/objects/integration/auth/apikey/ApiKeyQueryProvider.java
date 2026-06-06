@@ -5,16 +5,16 @@ import com.msm.core.objects.integration.context.HttpRequestContext;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class ApiKeyAuthProvider implements AuthProvider {
+public class ApiKeyQueryProvider implements AuthProvider {
 
     @Override
     public String providerName() {
-        return "apikey-header";
+        return "apikey-query";
     }
 
     @Override
     public void apply(HttpRequestContext ctx) {
-        ctx.getHeaders().add(
+        ctx.getQueryParams().put(
                 String.valueOf(ctx.getAuthConfig().getProperties().get("name")),
                 String.valueOf(ctx.getAuthConfig().getProperties().get("value")));
     }

@@ -1,15 +1,16 @@
-package com.msm.core.objects.integration.auth.oauth2;
+package com.msm.core.objects.integration.auth.oauth2.password;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.msm.core.commons.Utils;
+import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.integration.IntegrationJsonUtil;
 import com.msm.core.objects.integration.IntegrationTokenCache;
 import com.msm.core.objects.integration.RequestClient;
 import com.msm.core.objects.integration.auth.JwtUtils;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
-import com.msm.core.objects.integration.auth.enums.OAuth2GrantType;
 import com.msm.core.objects.integration.context.HttpRequestContext;
-import com.msm.core.objects.integration.data.outh2.OAuth2Properties;
+import com.msm.core.objects.integration.data.ConnectorProperties;
+import com.msm.core.objects.integration.data.outh2.OAuth2PasswordProperties;
 import com.msm.core.objects.integration.data.outh2.OAuth2Token;
 import com.msm.core.objects.integration.data.retry.RetryRequestConfig;
 import com.msm.core.objects.integration.retry.RetryExecutor;
@@ -25,43 +26,50 @@ import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
-public class CachedOAuth2TokenManager implements TokenProvider {
+public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     private final RequestClient requestClient;
     private final RetryExecutor retryExecutor;
-    private final OAuth2Properties properties;
+    private final IntegrationProperties integrationProperties;
+
 
     @Override
-    public String getToken(HttpRequestContext httpRequestContext) {
-        OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(properties.getTokenUrl(), () -> retryFetchToken(httpRequestContext));
-        if (auth2CacheToken == null || auth2CacheToken.isExpired(properties.getSkewSeconds())) {
-            auth2CacheToken = retryFetchToken(httpRequestContext);
-            IntegrationTokenCache.put(properties.getTokenUrl(), auth2CacheToken);
+    public String supportProvider() {
+        return "oauth2-password";
+    }
+
+    @Override
+    public String getToken(HttpRequestContext ctx) {
+        OAuth2PasswordProperties oAuth2Context = getOAuth2Properties(ctx);
+        OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(oAuth2Context.getTokenUrl(), () -> retryFetchToken(ctx, oAuth2Context));
+        if (auth2CacheToken == null || auth2CacheToken.isExpired(oAuth2Context.getSkewSeconds())) {
+            auth2CacheToken = retryFetchToken(ctx, oAuth2Context);
+            IntegrationTokenCache.put(oAuth2Context.getTokenUrl(), auth2CacheToken);
         }
         return auth2CacheToken.getAccessToken();
     }
 
-    private OAuth2Token retryFetchToken(HttpRequestContext httpRequestContext) {
-        HttpRequestContext authContext = createAuthContext(httpRequestContext.getConnectorName(), properties);
+    private OAuth2Token retryFetchToken(HttpRequestContext ctx, OAuth2PasswordProperties oAuth2Context) {
+        HttpRequestContext authRequestContext = createAuthContext(ctx.getConnectorName(), oAuth2Context);
         try {
-            return retryExecutor.execute(authContext, this::fetchToken);
+            return retryExecutor.execute(authRequestContext, () -> fetchToken(oAuth2Context));
         } catch (Exception ex) {
-            httpRequestContext.addEvents(authContext.getEvents());
+            ctx.addEvents(authRequestContext.getEvents());
             throw ex;
         }
     }
 
-    private OAuth2Token fetchToken() {
+    private OAuth2Token fetchToken(OAuth2PasswordProperties oAuth2Context) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-        Map<String, String> formBody = buildBody(properties);
+        Map<String, String> formBody = buildBody(oAuth2Context);
         Object response = requestClient.post(
-                properties.getTokenUrl(),
+                oAuth2Context.getTokenUrl(),
                 "",
                 headers,
-                properties.isStrictJsonMode() ? toJson(formBody) : formBody,
+                oAuth2Context.isStrictJsonMode() ? toJson(formBody) : formBody,
                 Object.class);
 
-        String accessToken = parseToken(response);
+        String accessToken = parseToken(response, oAuth2Context);
         OAuth2Token token = new OAuth2Token();
         token.setAccessToken(accessToken);
         token.setCreatedAt(Instant.now());
@@ -70,24 +78,16 @@ public class CachedOAuth2TokenManager implements TokenProvider {
         return token;
     }
 
-    private String parseToken(Object response) {
+    private String parseToken(Object response, OAuth2PasswordProperties oAuth2Context) {
         Map<String, Object> objectMap = Utils.O.toMap(response);
-        String accessTokenName = Utils.STR.defaultIfBlank(properties.getAccessTokenPath(), () -> "token");
+        String accessTokenName = Utils.STR.defaultIfBlank(oAuth2Context.getAccessTokenPath(), () -> "token");
         return IntegrationJsonUtil.extractValue(objectMap, accessTokenName);
     }
 
-    private Map<String, String> buildBody(OAuth2Properties properties) {
+    private Map<String, String> buildBody(OAuth2PasswordProperties properties) {
         Map<String, String> formBody = new HashMap<>();
-        if(OAuth2GrantType.CLIENT_CREDENTIALS.equals(properties.getGrantType())) {
-            formBody.put("grant_type", properties.getGrantType().getValue());
-            formBody.put("client_id", properties.getClientId());
-            formBody.put("client_secret", properties.getClientSecret());
-            formBody.put("scope", properties.getScope());
-        } else {
-            formBody.put("username", properties.getCredential().getUsername());
-            formBody.put("password", properties.getCredential().getPassword());
-            formBody.put("scope", properties.getScope());
-        }
+        formBody.put("username", properties.getUsername());
+        formBody.put("password", properties.getPassword());
         return formBody;
     }
 
@@ -100,7 +100,7 @@ public class CachedOAuth2TokenManager implements TokenProvider {
         }
     }
 
-    private HttpRequestContext createAuthContext(String connectorName, OAuth2Properties properties) {
+    private HttpRequestContext createAuthContext(String connectorName, OAuth2PasswordProperties properties) {
         RetryRequestConfig config = new RetryRequestConfig();
         config.setMaxAttempts(properties.getMaxAttempts());
         config.setWaitDuration(Duration.ofMillis(properties.getWaitDurationMs()));
@@ -109,5 +109,10 @@ public class CachedOAuth2TokenManager implements TokenProvider {
                 .componentExecution(getClass().getSimpleName() + ".authenticate")
                 .retryConfig(config)
                 .build();
+    }
+
+    private OAuth2PasswordProperties getOAuth2Properties(HttpRequestContext ctx) {
+        ConnectorProperties connectorProperties = integrationProperties.getConnectors().get(ctx.getConnectorName());
+        return Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
     }
 }

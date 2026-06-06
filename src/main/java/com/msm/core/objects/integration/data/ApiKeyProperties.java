@@ -1,4 +1,4 @@
-package com.msm.core.objects.integration.auth.apikey;
+package com.msm.core.objects.integration.data;
 
 import lombok.Data;
 

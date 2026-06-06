@@ -2,17 +2,30 @@ package com.msm.core.objects.integration.factory;
 
 import com.msm.core.objects.integration.auth.common.AuthProvider;
 
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class AuthProviderRegistry {
-    private final Map<String, AuthProvider> providers = new ConcurrentHashMap<>();
+    private final Map<String, AuthProvider> providers;
 
-    public void register(String name, AuthProvider provider) {
-        providers.put(name, provider);
+    public AuthProviderRegistry(List<AuthProvider> authProviders) {
+
+        providers = authProviders
+                .stream()
+                .collect(Collectors.toMap(AuthProvider::providerName, Function.identity()));
     }
 
-    public AuthProvider get(String name) {
-        return providers.get(name);
+    public AuthProvider get(String providerName) {
+
+        AuthProvider provider = providers.get(providerName);
+
+        if (provider == null) {
+            throw new UnsupportedOperationException(providerName);
+        }
+
+        return provider;
     }
+
 }
