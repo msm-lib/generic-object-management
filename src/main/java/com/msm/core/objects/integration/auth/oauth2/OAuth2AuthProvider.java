@@ -11,7 +11,7 @@ public class OAuth2AuthProvider implements AuthProvider {
 
     @Override
     public String providerName() {
-        return "oauth2";
+        return "oauth2-credentials";
     }
 
     @Override

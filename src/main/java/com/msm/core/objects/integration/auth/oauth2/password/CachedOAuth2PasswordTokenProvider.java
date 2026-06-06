@@ -40,7 +40,7 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     @Override
     public String getToken(HttpRequestContext ctx) {
         OAuth2PasswordProperties oAuth2Context = getOAuth2Properties(ctx);
-        OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(oAuth2Context.getTokenUrl(), () -> retryFetchToken(ctx, oAuth2Context));
+        OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(cacheKey(oAuth2Context), () -> retryFetchToken(ctx, oAuth2Context));
         if (auth2CacheToken == null || auth2CacheToken.isExpired(oAuth2Context.getSkewSeconds())) {
             auth2CacheToken = retryFetchToken(ctx, oAuth2Context);
             IntegrationTokenCache.put(oAuth2Context.getTokenUrl(), auth2CacheToken);
@@ -114,5 +114,9 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     private OAuth2PasswordProperties getOAuth2Properties(HttpRequestContext ctx) {
         ConnectorProperties connectorProperties = integrationProperties.getConnectors().get(ctx.getConnectorName());
         return Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
+    }
+
+    private String cacheKey(OAuth2PasswordProperties oAuth2Context) {
+        return  supportProvider() + ":" + oAuth2Context.getTokenUrl();
     }
 }
