@@ -1,5 +1,10 @@
 package com.msm.core.objects;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.action.executor.DefaultActionExecutor;
@@ -487,18 +492,20 @@ public class MsmAutoConfiguration {
     public TokenProvider cachedOAuth2TokenManager(
             @Qualifier("integrationRequestClient") RequestClient requestClient,
             RetryExecutor retryExecutor,
+            @Qualifier("objectMapperKebabCase") ObjectMapper objectMapperKebabCase,
             IntegrationProperties integrationProperties
     ) {
-        return new CachedOAuth2TokenProvider(requestClient, retryExecutor, integrationProperties);
+        return new CachedOAuth2TokenProvider(requestClient, retryExecutor, objectMapperKebabCase, integrationProperties);
     }
 
     @Bean
     public TokenProvider cachedOAuth2PasswordTokenManager(
             @Qualifier("integrationRequestClient") RequestClient requestClient,
             RetryExecutor retryExecutor,
+            @Qualifier("objectMapperKebabCase") ObjectMapper objectMapperKebabCase,
             IntegrationProperties integrationProperties
     ) {
-        return new CachedOAuth2PasswordTokenProvider(requestClient, retryExecutor, integrationProperties);
+        return new CachedOAuth2PasswordTokenProvider(requestClient, retryExecutor, objectMapperKebabCase, integrationProperties);
     }
 
     @Bean
@@ -506,7 +513,16 @@ public class MsmAutoConfiguration {
         return new TokenProviderFactory(providers);
     }
 
-
+    @Bean("objectMapperKebabCase")
+    public ObjectMapper objectMapperKebabCase() {
+        return new ObjectMapper()
+                .setPropertyNamingStrategy(PropertyNamingStrategies.KEBAB_CASE)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+                .registerModule(new JavaTimeModule())
+                .setDefaultMergeable(false)
+                .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    }
 
 
 
