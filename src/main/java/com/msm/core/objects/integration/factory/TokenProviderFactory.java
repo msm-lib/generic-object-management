@@ -7,11 +7,11 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class TokenProviderRegistry {
+public class TokenProviderFactory {
 
     private final Map<String, TokenProvider> providers;
 
-    public TokenProviderRegistry(List<TokenProvider> providers) {
+    public TokenProviderFactory(List<TokenProvider> providers) {
 
         this.providers = providers
                 .stream()

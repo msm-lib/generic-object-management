@@ -4,14 +4,14 @@ import com.msm.core.objects.entity.enums.IntegrationStatus;
 import com.msm.core.objects.integration.context.ExecutionEvent;
 import com.msm.core.objects.integration.context.HttpRequestContext;
 import com.msm.core.objects.integration.exception.AuthenticationException;
-import com.msm.core.objects.integration.factory.AuthProviderRegistry;
+import com.msm.core.objects.integration.factory.AuthProviderFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
 
 @RequiredArgsConstructor
 public class AuthMiddleware extends AbstractMiddleware {
-    private final AuthProviderRegistry registry;
+    private final AuthProviderFactory authProviderFactory;
 
     @Override
     public int order() {
@@ -31,7 +31,7 @@ public class AuthMiddleware extends AbstractMiddleware {
             if ("mtls".equals(provider)) {
                 return;
             }
-            registry.get(context.getAuthConfig().getProvider()).apply(context);
+            authProviderFactory.get(context.getAuthConfig().getProvider()).apply(context);
             context.addEvent(ExecutionEvent.builder()
                     .timestamp(Instant.now())
                     .component(name())

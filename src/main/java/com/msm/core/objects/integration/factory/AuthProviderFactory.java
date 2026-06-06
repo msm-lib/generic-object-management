@@ -7,10 +7,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class AuthProviderRegistry {
+public class AuthProviderFactory {
     private final Map<String, AuthProvider> providers;
 
-    public AuthProviderRegistry(List<AuthProvider> authProviders) {
+    public AuthProviderFactory(List<AuthProvider> authProviders) {
 
         providers = authProviders
                 .stream()

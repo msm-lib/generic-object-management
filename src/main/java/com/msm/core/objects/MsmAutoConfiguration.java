@@ -51,8 +51,8 @@ import com.msm.core.objects.integration.auth.oauth2.OAuth2AuthProvider;
 import com.msm.core.objects.integration.auth.oauth2.password.CachedOAuth2PasswordTokenProvider;
 import com.msm.core.objects.integration.auth.oauth2.password.OAuth2PasswordAuthProvider;
 import com.msm.core.objects.integration.data.retry.RetryDefaultProperties;
-import com.msm.core.objects.integration.factory.AuthProviderRegistry;
-import com.msm.core.objects.integration.factory.TokenProviderRegistry;
+import com.msm.core.objects.integration.factory.AuthProviderFactory;
+import com.msm.core.objects.integration.factory.TokenProviderFactory;
 import com.msm.core.objects.integration.middleware.AuthMiddleware;
 import com.msm.core.objects.integration.middleware.HttpMiddlewareChain;
 import com.msm.core.objects.integration.middleware.Middleware;
@@ -464,23 +464,23 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
-    public AuthProvider oAuth2AuthProvider(TokenProviderRegistry tokenProviderRegistry) {
-        return new OAuth2AuthProvider(tokenProviderRegistry);
+    public AuthProvider oAuth2AuthProvider(TokenProviderFactory tokenProviderFactory) {
+        return new OAuth2AuthProvider(tokenProviderFactory);
     }
 
     @Bean
-    public AuthProvider oAuth2PasswordAuthProvider(TokenProviderRegistry tokenProviderRegistry) {
-        return new OAuth2PasswordAuthProvider(tokenProviderRegistry);
+    public AuthProvider oAuth2PasswordAuthProvider(TokenProviderFactory tokenProviderFactory) {
+        return new OAuth2PasswordAuthProvider(tokenProviderFactory);
     }
 
     @Bean
-    public AuthProviderRegistry authProviderRegistry(List<AuthProvider> authProviders) {
-        return new AuthProviderRegistry(authProviders);
+    public AuthProviderFactory authProviderRegistry(List<AuthProvider> authProviders) {
+        return new AuthProviderFactory(authProviders);
     }
 
     @Bean
-    AuthMiddleware authMiddleware(AuthProviderRegistry authProviderRegistry) {
-        return new AuthMiddleware(authProviderRegistry);
+    AuthMiddleware authMiddleware(AuthProviderFactory authProviderFactory) {
+        return new AuthMiddleware(authProviderFactory);
     }
 
     @Bean
@@ -502,8 +502,8 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
-    public TokenProviderRegistry tokenProviderRegistry(List<TokenProvider> providers) {
-        return new TokenProviderRegistry(providers);
+    public TokenProviderFactory tokenProviderRegistry(List<TokenProvider> providers) {
+        return new TokenProviderFactory(providers);
     }
 
 
