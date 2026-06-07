@@ -1,7 +1,9 @@
 package com.msm.core.objects.integration.data;
 
+import com.msm.core.commons.Utils;
 import lombok.Data;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
@@ -27,4 +29,14 @@ public class AuthProviderProperties {
     private String provider;
 
     private Map<String, Object> properties;
+
+    public void setProperties(Map<String, String> rawProperties) {
+        if (rawProperties == null) return;
+
+        this.properties = new HashMap<>();
+        rawProperties.forEach((key, value) -> {
+            String camelKey = Utils.STR.toCamelCase(key, false, '-');
+            this.properties.put(camelKey, value);
+        });
+    }
 }

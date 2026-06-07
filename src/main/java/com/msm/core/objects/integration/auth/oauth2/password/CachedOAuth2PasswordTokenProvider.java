@@ -1,7 +1,6 @@
 package com.msm.core.objects.integration.auth.oauth2.password;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.msm.core.commons.Utils;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.integration.IntegrationJsonUtil;
@@ -30,7 +29,6 @@ import java.util.Map;
 public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     private final RequestClient requestClient;
     private final RetryExecutor retryExecutor;
-    private final ObjectMapper objectMapperKebabCase;
     private final IntegrationProperties integrationProperties;
 
 
@@ -115,7 +113,7 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
 
     private OAuth2PasswordProperties getOAuth2Properties(HttpRequestContext ctx) {
         ConnectorProperties connectorProperties = integrationProperties.getConnectors().get(ctx.getConnectorName());
-        return objectMapperKebabCase.convertValue(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
+        return Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
     }
 
     private String cacheKey(OAuth2PasswordProperties oAuth2Context) {
