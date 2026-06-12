@@ -17,4 +17,12 @@ public class ObjectConstants {
     public static final Map<String, String> PREFIX_OBJECT_CODE = Map.of(
             "v2blanketorder", "B"
     );
+
+
+    public static final Map<String, String> ENV_MAP = Map.of(
+            "dev", "https://api-dev.digiretail.myminds.net",
+            "qc",  "https://api-qc.digiretail.myminds.net",
+            "uat",  "https://api-uat.digiretail.myminds.net"
+    );
+
 }

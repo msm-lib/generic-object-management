@@ -315,6 +315,52 @@ public class GenericObjectHandler {
         mapFrom(objectMetadata, returnObject);
         return returnObject;
     }
+    //upsertReturning
+
+    public List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
+//        request.forEach(objectMap -> {
+//            Object code = objectMap.get("code");
+//            if(Objects.isNull(code)) {
+//                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+//                int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+//                objectMap.put("code", Utils.toCodeGenerator(prefix, len));
+//            }
+//        });
+
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        request.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+
+        List<Map<String, Object>> returnObjects = dynamicQueryService.upsertReturning(objectMetadata, request, conflictOnConstraintName);
+        returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+
+        return returnObjects;
+    }
+
+//    public Map<String, Object> upsertReturning(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
+//        Object code = request.get("code");
+//        if(Objects.isNull(code)) {
+//            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+//            int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
+//            request.put("code", Utils.toCodeGenerator(prefix, len));
+//        }
+//        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+//        applyAudit(objectMetadata, AuditAction.CREATE, request);
+//        mapTo(objectMetadata, request);
+//        List<Map<String, Object>> returnObject = dynamicQueryService.upsertReturning(objectMetadata, request, conflictOnConstraintName);
+//        mapFrom(objectMetadata, returnObject);
+//
+//        dynamicQueryService.upsertReturning(
+//                ObjectMetadataFactory.getObjectMetadataByName(objectName),
+//                items,
+//                Utils.STR.format(Constants.CONSTRAINT_KEY, objectName, "code", "key"));
+//
+//
+//
+//        return returnObject;
+//    }
 
     private ObjectMetadata getObjectMetadata(String objectName) {
         return genericObjectMetadataService

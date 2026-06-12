@@ -9,12 +9,14 @@ import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -200,6 +203,31 @@ public class GenericObjectController {
             @RequestBody(required = false) List<Map<String, Object>> request) {
 
         return ResponseEntity.ok(genericObjectService.objectActionBulkUpdate(objectName, actionName, request));
+    }
+
+    @Operation(summary = "Import object", description = "Returns http status")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PostMapping("/generic/objects/{objectName}/import")
+    public ResponseEntity<List<Map<String, Object>>> importDataByFileId(
+            @PathVariable("objectName") String objectName,
+            @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, request));
+    }
+
+    @Operation(summary = "Import file object", description = "Returns http status")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PostMapping(path = "/generic/objects/{objectName}/import-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> importFile(
+            @PathVariable("objectName") String objectName,
+            @Parameter(
+                    description = "Select file CSV to import",
+                    content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(type = "string", format = "binary"))
+            )
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(genericObjectService.importFile(objectName, file));
     }
 
     @Operation(

@@ -16,6 +16,7 @@ import com.msm.core.objects.dto.QueryTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -196,6 +197,28 @@ public class GenericObjectService {
                 .resource(Constants.RESOURCE_QUERY_PREFIX)
                 .action(request.getQuery())
                 .payload(request)
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
+    public List<Map<String, Object>> importFileByFileId(String objectName, Map<String, Object> request) {
+        ActionContext<Map<String, Object>> actionRequest = ActionContext
+                .<Map<String, Object>>builder()
+                .resource(objectName)
+                .action(Constants.Action.IMPORT_OBJECT)
+                .payload(request)
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
+    public Map<String, Object> importFile(String objectName, MultipartFile file) {
+        ActionContext<MultipartFile> actionRequest = ActionContext
+                .<MultipartFile>builder()
+                .resource(objectName)
+                .action(Constants.Action.IMPORT_FILE_OBJECT)
+                .payload(file)
                 .build();
         return actionExecutor.execute(actionRequest);
     }

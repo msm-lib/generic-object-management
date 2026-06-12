@@ -28,6 +28,7 @@ import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
+import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.connector.MasterDataApiService;
 import com.msm.core.objects.controller.GenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
@@ -44,6 +45,7 @@ import com.msm.core.objects.integration.auth.apikey.ApiKeyAuthProvider;
 import com.msm.core.objects.integration.auth.apikey.ApiKeyQueryProvider;
 import com.msm.core.objects.integration.auth.basic.BasicEncodedProvider;
 import com.msm.core.objects.integration.auth.basic.BasicUsernamePasswordProvider;
+import com.msm.core.objects.integration.auth.bearer.StaticBearerAuthProvider;
 import com.msm.core.objects.integration.auth.common.AuthProvider;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
 import com.msm.core.objects.integration.auth.oauth2.CachedOAuth2TokenProvider;
@@ -69,6 +71,15 @@ import com.msm.core.objects.service.GenericObjectService;
 import com.msm.core.objects.service.IntegrationLogService;
 import com.msm.core.objects.service.ObjectDependencyServiceImpl;
 import com.msm.core.objects.service.PreprocessCustomFieldValueService;
+import com.msm.core.objects.service.ValidateAndPopulateDataService;
+import com.msm.core.objects.service.imports.BatchExecutionService;
+import com.msm.core.objects.service.imports.FileImportService;
+import com.msm.core.objects.service.imports.MultipartCsvObjectReader;
+import com.msm.core.objects.service.imports.RowMapperContext;
+import com.msm.core.objects.service.imports.mapper.CsvRowMapper;
+import com.msm.core.objects.service.imports.mapper.RowMapper;
+import com.msm.core.objects.service.imports.resolver.ObjectAttributeRefResolver;
+import com.msm.core.objects.service.imports.resolver.ReferenceResolver;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
 import com.msm.core.strategy.StrategyResolver;
 import com.msm.core.validate.attr.ValueValidationHandler;
@@ -105,6 +116,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 @Slf4j
@@ -265,6 +277,13 @@ public class MsmAutoConfiguration {
     @ConditionalOnMissingBean(name = "defaultAttributeValidator")
     public AttributeValidator defaultAttributeValidator(AttributeValidator attributeTypeValidator) {
         return new DefaultAttributeValidator(attributeTypeValidator);
+    }
+
+    @Bean(name = "validateAndPopulateDataService")
+    @ConditionalOnMissingBean
+    public ValidateAndPopulateDataService validateAndPopulateDataService(
+            @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator) {
+        return new ValidateAndPopulateDataService(defaultAttributeValidator);
     }
 
     @Bean
@@ -464,6 +483,11 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
+    public StaticBearerAuthProvider staticBearerAuthProvider() {
+        return new StaticBearerAuthProvider();
+    }
+
+    @Bean
     public AuthProvider oAuth2AuthProvider(TokenProviderFactory tokenProviderFactory) {
         return new OAuth2AuthProvider(tokenProviderFactory);
     }
@@ -571,5 +595,57 @@ public class MsmAutoConfiguration {
     public InMemoryCaches inMemoryCaches(CacheManager cacheManager) {
         return new InMemoryCaches(cacheManager);
     }
+
+
+
+    //============ Import ===========
+
+    @Bean("csvRowMapper")
+    @ConditionalOnMissingBean
+    public RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper() {
+        return new CsvRowMapper();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ReferenceResolver referenceResolver(
+            GenericObjectHandler genericObjectHandler,
+            GenericObjectInternalService genericObjectInternalService) {
+        return new ObjectAttributeRefResolver(genericObjectHandler, genericObjectInternalService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public BatchExecutionService batchExecutionService(
+            ReferenceResolver referenceResolver,
+//            ActionExecutor actionExecutor,
+            ValidateAndPopulateDataService validateAndPopulateDataService,
+            GenericObjectHandler genericObjectHandler) {
+        return new BatchExecutionService(referenceResolver, validateAndPopulateDataService, genericObjectHandler);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MultipartCsvObjectReader multipartCsvObjectReader(
+            RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper,
+            BatchExecutionService batchExecutionService) {
+        return new MultipartCsvObjectReader(csvRowMapper, batchExecutionService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public FileImportService fileImportService(MultipartCsvObjectReader multipartCsvObjectReader) {
+        return new FileImportService(multipartCsvObjectReader);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GenericObjectInternalService genericObjectInternalService(
+            GenericObjectConfigProperties genericObjectConfigProperties,
+            @Qualifier("internalRequestClient") RequestClient requestClient
+    ) {
+        return new GenericObjectInternalService(genericObjectConfigProperties, requestClient);
+    }
+
 
 }

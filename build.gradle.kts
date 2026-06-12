@@ -43,7 +43,7 @@ repositories {
 }
 extra["jooq.version"] = "3.21.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.7.3"
+val msmCommonVersion = "1.7.4"
 
 dependencies {
 
@@ -95,6 +95,11 @@ dependencies {
     implementation("com.jayway.jsonpath:json-path:3.0.0")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine")
+
+    //excel, csv
+    implementation("org.apache.poi:poi:5.5.0")
+    implementation("org.apache.poi:poi-ooxml:5.5.0")
+    implementation("org.apache.commons:commons-csv:1.14.1")
 }
 
 tasks.jar {
