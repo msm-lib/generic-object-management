@@ -52,7 +52,7 @@ public class BatchExecutionService {
         genericObjectHandler.bulkUpsertReturning(
                 objectName,
                 items,
-                Utils.STR.format(Constants.CONSTRAINT_KEY, objectMetadata.getTableName(), "code", "key"));
+                List.of("code"));
         items.clear();
         attrCodeMap.clear();
     }

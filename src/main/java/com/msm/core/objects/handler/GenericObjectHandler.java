@@ -339,6 +339,19 @@ public class GenericObjectHandler {
         return returnObjects;
     }
 
+    public List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, List<String> conflictFields) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        request.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+
+        List<Map<String, Object>> returnObjects = dynamicQueryService.upsertReturning(objectMetadata, request, conflictFields);
+        returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+
+        return returnObjects;
+    }
+
 //    public Map<String, Object> upsertReturning(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
 //        Object code = request.get("code");
 //        if(Objects.isNull(code)) {
