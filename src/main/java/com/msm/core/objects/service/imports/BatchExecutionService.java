@@ -49,14 +49,10 @@ public class BatchExecutionService {
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
 
         validateAndPopulateDataService.validate(objectMetadata, items);
-//        genericObjectHandler.bulkUpsertReturning(
-//                objectName,
-//                items,
-//                Utils.STR.format(Constants.CONSTRAINT_KEY, objectMetadata.getTableName(), "code", "key"));
         genericObjectHandler.bulkUpsertReturning(
                 objectName,
                 items,
-                null);
+                Utils.STR.format(Constants.CONSTRAINT_KEY, objectMetadata.getTableName(), "code", "key"));
         items.clear();
         attrCodeMap.clear();
     }
