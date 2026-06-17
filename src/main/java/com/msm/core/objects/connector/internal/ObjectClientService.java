@@ -71,6 +71,10 @@ public abstract class ObjectClientService {
         return internalRestClient.post(getBaseUrl(), ApiConstants.PATH_QUERY, queryTemplate, Map.class);
     }
 
+    public List<Map<String, Object>> queryList(QueryTemplate queryTemplate) {
+        return internalRestClient.post(getBaseUrl(), ApiConstants.PATH_QUERY, queryTemplate, List.class);
+    }
+
     public List<Map<String, Object>> getAllObjects(String objectName) {
         String queryAllObjectUrl = Utils.STR.format(ApiConstants.PATH_BY_OBJECT, objectName);
         return internalRestClient.get(getBaseUrl(), queryAllObjectUrl, List.class);
