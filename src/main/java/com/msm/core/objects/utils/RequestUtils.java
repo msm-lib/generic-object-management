@@ -5,8 +5,6 @@ import com.msm.core.commons.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 public class RequestUtils {
     private RequestUtils() {}
@@ -25,14 +23,15 @@ public class RequestUtils {
         return request.getHeader(key);
     }
 
-    public static <X> Set<X> getHeaders(HttpServletRequest request, String key) {
+    public static <X> X getHeaders(HttpServletRequest request, String key, TypeReference<X> typeRef) {
         try {
             String obj = request.getHeader(key);
-            if(Utils.STR.isBlank(obj)) return new HashSet<>();
-            return Utils.O.read(request.getHeader(key), new TypeReference<>() {
-            });
+            if (Utils.STR.isBlank(obj)) {
+                return null;
+            }
+            return Utils.O.read(obj, typeRef);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error while parse header JSON: " + key, e);
         }
     }
 
