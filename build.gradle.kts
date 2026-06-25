@@ -43,7 +43,7 @@ repositories {
 }
 extra["jooq.version"] = "3.21.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.7.5"
+val msmCommonVersion = "1.7.6"
 
 dependencies {
 
@@ -59,6 +59,8 @@ dependencies {
 
     // spring security
     implementation("org.springframework.security:spring-security-core")
+
+    implementation("jakarta.servlet:jakarta.servlet-api")
 
     // validation
     implementation("org.springframework.boot:spring-boot-starter-validation")

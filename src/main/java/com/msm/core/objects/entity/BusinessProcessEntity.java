@@ -2,6 +2,8 @@ package com.msm.core.objects.entity;
 
 import com.msm.core.metadata.annotation.AttributeDefinition;
 import com.msm.core.metadata.annotation.AttributeDefinitionRef;
+import com.msm.core.security.annotations.SecuredField;
+import com.msm.core.security.enums.SecurityDataScopeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Transient;
@@ -17,6 +19,19 @@ import java.util.UUID;
 @MappedSuperclass
 public abstract class BusinessProcessEntity extends AuditingEntity {
 
+    @AttributeDefinition(attributeRef = @AttributeDefinitionRef(
+            fieldName = "teamIdReference",
+            objectRef = "team"
+    ))
+    @SecuredField({SecurityDataScopeType.TEAM})
+    @Column(name = "team_id")
+    private UUID teamId;
+
+    @AttributeDefinition(attributeRef = @AttributeDefinitionRef(
+            fieldName = "orgIdReference",
+            objectRef = "organization"
+    ))
+    @SecuredField({SecurityDataScopeType.BUSINESS_UNIT, SecurityDataScopeType.PARENT_CHILD})
     @Column(name = "org_id")
     private UUID orgId;
 

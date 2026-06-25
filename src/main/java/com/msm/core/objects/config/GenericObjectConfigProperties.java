@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "object")
+@ConfigurationProperties(prefix = "objects")
 public class GenericObjectConfigProperties {
     private Executor executor = new Executor();
     private ImportFile importFile = new ImportFile();
@@ -18,8 +18,6 @@ public class GenericObjectConfigProperties {
     //dev, qc, uat
     @Data
     public static class ImportFile {
-        private String env = "dev";
+        private String basePathUrl;
     }
-
-
 }

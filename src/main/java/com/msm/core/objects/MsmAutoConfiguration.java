@@ -70,6 +70,7 @@ import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
 import com.msm.core.objects.service.IntegrationLogService;
 import com.msm.core.objects.service.ObjectDependencyServiceImpl;
+import com.msm.core.objects.service.PermissionService;
 import com.msm.core.objects.service.PreprocessCustomFieldValueService;
 import com.msm.core.objects.service.ValidateAndPopulateDataService;
 import com.msm.core.objects.service.imports.BatchExecutionService;
@@ -78,9 +79,17 @@ import com.msm.core.objects.service.imports.MultipartCsvObjectReader;
 import com.msm.core.objects.service.imports.RowMapperContext;
 import com.msm.core.objects.service.imports.mapper.CsvRowMapper;
 import com.msm.core.objects.service.imports.mapper.RowMapper;
-import com.msm.core.objects.service.imports.resolver.ObjectAttributeRefResolver;
-import com.msm.core.objects.service.imports.resolver.ReferenceResolver;
+import com.msm.core.objects.service.imports.resolver.ObjectResolver;
+import com.msm.core.objects.service.imports.resolver.Resolver;
+import com.msm.core.objects.service.imports.resolver.impl.GeographyTypeCodeLookup;
+import com.msm.core.objects.service.imports.resolver.strategy.DefaultObjectAttributeRefResolver;
+import com.msm.core.objects.service.imports.resolver.strategy.ObjectRefResolverFactory;
+import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
+import com.msm.core.security.DataScopeConditionResolver;
+import com.msm.core.security.DataScopeResolver;
+import com.msm.core.security.SecurityCheckProvider;
+import com.msm.core.security.SecurityConditionProvider;
 import com.msm.core.strategy.StrategyResolver;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.rules.AttributeSimpleRule;
@@ -129,8 +138,6 @@ public class MsmAutoConfiguration {
 
     @Bean
     public BeanPostProcessor msmEntityManagerFactoryPostProcessor() {
-        System.out.println("=======> [MSM LIB] ĐÃ KHỞI TẠO BỘ CHẶN EM_FACTORY <=======");
-
         return new BeanPostProcessor() {
             @Override
             public Object postProcessBeforeInitialization(Object bean, String beanName) {
@@ -177,10 +184,24 @@ public class MsmAutoConfiguration {
         return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public DataScopeResolver dataScopeResolver() {
+        return new DataScopeConditionResolver();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SecurityConditionProvider securityConditionProvider(DataScopeResolver dataScopeResolver) {
+        return new SecurityConditionProvider(dataScopeResolver);
+    }
+
     @Bean(name = "dynamicFilterQuery")
     @ConditionalOnMissingBean
-    public DynamicFilterQuery dynamicFilterQuery(DSLContext dslContext) {
-        return new DefaultDynamicFilterQuery(dslContext);
+    public DynamicFilterQuery dynamicFilterQuery(
+            DSLContext dslContext,
+            SecurityConditionProvider securityConditionProvider) {
+        return new DefaultDynamicFilterQuery(dslContext, securityConditionProvider);
     }
 
     @Bean(name = "dynamicInsert")
@@ -606,22 +627,36 @@ public class MsmAutoConfiguration {
         return new CsvRowMapper();
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public ReferenceResolver referenceResolver(
+    @Bean("defaultReferenceResolver")
+//    @ConditionalOnMissingBean
+    public ReferenceResolver defaultReferenceResolver(
             GenericObjectHandler genericObjectHandler,
             GenericObjectInternalService genericObjectInternalService) {
-        return new ObjectAttributeRefResolver(genericObjectHandler, genericObjectInternalService);
+        return new DefaultObjectAttributeRefResolver(genericObjectHandler, genericObjectInternalService);
+    }
+
+    @Bean
+//    @ConditionalOnMissingBean
+    public ObjectRefResolverFactory objectRefResolverFactory(
+            List<ReferenceResolver> referenceResolvers,
+            @Qualifier("defaultReferenceResolver") ReferenceResolver defaultReferenceResolver
+    ) {
+        return new ObjectRefResolverFactory(referenceResolvers, defaultReferenceResolver);
+    }
+
+    @Bean
+//    @ConditionalOnMissingBean
+    public Resolver objectResolver(ObjectRefResolverFactory objectRefResolverFactory) {
+        return new ObjectResolver(objectRefResolverFactory);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public BatchExecutionService batchExecutionService(
-            ReferenceResolver referenceResolver,
-//            ActionExecutor actionExecutor,
             ValidateAndPopulateDataService validateAndPopulateDataService,
-            GenericObjectHandler genericObjectHandler) {
-        return new BatchExecutionService(referenceResolver, validateAndPopulateDataService, genericObjectHandler);
+            GenericObjectHandler genericObjectHandler,
+            Resolver objectResolver) {
+        return new BatchExecutionService(validateAndPopulateDataService, genericObjectHandler, objectResolver);
     }
 
     @Bean
@@ -647,5 +682,28 @@ public class MsmAutoConfiguration {
         return new GenericObjectInternalService(genericObjectConfigProperties, requestClient);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public GeographyTypeCodeLookup geographyTypeCodeLookup(
+            GenericObjectHandler genericObjectHandler,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new GeographyTypeCodeLookup(genericObjectHandler, genericObjectInternalService);
+    }
 
+
+    @Bean
+    public PermissionService permissionService(
+            DSLContext dslContext,
+            SecurityCheckProvider securityCheckProvider) {
+        return new PermissionService(dslContext, securityCheckProvider);
+    }
+
+    //SecurityCheckProvider
+    @Bean
+    public SecurityCheckProvider securityCheckProvider(
+            DSLContext dslContext,
+            DataScopeResolver dataScopeResolver) {
+        return new SecurityCheckProvider(dslContext, dataScopeResolver);
+    }
 }

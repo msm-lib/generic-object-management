@@ -1,10 +1,10 @@
 package com.msm.core.objects.audit;
 
 import com.msm.core.commons.Constants;
-import com.msm.core.dynamicquery.context.RequestContext;
-import com.msm.core.dynamicquery.context.RequestContextHolder;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.security.RequestContextHolder;
+import com.msm.core.security.context.RequestContext;
 
 import java.time.Instant;
 import java.util.Map;

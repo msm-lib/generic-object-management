@@ -11,6 +11,7 @@ public class ObjectConstants {
     public static final String IS_DELETED_FIELD = "isDeleted";
     public static final String SUMMARY_BLANKET_ORDER_PRODUCT_CHANGE = "summaryBlanketOrderProductChange";
     public static final String AUTO_GENERATE_PRODUCT_ALLOCATE = "autoGenerateBlanketOrderProductAllocate";
+    public static final String OBJECT_ATTRIBUTE_REF_TEMPLATE = "{0}:{1}";
 
     public static final String REF_SUFFIX = "{0}Reference";
 

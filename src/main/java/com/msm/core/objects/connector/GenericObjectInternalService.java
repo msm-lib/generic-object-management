@@ -8,12 +8,12 @@ import com.msm.core.filter.domain.FilterOperator;
 import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
-import com.msm.core.objects.ObjectConstants;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.connector.internal.ApiConstants;
 import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.integration.RequestClient;
 import com.msm.core.objects.service.imports.factory.ObjectServiceFactory;
+import com.msm.core.objects.utils.GenericObjectUtils;
 import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
@@ -80,7 +80,8 @@ public class GenericObjectInternalService {
 
 
     String getBaseUrl(String objectName) {
-        return ObjectConstants.ENV_MAP.get(genericObjectConfigProperties.getImportFile().getEnv()) + "/" + ObjectServiceFactory.getServiceName(objectName);
+        String baseUrl = genericObjectConfigProperties.getImportFile().getBasePathUrl();
+        return GenericObjectUtils.normalizeUrl(baseUrl) + "/" + ObjectServiceFactory.getServiceName(objectName);
     }
 
 }

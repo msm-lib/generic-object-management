@@ -1,11 +1,13 @@
-package com.msm.core.objects;
+package com.msm.core.objects.utils;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.msm.core.commons.Utils;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.ObjectConstants;
 import com.msm.core.objects.entity.ReferenceFields;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -76,5 +78,31 @@ public class GenericObjectUtils {
         if(Objects.nonNull(value)) {
             target.put(targetKey, value);
         }
+    }
+
+    public static String normalizeHttpsUrl(String baseUrl) {
+        URI uri = URI.create(baseUrl);
+        if (uri.getScheme() == null) {
+            return "https://" + baseUrl;
+        }
+        return baseUrl;
+    }
+
+    public static String normalizeUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+
+        url = url.trim();
+
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+
+        if (!url.matches("^(?i)https?://.*")) {
+            url = "https://" + url;
+        }
+
+        return url;
     }
 }

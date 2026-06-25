@@ -1,6 +1,5 @@
 package com.msm.core.objects.service.imports;
 
-import com.msm.core.metadata.Attribute;
 import com.msm.core.objects.service.imports.mapper.RowMapper;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +14,9 @@ import java.io.InputStreamReader;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -45,29 +42,25 @@ public class MultipartCsvObjectReader implements FileReader<MultipartFile, Map<S
                      .get()
                      .parse(reader)) {
 
-            Map<Attribute, Set<String>> attrCodeMap = new HashMap<>();
             for (CSVRecord csvRecord : csvParser) {
                 RowMapperContext context = RowMapperContext
                         .builder()
                         .row(csvRecord)
                         .objectName(objectName)
-                        .attrCodeMap(attrCodeMap)
                         .build();
                 Map<String, Object> item = csvRowMapper.mapRow(context);
                 items.add(item);
 
                 if(items.size() >= MAX_CODE_IMPORT) {
-                    batchExecutionService.batchImportAndCleanup(objectName, items, attrCodeMap);
+                    batchExecutionService.batchImportAndCleanup(objectName, items);
                 }
             }
 
             if(!items.isEmpty()) {
-                batchExecutionService.batchImportAndCleanup(objectName, items, attrCodeMap);
+                batchExecutionService.batchImportAndCleanup(objectName, items);
             }
 
         } catch (Exception ex) {
-
-//            log.error(e.getMessage(), e);
             throw Lombok.sneakyThrow(ex);
         }
 

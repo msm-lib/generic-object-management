@@ -1,8 +1,7 @@
 package com.msm.core.objects.service.imports;
 
-import com.msm.core.metadata.Attribute;
 import com.msm.core.objects.service.imports.mapper.RowMapper;
-import com.msm.core.objects.service.imports.resolver.ReferenceResolver;
+import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +14,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -44,24 +41,22 @@ public class CsvObjectReader implements FileReader<String, Map<String, Object>> 
                     .get()
                     .parse(reader);
 
-            Map<Attribute, Set<String>> attrCodeMap = new HashMap<>();
             for (CSVRecord csvRecord : csvParser) {
                 RowMapperContext context = RowMapperContext
                         .builder()
                         .row(csvRecord)
                         .objectName(objectName)
-                        .attrCodeMap(attrCodeMap)
                         .build();
                 Map<String, Object> item = csvRowMapper.mapRow(context);
                 items.add(item);
 
                 if(items.size() >= BATCH_SIZE) {
-                    batchExecutionService.batchImportAndCleanup(objectName, items, attrCodeMap);
+                    batchExecutionService.batchImportAndCleanup(objectName, items);
                 }
             }
 
             if(!items.isEmpty()) {
-                batchExecutionService.batchImportAndCleanup(objectName, items, attrCodeMap);
+                batchExecutionService.batchImportAndCleanup(objectName, items);
             }
         } catch (IOException e) {
             log.error(e.getMessage(), e);
