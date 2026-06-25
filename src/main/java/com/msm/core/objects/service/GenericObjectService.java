@@ -29,6 +29,16 @@ public class GenericObjectService {
 
     private final ActionExecutor actionExecutor;
 
+    public PageResponse<Object> lookup(ObjectFilterRequest filter) {
+        ActionContext<ObjectFilterRequest> actionContext = ActionContext
+                .<ObjectFilterRequest>builder()
+                .resource(filter.getObjectInfo().getName())
+                .action(Constants.FilterAction.LOOKUP_OBJECT)
+                .payload(filter)
+                .build();
+        return actionExecutor.execute(actionContext);
+    }
+
     public PageResponse<Object> filter(ObjectFilterRequest filter) {
         ActionContext<ObjectFilterRequest> actionContext = ActionContext
                 .<ObjectFilterRequest>builder()

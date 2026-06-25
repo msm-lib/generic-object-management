@@ -32,6 +32,14 @@ public class GenericObjectHandler {
     private final StrategyResolver<String, AuditStrategy> auditStrategyFactory;
     private final StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory;
 
+    @Handler(action = Constants.FilterAction.LOOKUP_OBJECT)
+    public PageResponse<Map<String, Object>> lookupHandler(ActionContext<ObjectFilterRequest> request) {
+        ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
+        PageResponse<Map<String, Object>> pageResponse = dynamicQueryService.lookup(objectMetadata, request.getPayload());
+        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
+        return pageResponse;
+    }
+
     @Handler(action = Constants.FilterAction.FILTER_OBJECT)
     public PageResponse<Map<String, Object>> filterHandler(ActionContext<ObjectFilterRequest> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());

@@ -75,7 +75,7 @@ public class GenericObjectController {
             @RequestBody ObjectFilterRequest filter) {
 
         filter.setObjectInfo(ObjectFilterRequest.ObjectInfo.builder().name(objectName).build());
-        return ResponseEntity.ok(genericObjectService.filter(filter));
+        return ResponseEntity.ok(genericObjectService.lookup(filter));
     }
 
     @PreAuthorize("@permissionService.canView(#p0)")
