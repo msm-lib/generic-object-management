@@ -124,7 +124,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.bulkCreateObject(objectName, request));
     }
 
-    @PreAuthorize("@permissionService.canEdit(#p0, #p1)")
+    @PreAuthorize("@permissionService.canEdit(#p0, #p2)")
     @Operation(summary = "Update object", description = "Returns object updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
