@@ -29,8 +29,23 @@ public class PermissionService {
     private final DSLContext dsl;
     private final SecurityCheckProvider securityCheckProvider;
 
+    public boolean canLookup(String objectName) {
+        RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
+
+        AuthorizationContext authorizationContext = requestContext.getAuthorization();
+        return authorizationContext.hasPermission(objectName, PermissionAction.LOOKUP);
+    }
+
+
     public boolean canView(String objectName) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
+
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         return authorizationContext.canView(resolveObjectAccessScope(objectName));
     }
@@ -58,10 +73,11 @@ public class PermissionService {
 
     public boolean canCreate(String objectName, Map<String, Object> payload) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
+
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
-//        String securityTargetMetadataName = resolveObjectAccessScope(objectName);
-
-
         boolean canCreate = authorizationContext.canCreate(resolveObjectAccessScope(objectName));
         if (canCreate) {
             return securityCheckProvider.checkDataScope(objectName, payload, PermissionAction.CREATE);
@@ -72,8 +88,11 @@ public class PermissionService {
 
     public boolean canBulkCreate(String objectName, List<Map<String, Object>> payload) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
-        AuthorizationContext authorizationContext = requestContext.getAuthorization();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
 
+        AuthorizationContext authorizationContext = requestContext.getAuthorization();
         boolean canCreate = authorizationContext.canCreate(resolveObjectAccessScope(objectName));
         if (canCreate) {
             return securityCheckProvider.checkDataScope(objectName, payload, PermissionAction.CREATE);
@@ -84,9 +103,12 @@ public class PermissionService {
 
     public boolean canEdit(String objectName, Map<String, Object> payload) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
+
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         boolean canEdit = authorizationContext.canUpdate(resolveObjectAccessScope(objectName));
-
         if (canEdit) {
             return securityCheckProvider.checkDataScope(objectName, payload, PermissionAction.UPDATE);
         }
@@ -96,6 +118,9 @@ public class PermissionService {
 
     public boolean canBulkEdit(String objectName, List<Map<String, Object>> payloads) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         boolean canEdit = authorizationContext.canUpdate(resolveObjectAccessScope(objectName));
 
@@ -108,6 +133,9 @@ public class PermissionService {
 
     public boolean canDelete(String objectName, UUID id, Long version) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         boolean canDelete = authorizationContext.canDelete(resolveObjectAccessScope(objectName));
 
@@ -136,6 +164,9 @@ public class PermissionService {
 
     public boolean canBulkDelete(String objectName, List<ObjectDeleteRequest> objectDeleteRequests) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         boolean canDelete = authorizationContext.canDelete(resolveObjectAccessScope(objectName));
 
@@ -166,11 +197,18 @@ public class PermissionService {
 
     public boolean canProcessAction(String objectName) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+        if (isSupperAdmin(requestContext)) {
+            return true;
+        }
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         return authorizationContext.canCreate(resolveObjectAccessScope(objectName));
     }
 
     private String resolveObjectAccessScope(String objectName) {
         return ObjectAccessScopeResolver.resolveObjectAccessScope(objectName);
+    }
+
+    private boolean isSupperAdmin(RequestContext requestContext) {
+        return requestContext.isSupperAdmin();
     }
 }

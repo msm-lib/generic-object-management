@@ -66,6 +66,7 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.filter(filter));
     }
 
+    @PreAuthorize("@permissionService.canLookup(#p0)")
     @Operation(summary = "Lookup object", description = "List of object")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = PageResponse.class)))})
