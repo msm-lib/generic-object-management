@@ -9,7 +9,7 @@ import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.connector.MasterDataApiService;
 import com.msm.core.objects.dto.metadata.ObjectDependencyMeta;
-import com.msm.core.objects.handler.GenericObjectHandler;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,7 +26,7 @@ public class ObjectDependencyServiceImpl implements ObjectDependencyService {
     //outbox
     private static final String OUTBOX_TABLE_NAME = "outbox";
     private static final String OBJECT_DEPENDENCY_CONSTRAINT_NAME = "object_dependency_uq_dependency";
-    private final GenericObjectHandler genericObjectHandler;
+    private final ObjectQueryRepository internalObjectQueryRepository;
     private final MasterDataApiService masterDataApiService;
 
     public void saveObjectDependency(ActionContext<Map<String, Object>> actionContext) {
@@ -66,7 +66,7 @@ public class ObjectDependencyServiceImpl implements ObjectDependencyService {
         List<Map<String, Object>> dependencyPayload = buildObjectDependencyMap(objectMetadataOptional.get(), valueMap);
         boolean isInternal = isInternalObjectDependency();
         if(isInternal && Utils.CL.isNotEmpty(dependencyPayload)) {
-            genericObjectHandler.bulkCreateIgnoreConflictOnConstraintName(ObjectDependencyMeta.OBJECT_NAME, dependencyPayload, OBJECT_DEPENDENCY_CONSTRAINT_NAME);
+            internalObjectQueryRepository.bulkCreateIgnoreConflictOnConstraintName(ObjectDependencyMeta.OBJECT_NAME, dependencyPayload, OBJECT_DEPENDENCY_CONSTRAINT_NAME);
         } else if(Utils.CL.isNotEmpty(dependencyPayload)){
             masterDataApiService.post(dependencyPayload);
         }

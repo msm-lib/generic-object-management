@@ -12,7 +12,7 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.connector.GenericObjectInternalService;
-import com.msm.core.objects.handler.GenericObjectHandler;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import lombok.RequiredArgsConstructor;
 
@@ -29,7 +29,7 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
 
     private final String CODE = "code";
     private final String GEOGRAPHY_TY_ID = "geographyTypeId";
-    private final GenericObjectHandler genericObjectHandler;
+    private final ObjectQueryRepository internalObjectQueryRepository;
     private final GenericObjectInternalService genericObjectInternalService;
 
     @Override
@@ -66,7 +66,7 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
             ObjectMetadata objectMetadata = optionalObjectMetadata.get();
             Attribute codeAttr = objectMetadata.getAttributeByName("code");
             Attribute geographyTypeAttr = objectMetadata.getAttributeByName("geographyTypeId");
-            objectList = genericObjectHandler.findAllByCondition(
+            objectList = internalObjectQueryRepository.findAllByCondition(
                     objectName,
                     codeAttr.getField().in(codes).and(geographyTypeAttr.getField().in(parentGeographyTypes)),
                     returnFields()

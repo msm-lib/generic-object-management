@@ -6,7 +6,7 @@ import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
-import com.msm.core.objects.handler.GenericObjectHandler;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.service.ValidateAndPopulateDataService;
 import com.msm.core.objects.service.imports.resolver.Resolver;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.Objects;
 public class BatchExecutionService {
 
     private final ValidateAndPopulateDataService validateAndPopulateDataService;
-    private final GenericObjectHandler genericObjectHandler;
+    private final ObjectQueryRepository internalObjectQueryRepository;
     private final Resolver resolve;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
@@ -56,7 +56,7 @@ public class BatchExecutionService {
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
 
         validateAndPopulateDataService.validate(objectMetadata, items);
-        genericObjectHandler.bulkUpsertReturning(
+        internalObjectQueryRepository.bulkUpsertReturning(
                 objectName,
                 items,
                 List.of("code", "geographyTypeId"));

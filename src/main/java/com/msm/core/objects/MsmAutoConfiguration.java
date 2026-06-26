@@ -7,15 +7,18 @@ import com.msm.core.action.executor.DefaultAsyncExecutor;
 import com.msm.core.action.hook.DefaultHookEngine;
 import com.msm.core.action.hook.HookEngine;
 import com.msm.core.action.transaction.TransactionHook;
-import com.msm.core.dynamicquery.DynamicQueryService;
+import com.msm.core.dynamicquery.DefaultQueryService;
+import com.msm.core.dynamicquery.ObjectQuery;
 import com.msm.core.dynamicquery.command.DefaultDynamicDelete;
 import com.msm.core.dynamicquery.command.DefaultDynamicInsert;
 import com.msm.core.dynamicquery.command.DefaultDynamicUpdate;
 import com.msm.core.dynamicquery.command.DynamicDelete;
 import com.msm.core.dynamicquery.command.DynamicInsert;
 import com.msm.core.dynamicquery.command.DynamicUpdate;
-import com.msm.core.dynamicquery.query.DefaultDynamicFilterQuery;
-import com.msm.core.dynamicquery.query.DynamicFilterQuery;
+import com.msm.core.dynamicquery.internal.InternalFilterQuery;
+import com.msm.core.dynamicquery.internal.InternalQueryService;
+import com.msm.core.dynamicquery.query.DefaultFilterQuery;
+import com.msm.core.dynamicquery.query.FilterQuery;
 import com.msm.core.filter.AdvancedFilterService;
 import com.msm.core.filter.DefaultPredicateFactory;
 import com.msm.core.filter.EntityClassFactory;
@@ -62,7 +65,10 @@ import com.msm.core.objects.integration.middleware.TracingMiddleware;
 import com.msm.core.objects.integration.retry.ResilienceRetryExecutor;
 import com.msm.core.objects.integration.retry.RetryConfigResolver;
 import com.msm.core.objects.integration.retry.RetryExecutor;
+import com.msm.core.objects.repository.DefaultObjectQueryRepository;
 import com.msm.core.objects.repository.DefaultRepositoryFactory;
+import com.msm.core.objects.repository.InternalObjectQueryRepository;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.repository.RepositoryFactory;
 import com.msm.core.objects.rules.GenericObjectRulesService;
 import com.msm.core.objects.service.DefaultSoftDeleteFilter;
@@ -196,12 +202,17 @@ public class MsmAutoConfiguration {
         return new SecurityConditionProvider(dataScopeResolver);
     }
 
-    @Bean(name = "dynamicFilterQuery")
+    @Bean(name = "defaultFilterQuery")
     @ConditionalOnMissingBean
-    public DynamicFilterQuery dynamicFilterQuery(
+    public FilterQuery defaultFilterQuery(
             DSLContext dslContext,
             SecurityConditionProvider securityConditionProvider) {
-        return new DefaultDynamicFilterQuery(dslContext, securityConditionProvider);
+        return new DefaultFilterQuery(dslContext, securityConditionProvider);
+    }
+
+    @Bean(name = "internalFilterQuery")
+    public FilterQuery internalFilterQuery(DSLContext dslContext) {
+        return new InternalFilterQuery(dslContext);
     }
 
     @Bean(name = "dynamicInsert")
@@ -222,14 +233,22 @@ public class MsmAutoConfiguration {
         return new DefaultDynamicDelete(dslContext, dynamicUpdate);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public DynamicQueryService dynamicQueryService(
-            @Qualifier("dynamicFilterQuery") DynamicFilterQuery dynamicFilterQuery,
+    @Bean("defaultQueryService")
+    public ObjectQuery defaultQueryService(
+            @Qualifier("defaultFilterQuery") FilterQuery defaultFilterQuery,
             @Qualifier("dynamicInsert") DynamicInsert dynamicInsert,
             @Qualifier("dynamicUpdate") DynamicUpdate dynamicUpdate,
             @Qualifier("dynamicDelete") DynamicDelete dynamicDelete) {
-        return new DynamicQueryService(dynamicFilterQuery, dynamicInsert, dynamicUpdate, dynamicDelete);
+        return new DefaultQueryService(defaultFilterQuery, dynamicInsert, dynamicUpdate, dynamicDelete);
+    }
+
+    @Bean("internalQueryService")
+    public ObjectQuery internalQueryService(
+            @Qualifier("internalFilterQuery") FilterQuery internalFilterQuery,
+            @Qualifier("dynamicInsert") DynamicInsert dynamicInsert,
+            @Qualifier("dynamicUpdate") DynamicUpdate dynamicUpdate,
+            @Qualifier("dynamicDelete") DynamicDelete dynamicDelete) {
+        return new InternalQueryService(internalFilterQuery, dynamicInsert, dynamicUpdate, dynamicDelete);
     }
 
     @Bean
@@ -347,10 +366,10 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ObjectDependencyServiceImpl objectDependencyService(
-            GenericObjectHandler genericObjectHandler,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             MasterDataApiService masterDataApiService
     ) {
-        return new ObjectDependencyServiceImpl(genericObjectHandler, masterDataApiService);
+        return new ObjectDependencyServiceImpl(internalObjectQueryRepository, masterDataApiService);
     }
 
     @Bean
@@ -404,20 +423,32 @@ public class MsmAutoConfiguration {
         return new MappingStrategyResolverFactory(objectMappingStrategies, defaultCustomValueMappingStrategy);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public GenericObjectHandler genericObjectExecutor(
-            DynamicQueryService dynamicQueryService,
+    @Bean("objectQueryRepository")
+    public ObjectQueryRepository defaultObjectQueryRepository(
+            @Qualifier("defaultQueryService") ObjectQuery defaultQueryService,
             GenericObjectMetadataService genericObjectMetadataService,
             StrategyResolver<String, AuditStrategy> auditStrategyFactory,
             StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory
     ) {
-        return new GenericObjectHandler(
-                dynamicQueryService,
-                genericObjectMetadataService,
-                auditStrategyFactory,
-                objectMappingStrategyFactory
-        );
+        return new DefaultObjectQueryRepository(defaultQueryService, genericObjectMetadataService, auditStrategyFactory, objectMappingStrategyFactory);
+    }
+
+    @Bean("internalObjectQueryRepository")
+    public ObjectQueryRepository internalObjectQueryRepository(
+            @Qualifier("internalQueryService") ObjectQuery internalQueryService,
+            GenericObjectMetadataService genericObjectMetadataService,
+            StrategyResolver<String, AuditStrategy> auditStrategyFactory,
+            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory
+    ) {
+        return new InternalObjectQueryRepository(internalQueryService, genericObjectMetadataService, auditStrategyFactory, objectMappingStrategyFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GenericObjectHandler genericObjectExecutor(
+            @Qualifier("objectQueryRepository") ObjectQueryRepository objectQueryRepository,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository) {
+        return new GenericObjectHandler(objectQueryRepository, internalObjectQueryRepository);
     }
 
     @Bean
@@ -589,7 +620,7 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    IntegrationClient integrationClient(
+    public IntegrationClient integrationClient(
             IntegrationProperties integrationProperties,
             IntegrationClientExchange integrationClientExchange) {
         return new IntegrationClient(integrationProperties, integrationClientExchange);
@@ -597,8 +628,8 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    IntegrationLogService integrationService(GenericObjectHandler genericObjectHandler) {
-        return new IntegrationLogService(genericObjectHandler);
+    public IntegrationLogService integrationService(@Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository) {
+        return new IntegrationLogService(internalObjectQueryRepository);
     }
 
     @Bean
@@ -628,15 +659,13 @@ public class MsmAutoConfiguration {
     }
 
     @Bean("defaultReferenceResolver")
-//    @ConditionalOnMissingBean
     public ReferenceResolver defaultReferenceResolver(
-            GenericObjectHandler genericObjectHandler,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             GenericObjectInternalService genericObjectInternalService) {
-        return new DefaultObjectAttributeRefResolver(genericObjectHandler, genericObjectInternalService);
+        return new DefaultObjectAttributeRefResolver(internalObjectQueryRepository, genericObjectInternalService);
     }
 
     @Bean
-//    @ConditionalOnMissingBean
     public ObjectRefResolverFactory objectRefResolverFactory(
             List<ReferenceResolver> referenceResolvers,
             @Qualifier("defaultReferenceResolver") ReferenceResolver defaultReferenceResolver
@@ -645,7 +674,6 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
-//    @ConditionalOnMissingBean
     public Resolver objectResolver(ObjectRefResolverFactory objectRefResolverFactory) {
         return new ObjectResolver(objectRefResolverFactory);
     }
@@ -654,9 +682,9 @@ public class MsmAutoConfiguration {
     @ConditionalOnMissingBean
     public BatchExecutionService batchExecutionService(
             ValidateAndPopulateDataService validateAndPopulateDataService,
-            GenericObjectHandler genericObjectHandler,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             Resolver objectResolver) {
-        return new BatchExecutionService(validateAndPopulateDataService, genericObjectHandler, objectResolver);
+        return new BatchExecutionService(validateAndPopulateDataService, internalObjectQueryRepository, objectResolver);
     }
 
     @Bean
@@ -685,10 +713,10 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GeographyTypeCodeLookup geographyTypeCodeLookup(
-            GenericObjectHandler genericObjectHandler,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             GenericObjectInternalService genericObjectInternalService
     ) {
-        return new GeographyTypeCodeLookup(genericObjectHandler, genericObjectInternalService);
+        return new GeographyTypeCodeLookup(internalObjectQueryRepository, genericObjectInternalService);
     }
 
 

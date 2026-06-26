@@ -7,7 +7,7 @@ import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.service.GenericObjectMetadataService;
-import com.msm.core.objects.service.GenericObjectService;
+import com.msm.core.objects.service.internal.InternalGenericObjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,14 +45,14 @@ import java.util.UUID;
  */
 @Tag(name = "Generic objects controller")
 @RestController
-@RequestMapping("/api/v1/cn/portal")
+@RequestMapping("/api/v1/internal")
 @RequiredArgsConstructor
-public class GenericObjectController {
+public class InternalGenericObjectController {
 
-    private final GenericObjectService genericObjectService;
+    private final InternalGenericObjectService internalGenericObjectService;
     private final GenericObjectMetadataService genericObjectMetadataService;
 
-    @PreAuthorize("@permissionService.canView(#p0)")
+//    @PreAuthorize("@permissionService.canView(#p0)")
     @Operation(summary = "Filter object", description = "list of object filtered")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = PageResponse.class)))})
@@ -63,10 +62,10 @@ public class GenericObjectController {
             @RequestBody ObjectFilterRequest filter) {
 
         filter.setObjectInfo(ObjectFilterRequest.ObjectInfo.builder().name(objectName).build());
-        return ResponseEntity.ok(genericObjectService.filter(filter));
+        return ResponseEntity.ok(internalGenericObjectService.filter(filter));
     }
 
-    @PreAuthorize("@permissionService.canLookup(#p0)")
+//    @PreAuthorize("@permissionService.canLookup(#p0)")
     @Operation(summary = "Lookup object", description = "List of object")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = PageResponse.class)))})
@@ -76,10 +75,10 @@ public class GenericObjectController {
             @RequestBody ObjectFilterRequest filter) {
 
         filter.setObjectInfo(ObjectFilterRequest.ObjectInfo.builder().name(objectName).build());
-        return ResponseEntity.ok(genericObjectService.lookup(filter));
+        return ResponseEntity.ok(internalGenericObjectService.lookup(filter));
     }
 
-    @PreAuthorize("@permissionService.canView(#p0)")
+//    @PreAuthorize("@permissionService.canView(#p0)")
     @Operation(summary = "Get object by id", description = "Returns object")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -88,10 +87,10 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @PathVariable("id") UUID id,
             @RequestParam(value = "returnFields", required = false) List<String> returnFields) {
-        return ResponseEntity.ok(genericObjectService.getObjectById(objectName, id, returnFields));
+        return ResponseEntity.ok(internalGenericObjectService.getObjectById(objectName, id, returnFields));
     }
 
-    @PreAuthorize("@permissionService.canView(#p0)")
+//    @PreAuthorize("@permissionService.canView(#p0)")
     @Operation(summary = "Get all objects", description = "Returns list of object")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = List.class)))})
@@ -100,10 +99,10 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @RequestParam(value = "returnFields", required = false) List<String> returnFields) {
 
-        return ResponseEntity.ok(genericObjectService.getAllObject(objectName, returnFields));
+        return ResponseEntity.ok(internalGenericObjectService.getAllObject(objectName, returnFields));
     }
 
-    @PreAuthorize("@permissionService.canCreate(#p0, #p1)")
+//    @PreAuthorize("@permissionService.canCreate(#p0, #p1)")
     @Operation(summary = "Create object", description = "Returns object created")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -111,10 +110,10 @@ public class GenericObjectController {
     public ResponseEntity<Map<String, Object>> createObjects(
             @PathVariable("objectName") String objectName,
             @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(genericObjectService.createObject(objectName, request));
+        return ResponseEntity.ok(internalGenericObjectService.createObject(objectName, request));
     }
 
-    @PreAuthorize("@permissionService.canBulkCreate(#p0, #p1)")
+//    @PreAuthorize("@permissionService.canBulkCreate(#p0, #p1)")
     @Operation(summary = "Create bulk object", description = "Returns objects created")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -122,10 +121,10 @@ public class GenericObjectController {
     public ResponseEntity<List<Map<String, Object>>> createBulkObject(
             @PathVariable("objectName") String objectName,
             @RequestBody List<Map<String, Object>> request) {
-        return ResponseEntity.ok(genericObjectService.bulkCreateObject(objectName, request));
+        return ResponseEntity.ok(internalGenericObjectService.bulkCreateObject(objectName, request));
     }
 
-    @PreAuthorize("@permissionService.canEdit(#p0, #p2)")
+//    @PreAuthorize("@permissionService.canEdit(#p0, #p2)")
     @Operation(summary = "Update object", description = "Returns object updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -134,10 +133,10 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @PathVariable("id") UUID id,
             @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(genericObjectService.updateObject(objectName, id, request));
+        return ResponseEntity.ok(internalGenericObjectService.updateObject(objectName, id, request));
     }
 
-    @PreAuthorize("@permissionService.canBulkEdit(#p0, #p1)")
+//    @PreAuthorize("@permissionService.canBulkEdit(#p0, #p1)")
     @Operation(summary = "Update list object", description = "Returns object list updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -145,10 +144,10 @@ public class GenericObjectController {
     public ResponseEntity<List<Map<String, Object>>> updateObject(
             @PathVariable("objectName") String objectName,
             @RequestBody List<Map<String, Object>> request) {
-        return ResponseEntity.ok(genericObjectService.bulkUpdateObject(objectName, request));
+        return ResponseEntity.ok(internalGenericObjectService.bulkUpdateObject(objectName, request));
     }
 
-    @PreAuthorize("@permissionService.canDelete(#p0, #p1, #p2)")
+//    @PreAuthorize("@permissionService.canDelete(#p0, #p1, #p2)")
     @Operation(summary = "Delete object", description = "Returns id deleted")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -157,11 +156,11 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @PathVariable("id") UUID id,
             @RequestParam(value = "version", required = false) Long version) {
-        genericObjectService.deleteObject(objectName, id, version);
+        internalGenericObjectService.deleteObject(objectName, id, version);
         return ResponseEntity.ok(id);
     }
 
-    @PreAuthorize("@permissionService.canBulkDelete(#p0, #p1)")
+//    @PreAuthorize("@permissionService.canBulkDelete(#p0, #p1)")
     @Operation(summary = "Delete multiple generic object", description = "Returns ids deleted")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -169,17 +168,17 @@ public class GenericObjectController {
     public ResponseEntity<Object> deleteObjects(
             @PathVariable("objectName") String objectName,
             @RequestBody List<ObjectDeleteRequest> deleteRequests) {
-        genericObjectService.deleteObjects(objectName, deleteRequests);
+        internalGenericObjectService.deleteObjects(objectName, deleteRequests);
         return ResponseEntity.ok(deleteRequests.stream().toList());
     }
 
-    @PreAuthorize("@permissionService.canConversion(#p0)")
+//    @PreAuthorize("@permissionService.canCreate(#p0, #p1)")
     @Operation(summary = "Conversion object", description = "Returns object converted")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/conversion")
     public ResponseEntity<Object> conversionObject(@RequestBody ObjectConversionRequest request) {
-        return ResponseEntity.ok(genericObjectService.conversion(request));
+        return ResponseEntity.ok(internalGenericObjectService.conversion(request));
     }
 
 
@@ -189,10 +188,10 @@ public class GenericObjectController {
     @PostMapping("/generic/objects/query")
     public ResponseEntity<Object> createQuery(
             @RequestBody QueryTemplate request) {
-        return ResponseEntity.ok(genericObjectService.queryTemplate(request));
+        return ResponseEntity.ok(internalGenericObjectService.queryTemplate(request));
     }
 
-    @PreAuthorize("@permissionService.canProcessAction(#p0, #p2)")
+//    @PreAuthorize("@permissionService.canProcessAction(#p0, #p2)")
     @Operation(summary = "Update generic object by action", description = "Returns object updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -203,10 +202,10 @@ public class GenericObjectController {
             @PathVariable("actionName") String actionName,
             @RequestBody(required = false) Map<String, Object> request) {
 
-        return ResponseEntity.ok(genericObjectService.objectAction(objectName, id, actionName, request));
+        return ResponseEntity.ok(internalGenericObjectService.objectAction(objectName, id, actionName, request));
     }
 
-    @PreAuthorize("@permissionService.canProcessAction(#p0, #p1)")
+//    @PreAuthorize("@permissionService.canProcessAction(#p0, #p1)")
     @Operation(summary = "Update list object by action name", description = "Returns list updated")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
@@ -216,7 +215,7 @@ public class GenericObjectController {
             @PathVariable("actionName") String actionName,
             @RequestBody(required = false) List<Map<String, Object>> request) {
 
-        return ResponseEntity.ok(genericObjectService.objectActionBulkUpdate(objectName, actionName, request));
+        return ResponseEntity.ok(internalGenericObjectService.objectActionBulkUpdate(objectName, actionName, request));
     }
 
     @Operation(summary = "Import object", description = "Returns http status")
@@ -226,7 +225,7 @@ public class GenericObjectController {
     public ResponseEntity<List<Map<String, Object>>> importDataByFileId(
             @PathVariable("objectName") String objectName,
             @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, request));
+        return ResponseEntity.ok(internalGenericObjectService.importFileByFileId(objectName, request));
     }
 
     @Operation(summary = "Import file object", description = "Returns http status")
@@ -241,7 +240,7 @@ public class GenericObjectController {
                             schema = @Schema(type = "string", format = "binary"))
             )
             @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(genericObjectService.importFile(objectName, file));
+        return ResponseEntity.ok(internalGenericObjectService.importFile(objectName, file));
     }
 
     @Operation(

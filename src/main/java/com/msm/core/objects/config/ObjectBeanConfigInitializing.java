@@ -14,6 +14,8 @@ import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.context.ObjectMetadataContextHolder;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.exception.ObjectErrors;
+import com.msm.core.security.SecuredPermissionActionFactory;
+import com.msm.core.security.annotations.SecuredPermissionAction;
 import com.msm.core.validate.attr.ValueValidationHandler;
 import com.msm.core.validate.attr.ValueValidationHandlerFactory;
 import com.msm.core.validate.attr.rules.AttributeSimpleRule;
@@ -114,12 +116,15 @@ public class ObjectBeanConfigInitializing implements SmartInitializingSingleton 
     private void registerHandler(Object bean, Method method, Handler handler) {
         AnnotationUtility annotationUtility = AnnotationUtility.getAnnotationConfig(method);
         String handlerKey = KeyDimensionResolver.resolveHandlerKey(annotationUtility);
-        System.out.println(handlerKey);
         ActionHandlerFactory.register(handlerKey, ActionDefinitionExecutor.create(
                 bean,
                 method,
                 resolveObject(handler.condition()))
         );
+        SecuredPermissionAction securedPermission = AnnotatedElementUtils.findMergedAnnotation(method, SecuredPermissionAction.class);
+        if (securedPermission != null) {
+            SecuredPermissionActionFactory.register(annotationUtility.getAction(), securedPermission.anyOf());
+        }
     }
 
     private boolean hasAnyCandidate(Class<?> clazz) {

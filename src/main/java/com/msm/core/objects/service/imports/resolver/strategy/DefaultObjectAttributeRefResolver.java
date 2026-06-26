@@ -12,7 +12,7 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.connector.GenericObjectInternalService;
-import com.msm.core.objects.handler.GenericObjectHandler;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.jooq.impl.DSL;
 
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class DefaultObjectAttributeRefResolver implements ReferenceResolver {
 
     private final String ATTRIBUTE_LOOKUP_NAME = "code";
-    private final GenericObjectHandler genericObjectHandler;
+    private final ObjectQueryRepository internalObjectQueryRepository;
     private final GenericObjectInternalService genericObjectInternalService;
 
     @Override
@@ -54,7 +54,7 @@ public class DefaultObjectAttributeRefResolver implements ReferenceResolver {
         }).filter(Objects::nonNull).collect(Collectors.toList());
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
-            objectList = genericObjectHandler.findAllByCondition(objectName, DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), returnFields());
+            objectList = internalObjectQueryRepository.findAllByCondition(objectName, DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), returnFields());
         } else {
             String objectRefName = attribute.getAttributeRef().getObjectRef();
             ObjectFilterRequest objectFilterRequest = ObjectFilterRequest
