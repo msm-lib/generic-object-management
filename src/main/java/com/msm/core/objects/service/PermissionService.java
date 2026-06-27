@@ -6,6 +6,9 @@ import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
+import com.msm.core.objects.security.SecurityFieldResolver;
+import com.msm.core.objects.security.SecurityFieldResolverFactory;
+import com.msm.core.security.DataScopeResolver;
 import com.msm.core.security.ObjectAccessScopeResolver;
 import com.msm.core.security.RequestContextHolder;
 import com.msm.core.security.SecuredPermissionActionFactory;
@@ -30,6 +33,8 @@ import java.util.stream.Collectors;
 public class PermissionService {
     private final DSLContext dsl;
     private final SecurityCheckProvider securityCheckProvider;
+    private final DataScopeResolver dataScopeResolver;
+    private final SecurityFieldResolverFactory securityFieldResolverFactory;
 
     public boolean canLookup(String objectName) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
@@ -52,27 +57,6 @@ public class PermissionService {
         return authorizationContext.canView(resolveObjectAccessScope(objectName));
     }
 
-//    public boolean canCreate(String objectName) {
-//        RequestContext requestContext = RequestContextHolder.getRequestContext();
-//        AuthorizationContext authorizationContext = requestContext.getAuthorization();
-//        String securityTargetMetadataName = resolveObjectAccessScope(objectName);
-//
-//
-//        boolean canCreate = authorizationContext.canCreate(resolveObjectAccessScope(objectName));
-//        if (canCreate) {
-//
-//
-//            Condition securityCondition = SecurityConditionBuilder.buildCreateDataScopeCondition(
-//                    ObjectMetadataFactory.getObjectMetadataByName(securityTargetMetadataName),
-//                    dataScopeResolver
-//            );
-//
-//
-//            SecurityConditionBuilder.checkDataScope(objectName, dataScopeResolver, )
-//
-//        }
-//    }
-
     public boolean canCreate(String objectName, Map<String, Object> payload) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
         if (isSupperAdmin(requestContext)) {
@@ -94,14 +78,17 @@ public class PermissionService {
             return true;
         }
         String objectName = objectConversionRequest.getTargetObject();
-        Map<String, Object> payload = objectConversionRequest.getSrcData();
+//        Map<String, Object> payload = objectConversionRequest.getSrcData();
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
-        boolean canCreate = authorizationContext.canCreate(resolveObjectAccessScope(objectName));
-        if (canCreate) {
-            return securityCheckProvider.checkDataScope(objectName, payload, PermissionAction.CREATE);
+        String securityObjectName = resolveObjectAccessScope(objectName);
+        if (!authorizationContext.canCreate(securityObjectName)) {
+            return false;
         }
 
-        return false;
+        String supportType = objectConversionRequest.getSourceObject() + ":" + objectConversionRequest.getTargetObject();
+        SecurityFieldResolver securityFieldResolver =  securityFieldResolverFactory.resolve(supportType);
+        Map<String, Object> securityDataScopeTypeObjectMap = securityFieldResolver.resolve(objectName, objectConversionRequest, requestContext);
+        return securityCheckProvider.checkDataScope(objectName, securityDataScopeTypeObjectMap, PermissionAction.CREATE);
     }
 
     public boolean canBulkCreate(String objectName, List<Map<String, Object>> payload) {

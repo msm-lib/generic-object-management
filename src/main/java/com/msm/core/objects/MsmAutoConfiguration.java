@@ -71,6 +71,9 @@ import com.msm.core.objects.repository.InternalObjectQueryRepository;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.repository.RepositoryFactory;
 import com.msm.core.objects.rules.GenericObjectRulesService;
+import com.msm.core.objects.security.DefaultSecurityFieldResolver;
+import com.msm.core.objects.security.SecurityFieldResolver;
+import com.msm.core.objects.security.SecurityFieldResolverFactory;
 import com.msm.core.objects.service.DefaultSoftDeleteFilter;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.objects.service.GenericObjectService;
@@ -720,11 +723,27 @@ public class MsmAutoConfiguration {
     }
 
 
+
+    @Bean("defaultSecurityFieldResolver")
+    public SecurityFieldResolver defaultSecurityFieldResolver() {
+        return new DefaultSecurityFieldResolver();
+    }
+
+    @Bean
+    public SecurityFieldResolverFactory securityFieldResolverFactory(
+            List<SecurityFieldResolver> securityFieldResolvers,
+            @Qualifier("defaultSecurityFieldResolver") SecurityFieldResolver defaultSecurityFieldResolver) {
+        return new SecurityFieldResolverFactory(securityFieldResolvers, defaultSecurityFieldResolver);
+    }
+
+
     @Bean
     public PermissionService permissionService(
             DSLContext dslContext,
-            SecurityCheckProvider securityCheckProvider) {
-        return new PermissionService(dslContext, securityCheckProvider);
+            SecurityCheckProvider securityCheckProvider,
+            DataScopeResolver dataScopeResolver,
+            SecurityFieldResolverFactory securityFieldResolverFactory) {
+        return new PermissionService(dslContext, securityCheckProvider, dataScopeResolver, securityFieldResolverFactory);
     }
 
     //SecurityCheckProvider
