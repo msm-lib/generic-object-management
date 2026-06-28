@@ -37,7 +37,7 @@ public abstract class ObjectClientService {
                         .conditions(Utils.CL.newArrayList(FilterCondition.create(Constants.OBJECT_PK, FilterOperator.IN, ids)))
                         .build())
                 .build();
-        String filterUrl = Utils.STR.format(ApiConstants.PATH_FILTER, objectName);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_FILTER, objectName);
 
         PageResponse<Map<String, Object>> mapPageResponse =  internalRestClient.post(getBaseUrl(), filterUrl, objectFilterRequest, PageResponse.class);;
         return mapPageResponse.getContents();
@@ -47,7 +47,7 @@ public abstract class ObjectClientService {
         if (id == null) {
             return Utils.CL.newHashMap();
         }
-        String filterUrl = Utils.STR.format(ApiConstants.PATH_BY_ID, objectName, id);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_ID, objectName, id);
 
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("returnFields", returnFields);
@@ -58,25 +58,25 @@ public abstract class ObjectClientService {
         if (id == null) {
             return Utils.CL.newHashMap();
         }
-        String patByIdUrl = Utils.STR.format(ApiConstants.PATH_BY_ID, objectName, id);
+        String patByIdUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_ID, objectName, id);
         return internalRestClient.get(getBaseUrl(), patByIdUrl, Map.class);
     }
 
     public PageResponse<Map<String, Object>> filter(String objectName, ObjectFilterRequest objectFilterRequest) {
-        String filterUrl = Utils.STR.format(ApiConstants.PATH_FILTER, objectName);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_FILTER, objectName);
         return internalRestClient.post(getBaseUrl(), filterUrl, objectFilterRequest, PageResponse.class);
     }
 
     public Map<String, Object> query(QueryTemplate queryTemplate) {
-        return internalRestClient.post(getBaseUrl(), ApiConstants.PATH_QUERY, queryTemplate, Map.class);
+        return internalRestClient.post(getBaseUrl(), ApiNamedConstants.PATH_QUERY, queryTemplate, Map.class);
     }
 
     public List<Map<String, Object>> queryList(QueryTemplate queryTemplate) {
-        return internalRestClient.post(getBaseUrl(), ApiConstants.PATH_QUERY, queryTemplate, List.class);
+        return internalRestClient.post(getBaseUrl(), ApiNamedConstants.PATH_QUERY, queryTemplate, List.class);
     }
 
     public List<Map<String, Object>> getAllObjects(String objectName) {
-        String queryAllObjectUrl = Utils.STR.format(ApiConstants.PATH_BY_OBJECT, objectName);
+        String queryAllObjectUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_OBJECT, objectName);
         return internalRestClient.get(getBaseUrl(), queryAllObjectUrl, List.class);
     }
 
