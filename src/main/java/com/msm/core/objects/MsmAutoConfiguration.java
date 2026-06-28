@@ -34,6 +34,7 @@ import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.connector.MasterDataApiService;
 import com.msm.core.objects.controller.GenericObjectController;
+import com.msm.core.objects.controller.InternalGenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
 import com.msm.core.objects.converter.MappingStrategyResolverFactory;
@@ -94,6 +95,7 @@ import com.msm.core.objects.service.imports.resolver.impl.GeographyTypeCodeLooku
 import com.msm.core.objects.service.imports.resolver.strategy.DefaultObjectAttributeRefResolver;
 import com.msm.core.objects.service.imports.resolver.strategy.ObjectRefResolverFactory;
 import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
+import com.msm.core.objects.service.internal.InternalGenericObjectService;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
 import com.msm.core.security.DataScopeConditionResolver;
 import com.msm.core.security.DataScopeResolver;
@@ -475,6 +477,17 @@ public class MsmAutoConfiguration {
     @Bean
     public GenericObjectController genericObjectController(GenericObjectService service, GenericObjectMetadataService genericObjectMetadataService) {
         return new GenericObjectController(service, genericObjectMetadataService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public InternalGenericObjectService internalGenericObjectService(ActionExecutor actionExecutor) {
+        return new InternalGenericObjectService(actionExecutor);
+    }
+
+    @Bean
+    public InternalGenericObjectController internalGenericObjectController(InternalGenericObjectService internalGenericObjectService, GenericObjectMetadataService genericObjectMetadataService) {
+        return new InternalGenericObjectController(internalGenericObjectService, genericObjectMetadataService);
     }
 
     @Bean

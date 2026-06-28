@@ -43,7 +43,7 @@ import java.util.UUID;
  *       <pre>      -> /external</pre>
  *       <pre>      -> /internal</pre>
  */
-@Tag(name = "Generic objects controller")
+@Tag(name = "Internal generic objects controller")
 @RestController
 @RequestMapping("/api/v1/internal")
 @RequiredArgsConstructor
