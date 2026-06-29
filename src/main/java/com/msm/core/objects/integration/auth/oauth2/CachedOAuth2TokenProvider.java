@@ -41,7 +41,7 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
     public String getToken(HttpRequestContext ctx) {
         OAuth2Properties oAuth2Context = getOAuth2Properties(ctx);
         OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(cacheKey(oAuth2Context), () -> retryFetchToken(ctx, oAuth2Context));
-        if (auth2CacheToken == null || auth2CacheToken.isExpired(oAuth2Context.getSkewSeconds())) {
+        if (auth2CacheToken == null || JwtUtils.isTokenExpired(oAuth2Context.getAccessTokenPath())) {
             auth2CacheToken = retryFetchToken(ctx, oAuth2Context);
             IntegrationTokenCache.put(oAuth2Context.getTokenUrl(), auth2CacheToken);
         }
