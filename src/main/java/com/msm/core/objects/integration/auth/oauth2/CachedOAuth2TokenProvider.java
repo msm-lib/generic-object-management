@@ -7,6 +7,7 @@ import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.integration.IntegrationJsonUtil;
 import com.msm.core.objects.integration.RequestClient;
 import com.msm.core.objects.integration.auth.JwtUtils;
+import com.msm.core.objects.integration.auth.RedisKeyGeneratorOptimized;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
 import com.msm.core.objects.integration.context.HttpRequestContext;
 import com.msm.core.objects.integration.data.ConnectorProperties;
@@ -122,6 +123,6 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
     }
 
     private String cacheKey(OAuth2Properties oAuth2Context) {
-        return RequestContextHolder.getRequestContext().getTenantCode() + ":" + supportProvider() + ":" + oAuth2Context.getTokenUrl();
+        return RequestContextHolder.getRequestContext().getTenantCode() + ":" + supportProvider() + ":" + RedisKeyGeneratorOptimized.generateUrlKey(oAuth2Context.getTokenUrl());
     }
 }
