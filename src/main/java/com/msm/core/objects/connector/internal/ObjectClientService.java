@@ -8,6 +8,7 @@ import com.msm.core.filter.domain.FilterOperator;
 import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.integration.RequestClient;
 import lombok.RequiredArgsConstructor;
@@ -73,6 +74,10 @@ public abstract class ObjectClientService {
 
     public List<Map<String, Object>> queryList(QueryTemplate queryTemplate) {
         return internalRestClient.post(getBaseUrl(), ApiNamedConstants.PATH_QUERY, queryTemplate, List.class);
+    }
+
+    public Object conversion(ObjectConversionRequest objectConversionRequest) {
+        return internalRestClient.post(getBaseUrl(), ApiNamedConstants.PATH_CONVERSION, objectConversionRequest, Object.class);
     }
 
     public List<Map<String, Object>> getAllObjects(String objectName) {

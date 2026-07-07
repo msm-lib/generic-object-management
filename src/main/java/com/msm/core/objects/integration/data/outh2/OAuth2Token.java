@@ -1,9 +1,11 @@
 package com.msm.core.objects.integration.data.outh2;
 
 import lombok.Data;
+import lombok.ToString;
 
 import java.time.Instant;
 
+@ToString
 @Data
 public class OAuth2Token {
 

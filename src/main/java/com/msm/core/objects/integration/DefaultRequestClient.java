@@ -1,7 +1,7 @@
 package com.msm.core.objects.integration;
 
 import com.msm.core.commons.Utils;
-import com.msm.core.objects.integration.exception.IntegrationRequestException;
+import com.msm.core.objects.exception.integration.IntegrationRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;

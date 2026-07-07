@@ -106,4 +106,7 @@ public class HttpRequestContext {
 
     private String componentExecution;
     private Integer statusCode;
+
+    @Builder.Default
+    private boolean forceReNewToken = false;
 }

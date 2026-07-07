@@ -1,4 +1,4 @@
-package com.msm.core.objects.integration.exception;
+package com.msm.core.objects.exception.integration;
 
 import com.msm.core.objects.exception.ObjectErrorCode;
 

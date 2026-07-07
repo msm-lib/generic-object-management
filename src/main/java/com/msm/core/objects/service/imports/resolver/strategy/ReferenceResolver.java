@@ -10,7 +10,11 @@ public interface ReferenceResolver {
     String object();
     String attribute();
     default List<String> returnFields() {
-        return null;
+        return List.of(
+                "id",
+                "code",
+                "name"
+        );
     }
     Map<String, Map<String, Map<String, Object>>> resolve(String objectName, Attribute attribute, List<Map<String, Object>> items);
 }

@@ -2,9 +2,9 @@ package com.msm.core.objects.integration.auth.oauth2.password;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.msm.core.commons.Utils;
+import com.msm.core.objects.cache.RedisCacheOperator;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.integration.IntegrationJsonUtil;
-import com.msm.core.objects.integration.IntegrationTokenCache;
 import com.msm.core.objects.integration.RequestClient;
 import com.msm.core.objects.integration.auth.JwtUtils;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
@@ -14,6 +14,7 @@ import com.msm.core.objects.integration.data.outh2.OAuth2PasswordProperties;
 import com.msm.core.objects.integration.data.outh2.OAuth2Token;
 import com.msm.core.objects.integration.data.retry.RetryRequestConfig;
 import com.msm.core.objects.integration.retry.RetryExecutor;
+import com.msm.core.security.RequestContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +31,7 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     private final RequestClient requestClient;
     private final RetryExecutor retryExecutor;
     private final IntegrationProperties integrationProperties;
+    private final RedisCacheOperator redisCacheOperator;
 
 
     @Override
@@ -40,11 +42,13 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     @Override
     public String getToken(HttpRequestContext ctx) {
         OAuth2PasswordProperties oAuth2Context = getOAuth2Properties(ctx);
-        OAuth2Token auth2CacheToken = IntegrationTokenCache.getOrCompute(cacheKey(oAuth2Context), () -> retryFetchToken(ctx, oAuth2Context));
-        if (auth2CacheToken == null || JwtUtils.isTokenExpired(auth2CacheToken.getAccessToken())) {
+        String keyCache = cacheKey(oAuth2Context);
+        OAuth2Token auth2CacheToken = redisCacheOperator.get(keyCache, OAuth2Token.class);
+        if (auth2CacheToken == null || JwtUtils.isTokenExpired(auth2CacheToken.getAccessToken()) || ctx.isForceReNewToken()) {
             auth2CacheToken = retryFetchToken(ctx, oAuth2Context);
-            IntegrationTokenCache.put(oAuth2Context.getTokenUrl(), auth2CacheToken);
+            redisCacheOperator.set(keyCache, auth2CacheToken);
         }
+
         return auth2CacheToken.getAccessToken();
     }
 
@@ -117,6 +121,6 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
     }
 
     private String cacheKey(OAuth2PasswordProperties oAuth2Context) {
-        return  supportProvider() + ":" + oAuth2Context.getTokenUrl();
+        return RequestContextHolder.getRequestContext().getTenantCode() + ":" + supportProvider() + ":" + oAuth2Context.getTokenUrl();
     }
 }

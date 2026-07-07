@@ -21,7 +21,7 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class MultipartCsvObjectReader implements FileReader<MultipartFile, Map<String, Object>> {
-    private static final long MAX_CODE_IMPORT = 100;
+    private static final long MAX_CODE_IMPORT = 50;
     private final RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper;
     private final BatchExecutionService batchExecutionService;
 

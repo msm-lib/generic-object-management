@@ -7,6 +7,7 @@ import org.springframework.cache.CacheManager;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+@Deprecated
 @Slf4j
 public class InMemoryCaches {
 
@@ -33,7 +34,7 @@ public class InMemoryCaches {
         try {
             return Optional.ofNullable(cache.get(key, type));
         } catch (Exception e) {
-            log.error("Lỗi khi đọc dữ liệu từ cache '{}' với key '{}': {}", cacheName, key, e.getMessage());
+            log.error("Exception occurred while fetching cache '{}' với key '{}': {}", cacheName, key, e.getMessage());
             return Optional.empty();
         }
     }
@@ -45,7 +46,6 @@ public class InMemoryCaches {
         if (cache == null) return fallback.get();
 
         try {
-            // Hàm có sẵn của Spring Cache hỗ trợ tự động tính toán và lưu nếu thiếu key
             Cache.ValueWrapper valueWrapper = cache.get(key);
             if (valueWrapper != null) {
                 return (T) valueWrapper.get();

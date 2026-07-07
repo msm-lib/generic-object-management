@@ -4,11 +4,6 @@ import lombok.Data;
 
 @Data
 public class RetryProperties {
-    private Integer maxAttempts;
-
-    private Long waitDurationMs;
-
-    public int resolveMaxAttempts(int defaultValue) {
-        return maxAttempts != null ? maxAttempts : defaultValue;
-    }
+    private int maxAttempts = 1;
+    private long waitDurationMs = 200L;
 }

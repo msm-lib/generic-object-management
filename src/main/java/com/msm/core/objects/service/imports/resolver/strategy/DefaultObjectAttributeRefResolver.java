@@ -43,24 +43,28 @@ public class DefaultObjectAttributeRefResolver implements ReferenceResolver {
 
     @Override
     public Map<String, Map<String, Map<String, Object>>> resolve(String objectName, Attribute attribute, List<Map<String, Object>> items) {
-        Optional<ObjectMetadata> optionalObjectMetadata = ObjectMetadataFactory.getObjectMetadata(objectName);
+
+        Optional<ObjectMetadata> optionalObjectMetadata = ObjectMetadataFactory.getObjectMetadata(attribute.getAttributeRef().getObjectRef());
 
         List<String> codes = items.stream().map(objectValue -> {
             Object valCode = objectValue.get(attribute.getFieldName());
+            String returnCode = "";
             if(Objects.nonNull(valCode)) {
-                return valCode.toString();
+                returnCode = valCode.toString();
             }
-            return null;
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+            return Utils.STR.isNotBlank(returnCode) ? Utils.STR.trim(returnCode) : null;
+        }).filter(s -> Utils.STR.isNotBlank(s) && !Utils.STR.isEmpty(s)).collect(Collectors.toList());
+        if(Utils.CL.isEmpty(codes)) return new HashMap<>();
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
-            objectList = internalObjectQueryRepository.findAllByCondition(objectName, DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), returnFields());
+            //object ref
+            objectList = internalObjectQueryRepository.findAllByCondition(attribute.getAttributeRef().getObjectRef(), DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), ObjectReturnFields.getReturnFields(attribute.getAttributeRef().getObjectRef()));
         } else {
             String objectRefName = attribute.getAttributeRef().getObjectRef();
             ObjectFilterRequest objectFilterRequest = ObjectFilterRequest
                     .builder()
                     .objectInfo(ObjectFilterRequest.ObjectInfo.of(objectRefName))
-                    .returnFields(returnFields())
+                    .returnFields(ObjectReturnFields.getReturnFields(objectRefName))
                     .filters(FilterGroup.builder().operator(LogicalOperator.AND).conditions(Utils.CL.newArrayList(new FilterObject[]{FilterCondition.create(ATTRIBUTE_LOOKUP_NAME, FilterOperator.IN, codes)})).build())
                     .build();
 

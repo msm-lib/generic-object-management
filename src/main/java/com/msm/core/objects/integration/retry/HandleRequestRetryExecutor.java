@@ -1,5 +1,6 @@
 package com.msm.core.objects.integration.retry;
 
+import com.msm.core.objects.entity.enums.IntegrationAction;
 import com.msm.core.objects.entity.enums.IntegrationStatus;
 import com.msm.core.objects.integration.context.ExecutionEvent;
 import com.msm.core.objects.integration.context.HttpRequestContext;
@@ -12,7 +13,7 @@ import java.util.function.Supplier;
 
 @Slf4j
 @RequiredArgsConstructor
-public class ResilienceRetryExecutor implements RetryExecutor {
+public class HandleRequestRetryExecutor implements RetryExecutor {
 
     private final RetryConfigResolver resolver;
 
@@ -35,7 +36,7 @@ public class ResilienceRetryExecutor implements RetryExecutor {
                             .timestamp(Instant.now())
                             .component("RetryMiddleware")
                             .componentExecution(context.getComponentExecution())
-                            .action("retry")
+                            .action(IntegrationAction.RETRY.name())
                             .status("RETRYING")
                             .attempt(event.getNumberOfRetryAttempts())
                             .message(event.getLastThrowable() != null
@@ -51,7 +52,7 @@ public class ResilienceRetryExecutor implements RetryExecutor {
                             .timestamp(Instant.now())
                             .component("RetryMiddleware")
                             .componentExecution(context.getComponentExecution())
-                            .action("retry")
+                            .action(IntegrationAction.RETRY.name())
                             .status(IntegrationStatus.SUCCESS.name())
                             .attempt(event.getNumberOfRetryAttempts())
                             .build()
@@ -62,7 +63,7 @@ public class ResilienceRetryExecutor implements RetryExecutor {
                             .timestamp(Instant.now())
                             .component("RetryMiddleware")
                             .componentExecution(context.getComponentExecution())
-                            .action("retry")
+                            .action(IntegrationAction.RETRY.name())
                             .status(IntegrationStatus.FAILED.name())
                             .attempt(event.getNumberOfRetryAttempts())
                             .message(event.getLastThrowable() != null

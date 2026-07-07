@@ -26,6 +26,8 @@ import com.msm.core.objects.audit.AuditStrategy;
 import com.msm.core.objects.audit.AuditStrategyResolverFactory;
 import com.msm.core.objects.audit.DefaultAuditStrategy;
 import com.msm.core.objects.cache.InMemoryCaches;
+import com.msm.core.objects.cache.RedisCacheOperator;
+import com.msm.core.objects.cache.RedisCacheOperatorService;
 import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
@@ -63,7 +65,8 @@ import com.msm.core.objects.integration.middleware.AuthMiddleware;
 import com.msm.core.objects.integration.middleware.HttpMiddlewareChain;
 import com.msm.core.objects.integration.middleware.Middleware;
 import com.msm.core.objects.integration.middleware.TracingMiddleware;
-import com.msm.core.objects.integration.retry.ResilienceRetryExecutor;
+import com.msm.core.objects.integration.retry.ExchangeRetryExecutor;
+import com.msm.core.objects.integration.retry.HandleRequestRetryExecutor;
 import com.msm.core.objects.integration.retry.RetryConfigResolver;
 import com.msm.core.objects.integration.retry.RetryExecutor;
 import com.msm.core.objects.repository.DefaultObjectQueryRepository;
@@ -129,6 +132,10 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
@@ -578,19 +585,21 @@ public class MsmAutoConfiguration {
     @Bean
     public TokenProvider cachedOAuth2TokenManager(
             @Qualifier("integrationRequestClient") RequestClient requestClient,
-            RetryExecutor retryExecutor,
-            IntegrationProperties integrationProperties
+            @Qualifier("handleRequestRetry") RetryExecutor handleRequestRetry,
+            IntegrationProperties integrationProperties,
+            @Qualifier("redisCacheOperatorService") RedisCacheOperator redisCacheOperator
     ) {
-        return new CachedOAuth2TokenProvider(requestClient, retryExecutor, integrationProperties);
+        return new CachedOAuth2TokenProvider(requestClient, handleRequestRetry, integrationProperties, redisCacheOperator);
     }
 
     @Bean
     public TokenProvider cachedOAuth2PasswordTokenManager(
             @Qualifier("integrationRequestClient") RequestClient requestClient,
-            RetryExecutor retryExecutor,
-            IntegrationProperties integrationProperties
+            @Qualifier("handleRequestRetry") RetryExecutor handleRequestRetry,
+            IntegrationProperties integrationProperties,
+            @Qualifier("redisCacheOperatorService") RedisCacheOperator redisCacheOperator
     ) {
-        return new CachedOAuth2PasswordTokenProvider(requestClient, retryExecutor, integrationProperties);
+        return new CachedOAuth2PasswordTokenProvider(requestClient, handleRequestRetry, integrationProperties, redisCacheOperator);
     }
 
     @Bean
@@ -613,10 +622,14 @@ public class MsmAutoConfiguration {
         return new RetryConfigResolver(properties, new RetryDefaultProperties());
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    RetryExecutor retryExecutor(RetryConfigResolver retryConfigResolver) {
-        return new ResilienceRetryExecutor(retryConfigResolver);
+    @Bean("handleRequestRetry")
+    RetryExecutor handleRequestRetry(RetryConfigResolver retryConfigResolver) {
+        return new HandleRequestRetryExecutor(retryConfigResolver);
+    }
+
+    @Bean("exchangeRetryExecutor")
+    RetryExecutor exchangeRetryExecutor(RetryConfigResolver retryConfigResolver) {
+        return new ExchangeRetryExecutor(retryConfigResolver);
     }
 
     @Bean
@@ -630,8 +643,9 @@ public class MsmAutoConfiguration {
     public IntegrationClientExchange integrationClientExchange(
             @Qualifier("integrationRequestClient") RequestClient requestClient,
             HttpMiddlewareChain chain,
-            RetryExecutor retryExecutor) {
-        return new IntegrationClientExchange(requestClient, chain, retryExecutor);
+            @Qualifier("handleRequestRetry") RetryExecutor handleRequestRetry,
+            @Qualifier("exchangeRetryExecutor") RetryExecutor exchangeRetryExecutor) {
+        return new IntegrationClientExchange(requestClient, chain, handleRequestRetry, exchangeRetryExecutor);
     }
 
     @Bean
@@ -759,11 +773,31 @@ public class MsmAutoConfiguration {
         return new PermissionService(dslContext, securityCheckProvider, dataScopeResolver, securityFieldResolverFactory);
     }
 
-    //SecurityCheckProvider
     @Bean
     public SecurityCheckProvider securityCheckProvider(
             DSLContext dslContext,
             DataScopeResolver dataScopeResolver) {
         return new SecurityCheckProvider(dslContext, dataScopeResolver);
+    }
+
+    @Bean("redisCacheOperatorService")
+    @ConditionalOnMissingBean
+    public RedisCacheOperator redisCacheOperator(
+            @Qualifier("redisTemplateService") RedisTemplate<String, String> redisTemplate,
+            StringRedisTemplate stringRedisTemplate) {
+        return new RedisCacheOperatorService(redisTemplate, stringRedisTemplate);
+    }
+
+    @Bean("redisTemplateService")
+    public RedisTemplate<String, String> redisTemplate(LettuceConnectionFactory factory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(new StringRedisSerializer());
+        template.setEnableTransactionSupport(false);
+        template.afterPropertiesSet();
+        return template;
     }
 }

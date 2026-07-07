@@ -59,7 +59,7 @@ public class BatchExecutionService {
         internalObjectQueryRepository.bulkUpsertReturning(
                 objectName,
                 items,
-                List.of("code", "geographyTypeId"));
+                List.of("code"));
         items.clear();
 //        attrCodeMap.clear();
     }

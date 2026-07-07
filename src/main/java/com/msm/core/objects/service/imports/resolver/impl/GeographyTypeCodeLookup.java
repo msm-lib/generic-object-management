@@ -42,6 +42,11 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
         return "parentId";
     }
 
+    @Override
+    public List<String> returnFields() {
+        return List.of();
+    }
+
     public Map<String, Map<String, Map<String, Object>>> resolve(
             String objectName,
             Attribute attribute,

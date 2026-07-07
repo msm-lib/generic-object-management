@@ -1,9 +1,9 @@
 package com.msm.core.objects.integration.middleware;
 
 import com.msm.core.objects.entity.enums.IntegrationStatus;
+import com.msm.core.objects.exception.integration.AuthenticationException;
 import com.msm.core.objects.integration.context.ExecutionEvent;
 import com.msm.core.objects.integration.context.HttpRequestContext;
-import com.msm.core.objects.integration.exception.AuthenticationException;
 import com.msm.core.objects.integration.factory.AuthProviderFactory;
 import lombok.RequiredArgsConstructor;
 

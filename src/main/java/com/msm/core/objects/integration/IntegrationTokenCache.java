@@ -5,6 +5,7 @@ import com.msm.core.objects.cache.InMemoryCaches;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+@Deprecated
 public class IntegrationTokenCache {
     private final static String CACHE_NAME = "IntegrationTokenCache";
 
