@@ -32,7 +32,12 @@ public class IntegrationClientExchange {
 //            throw ex;
 //        }
 //        return exchangeWithRetry(context, responseType);
-        return exchangeRetryExecutor.execute(context, () ->  exchangeWithRetry(context, responseType));
+        try {
+            return exchangeRetryExecutor.execute(context, () ->  exchangeWithRetry(context, responseType));
+        } catch (Exception ex) {
+            chain.error(context, ex);
+            throw ex;
+        }
     }
 
     public <T> T exchange(HttpRequestContext context, ParameterizedTypeReference<T> responseType) {
@@ -53,7 +58,12 @@ public class IntegrationClientExchange {
 //        }
 
 //        return exchangeWithRetry(context, responseType);
-        return exchangeRetryExecutor.execute(context, () ->  exchangeWithRetry(context, responseType));
+        try {
+            return exchangeRetryExecutor.execute(context, () ->  exchangeWithRetry(context, responseType));
+        } catch (Exception ex) {
+            chain.error(context, ex);
+            throw ex;
+        }
     }
 
 
