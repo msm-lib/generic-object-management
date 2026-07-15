@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class ConnectorRequestBuilder {
 
-    private final String connectorName;
+    private final ConnectorNamed connectorNamed;
 
     private final IntegrationProperties integrationProperties;
 
@@ -177,9 +177,10 @@ public class ConnectorRequestBuilder {
             HttpMethod method,
             String path,
             Object body) {
-        ConnectorProperties connector = integrationProperties.getConnectors().get(connectorName);
+
+        ConnectorProperties connector = integrationProperties.getConnectors().get(connectorNamed.getName());
         return HttpRequestContext.builder()
-                .connectorName(connectorName)
+                .connectorName(connectorNamed.getName())
                 .strictJsonMode(Utils.O.defaultIfNull(strictJsonMode, () -> Boolean.FALSE))
                 .baseUrl(connector.getBaseUrl())
                 .path(path)

@@ -9,10 +9,9 @@ public class IntegrationClient {
     private final IntegrationProperties integrationProperties;
     private final IntegrationClientExchange integrationClientExchange;
 
-    public ConnectorRequestBuilder connector(String connectorName) {
-
+    public ConnectorRequestBuilder connector(ConnectorNamed connectorNamed) {
         return new ConnectorRequestBuilder(
-                connectorName,
+                connectorNamed,
                 integrationProperties,
                 integrationClientExchange
         );

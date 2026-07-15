@@ -7,7 +7,9 @@ import com.msm.core.objects.entity.enums.IntegrationStatus;
 import com.msm.core.objects.entity.metadata.IntegrationLogMeta;
 import com.msm.core.objects.exception.integration.IntegrationException;
 import com.msm.core.objects.integration.context.HttpRequestContext;
+import com.msm.core.objects.logging.LogTraceUtils;
 import com.msm.core.objects.service.IntegrationLogService;
+import com.msm.core.security.RequestContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jooq.JSONB;
@@ -46,6 +48,10 @@ public class TracingMiddleware extends AbstractMiddleware {
         logRecord.set(IntegrationLogMeta.CONNECTOR, context.getConnectorName());
         logRecord.set(IntegrationLogMeta.METHOD, context.getMethod().name());
         logRecord.set(IntegrationLogMeta.ENDPOINT, context.resolveUrl());
+        logRecord.set(IntegrationLogMeta.TRACE_ID, LogTraceUtils.getTraceIdLog());
+        logRecord.set(IntegrationLogMeta.SPAN_ID, LogTraceUtils.getSpanIdLog());
+        logRecord.set(IntegrationLogMeta.TENANT_ID, RequestContextHolder.getRequestContext().getTenantCode());
+        logRecord.set(IntegrationLogMeta.AUTH_PROVIDER, context.getAuthProvider());
         context.put("integrationLog", logRecord);
     }
 

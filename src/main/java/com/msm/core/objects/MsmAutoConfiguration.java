@@ -1,5 +1,6 @@
 package com.msm.core.objects;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.action.executor.DefaultActionExecutor;
@@ -69,6 +70,10 @@ import com.msm.core.objects.integration.retry.ExchangeRetryExecutor;
 import com.msm.core.objects.integration.retry.HandleRequestRetryExecutor;
 import com.msm.core.objects.integration.retry.RetryConfigResolver;
 import com.msm.core.objects.integration.retry.RetryExecutor;
+import com.msm.core.objects.logging.GenericBaseExceptionResolver;
+import com.msm.core.objects.logging.IntegrationErrorResolver;
+import com.msm.core.objects.logging.IntegrationLogWriter;
+import com.msm.core.objects.logging.IntegrationLoggingAspect;
 import com.msm.core.objects.repository.DefaultObjectQueryRepository;
 import com.msm.core.objects.repository.DefaultRepositoryFactory;
 import com.msm.core.objects.repository.InternalObjectQueryRepository;
@@ -126,6 +131,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -799,5 +805,32 @@ public class MsmAutoConfiguration {
         template.setEnableTransactionSupport(false);
         template.afterPropertiesSet();
         return template;
+    }
+
+
+    @Bean
+    public GenericBaseExceptionResolver genericBaseExceptionResolver() {
+        return new GenericBaseExceptionResolver();
+    }
+
+    @Bean
+    public IntegrationLogWriter integrationLogWriter(IntegrationLogService integrationLogService) {
+        return new IntegrationLogWriter(integrationLogService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IntegrationLoggingAspect integrationLoggingAspect(
+            IntegrationLogWriter integrationLogWriter,
+            ObjectMapper objectMapper,
+            Environment environment,
+            List<IntegrationErrorResolver> errorResolvers) {
+
+        return new IntegrationLoggingAspect(
+                integrationLogWriter,
+                objectMapper,
+                environment,
+                errorResolvers
+        );
     }
 }
