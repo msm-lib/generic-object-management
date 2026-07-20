@@ -7,14 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 public interface ReferenceResolver {
-    String object();
-    String attribute();
-    default List<String> returnFields() {
-        return List.of(
-                "id",
-                "code",
-                "name"
-        );
-    }
-    Map<String, Map<String, Map<String, Object>>> resolve(String objectName, Attribute attribute, List<Map<String, Object>> items);
+    List<String> DEFAULT_RETURN_FIELDS = List.of(
+            "id",
+            "code",
+            "name"
+    );
+
+    String sourceObject();
+    String sourceAttribute();
+    String targetObject();
+
+    Map<String, Map<String, Map<String, Object>>> resolve(String sourceObjectName, Attribute attribute, List<Map<String, Object>> items);
 }

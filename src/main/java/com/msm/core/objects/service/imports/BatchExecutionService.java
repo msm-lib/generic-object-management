@@ -29,29 +29,6 @@ public class BatchExecutionService {
 
         fillRefData(objectName, items);
 
-//        attrCodeMap.forEach((attribute, codes) -> {
-//            //attribute -> {code -> {id, code, name}}
-//            Map<String, Map<String, Map<String, Object>>> refMapList;
-//            if(attribute.getFieldName().equalsIgnoreCase("parentId")) {
-//                refMapList = geographyTypeCodeLookup.resolve(attribute.getAttributeRef().getObjectRef(),  attribute, items);
-//            } else {
-//                refMapList = referenceResolver.resolve(attribute.getAttributeRef().getObjectRef(), attribute, items);
-//            }
-//            items.forEach(itemMap -> {
-//                String attrName = attribute.getFieldName();
-//                Map<String, Map<String, Object>> objectCodeMap = refMapList.get(attrName);
-//                if(Utils.CL.isNotEmpty(objectCodeMap)) {
-//                    String codeRef = String.valueOf(itemMap.get(attrName));
-//                    Map<String, Object> objectRef = objectCodeMap.get(codeRef);
-//                    if(objectRef != null) {
-//                        Object idObj = objectRef.get(Constants.OBJECT_PK);
-//                        itemMap.put(attrName, idObj);
-//                        itemMap.put(Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName), objectRef);
-//                    }
-//                }
-//            });
-//        });
-
         //account_code_key
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
 
@@ -61,7 +38,6 @@ public class BatchExecutionService {
                 items,
                 List.of("code"));
         items.clear();
-//        attrCodeMap.clear();
     }
 
     private void fillRefData(String objectName, List<Map<String, Object>> items) {

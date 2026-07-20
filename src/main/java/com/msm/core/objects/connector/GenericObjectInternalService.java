@@ -81,7 +81,39 @@ public class GenericObjectInternalService {
 
     String getBaseUrl(String objectName) {
         String baseUrl = genericObjectConfigProperties.getImportFile().getBasePathUrl();
-        return GenericObjectUtils.normalizeUrl(baseUrl) + "/" + ObjectServiceFactory.getServiceName(objectName);
+        String serviceName = ObjectServiceFactory.getServiceName(objectName);
+        if(isLocalhost(baseUrl)) {
+            baseUrl = localhost(serviceName);
+        }
+
+        return GenericObjectUtils.normalizeUrl(baseUrl) + "/" + serviceName;
+    }
+
+    boolean isLocalhost(String baseUrl) {
+        return Utils.STR.containsIgnoreCase(baseUrl, "localhost");
+    }
+
+    String localhost(String serviceName) {
+        switch (serviceName) {
+            case "user" -> {
+                return "http://localhost:8086";
+            }
+            case "customer" -> {
+                return "http://localhost:8087";
+            }
+            case "inventory" -> {
+                return "http://localhost:8089";
+            }
+            case "master-data" -> {
+                return "http://localhost:8090";
+            }
+            case "order" -> {
+                return "http://localhost:8088";
+            }
+            default -> {
+                return "http://localhost:8080";
+            }
+        }
     }
 
 }

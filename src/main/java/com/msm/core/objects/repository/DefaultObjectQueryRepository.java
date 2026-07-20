@@ -98,16 +98,22 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
     public int[] update(String objectName, List<Map<String, Object>> newDataList) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        List<Object> ids = newDataList.stream().map(oldData -> oldData.get(objectMetadata.getIdAttribute().getFieldName())).collect(Collectors.toList());
+        Attribute idAttribute = objectMetadata.getIdAttribute();
+        String idFieldName = idAttribute.getFieldName();
+        List<Object> ids = newDataList
+                .stream()
+                .map(oldData -> oldData.get(idFieldName))
+                .collect(Collectors.toList());
         List<Map<String, Object>> oldDataList = defaultQueryService.findByIds(objectMetadata, ids);
         if (Utils.CL.isEmpty(oldDataList)) {
             throw ObjectErrors.notFound(objectMetadata.getName());
         }
-        Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(objectMetadata.getIdAttribute().getFieldName()), dataValue -> dataValue);
+
+        Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(idFieldName), dataValue -> dataValue);
 
         newDataList.forEach(newObjectMap -> {
-            Object id = newObjectMap.get(objectMetadata.getIdAttribute().getFieldName());
-            Map<String, Object> oldData = oldDataListMapById.get(id);
+            Object id = newObjectMap.get(idFieldName);
+            Map<String, Object> oldData = oldDataListMapById.get(idAttribute.cast(id));
             updateData(objectMetadata, oldData, newObjectMap);
         });
         return defaultQueryService.batchUpdate(objectMetadata, oldDataList);
@@ -127,18 +133,24 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
     public List<Map<String, Object>> updateReturning(String objectName, List<Map<String, Object>> newDataList) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        List<Object> ids = newDataList.stream().map(oldData -> oldData.get(objectMetadata.getIdAttribute().getFieldName())).collect(Collectors.toList());
+        Attribute idAttribute = objectMetadata.getIdAttribute();
+        String idFieldName = idAttribute.getFieldName();
+        List<Object> ids = newDataList
+                .stream()
+                .map(oldData -> oldData.get(idFieldName))
+                .collect(Collectors.toList());
         List<Map<String, Object>> oldDataList = defaultQueryService.findByIds(objectMetadata, ids);
         if (Utils.CL.isEmpty(oldDataList)) {
             throw ObjectErrors.notFound(objectMetadata.getName());
         }
-        Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(objectMetadata.getIdAttribute().getFieldName()), dataValue -> dataValue);
+        Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(idFieldName), dataValue -> dataValue);
 
         newDataList.forEach(newObjectMap -> {
-            Object id = newObjectMap.get(objectMetadata.getIdAttribute().getFieldName());
-            Map<String, Object> oldData = oldDataListMapById.get(id);
+            Object id = newObjectMap.get(idFieldName);
+            Map<String, Object> oldData = oldDataListMapById.get(idAttribute.cast(id));
             updateData(objectMetadata, oldData, newObjectMap);
         });
+
         List<Map<String, Object>> dataUpdatedList =  defaultQueryService.updateReturning(objectMetadata, oldDataList);
 
         Utils.CL.emptyIfNull(dataUpdatedList).forEach(dataUpdated -> mapFrom(objectMetadata, dataUpdated));

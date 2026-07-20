@@ -13,6 +13,6 @@ public class ObjectRefResolverFactory extends AbstractStrategyRegistry<Reference
 
     @Override
     protected String supportObjectType(ReferenceResolver referenceResolver) {
-        return Utils.STR.format(ObjectConstants.OBJECT_ATTRIBUTE_REF_TEMPLATE, referenceResolver.object(), referenceResolver.attribute());
+        return Utils.STR.format(ObjectConstants.OBJECT_ATTRIBUTE_REF_TEMPLATE, referenceResolver.sourceObject(), referenceResolver.targetObject(), referenceResolver.sourceAttribute());
     }
 }

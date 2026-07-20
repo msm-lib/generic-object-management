@@ -99,7 +99,22 @@ import com.msm.core.objects.service.imports.mapper.CsvRowMapper;
 import com.msm.core.objects.service.imports.mapper.RowMapper;
 import com.msm.core.objects.service.imports.resolver.ObjectResolver;
 import com.msm.core.objects.service.imports.resolver.Resolver;
+import com.msm.core.objects.service.imports.resolver.impl.AccountSiteRefAccountResolver;
+import com.msm.core.objects.service.imports.resolver.impl.CurrencyIdRefResolver;
 import com.msm.core.objects.service.imports.resolver.impl.GeographyTypeCodeLookup;
+import com.msm.core.objects.service.imports.resolver.impl.LegalIdentityIdRefResolver;
+import com.msm.core.objects.service.imports.resolver.impl.PaymentTermIdRefResolver;
+import com.msm.core.objects.service.imports.resolver.impl.accountattribute.ChannelAccountAttributeLookup;
+import com.msm.core.objects.service.imports.resolver.impl.accountattribute.ChannelDetailAccountAttributeLookup;
+import com.msm.core.objects.service.imports.resolver.impl.accountattribute.SubChannelAccountAttributeLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteAreaIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteContinentIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteCountryIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteDistrictIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteProvinceIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteRegionIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteSectorIdGeographyLookup;
+import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteWardIdGeographyLookup;
 import com.msm.core.objects.service.imports.resolver.strategy.DefaultObjectAttributeRefResolver;
 import com.msm.core.objects.service.imports.resolver.strategy.ObjectRefResolverFactory;
 import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
@@ -694,8 +709,8 @@ public class MsmAutoConfiguration {
         return new CsvRowMapper();
     }
 
-    @Bean("defaultReferenceResolver")
-    public ReferenceResolver defaultReferenceResolver(
+    @Bean("defaultObjectAttributeRefResolver")
+    public ReferenceResolver defaultObjectAttributeRefResolver(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             GenericObjectInternalService genericObjectInternalService) {
         return new DefaultObjectAttributeRefResolver(internalObjectQueryRepository, genericObjectInternalService);
@@ -704,9 +719,9 @@ public class MsmAutoConfiguration {
     @Bean
     public ObjectRefResolverFactory objectRefResolverFactory(
             List<ReferenceResolver> referenceResolvers,
-            @Qualifier("defaultReferenceResolver") ReferenceResolver defaultReferenceResolver
+            @Qualifier("defaultObjectAttributeRefResolver") ReferenceResolver defaultObjectAttributeRefResolver
     ) {
-        return new ObjectRefResolverFactory(referenceResolvers, defaultReferenceResolver);
+        return new ObjectRefResolverFactory(referenceResolvers, defaultObjectAttributeRefResolver);
     }
 
     @Bean
@@ -747,7 +762,6 @@ public class MsmAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
     public GeographyTypeCodeLookup geographyTypeCodeLookup(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             GenericObjectInternalService genericObjectInternalService
@@ -755,6 +769,125 @@ public class MsmAutoConfiguration {
         return new GeographyTypeCodeLookup(internalObjectQueryRepository, genericObjectInternalService);
     }
 
+    @Bean
+    public AccountSiteContinentIdGeographyLookup accountSiteContinentIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteContinentIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteSectorIdGeographyLookup accountSiteSectorIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteSectorIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteCountryIdGeographyLookup accountSiteCountryIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteCountryIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteRegionIdGeographyLookup accountSiteRegionIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteRegionIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteAreaIdGeographyLookup accountSiteAreaIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteAreaIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteProvinceIdGeographyLookup accountSiteProvinceIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteProvinceIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteDistrictIdGeographyLookup accountSiteDistrictIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteDistrictIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteWardIdGeographyLookup accountSiteWardIdGeographyLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteWardIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public AccountSiteRefAccountResolver accountSiteRefAccountResolver(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new AccountSiteRefAccountResolver(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public ChannelAccountAttributeLookup channelAccountAttributeLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new ChannelAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public SubChannelAccountAttributeLookup subChannelAccountAttributeLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new SubChannelAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public ChannelDetailAccountAttributeLookup channelDetailAccountAttributeLookup(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new ChannelDetailAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public CurrencyIdRefResolver currencyIdRefResolver(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new CurrencyIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public PaymentTermIdRefResolver paymentTermIdRefResolver(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new PaymentTermIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
+    }
+
+    @Bean
+    public LegalIdentityIdRefResolver legalIdentityIdRefResolver(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new LegalIdentityIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
+    }
 
 
     @Bean("defaultSecurityFieldResolver")

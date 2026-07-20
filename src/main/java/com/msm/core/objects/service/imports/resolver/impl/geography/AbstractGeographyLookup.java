@@ -1,4 +1,4 @@
-package com.msm.core.objects.service.imports.resolver.impl;
+package com.msm.core.objects.service.imports.resolver.impl.geography;
 
 import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
@@ -15,6 +15,7 @@ import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import lombok.RequiredArgsConstructor;
+import org.jooq.Field;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,30 +24,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @RequiredArgsConstructor
-public class GeographyTypeCodeLookup implements ReferenceResolver {
-
+public abstract class AbstractGeographyLookup implements ReferenceResolver {
     private final String CODE = "code";
     private final String GEOGRAPHY_TYPE_ID = "geographyTypeId";
-    private final ObjectQueryRepository internalObjectQueryRepository;
-    private final GenericObjectInternalService genericObjectInternalService;
 
-    @Override
-    public String sourceObject() {
-        return "geographylocation";
-    }
+    protected final ObjectQueryRepository internalObjectQueryRepository;
+    protected final GenericObjectInternalService genericObjectInternalService;
 
-    @Override
-    public String targetObject() {
-        return "geographylocation";
-    }
+    abstract String getGeographyTypeId();
 
-    @Override
-    public String sourceAttribute() {
-        return "parentId";
-    }
 
     public Map<String, Map<String, Map<String, Object>>> resolve(
             String sourceObjectName,
@@ -54,15 +42,10 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
             List<Map<String, Object>> items) {
 
         Set<String> codes = new HashSet<>();
-        Set<UUID> parentGeographyTypes = new HashSet<>();
         items.forEach(item -> {
-            Object parentCode = item.get("parentId");
+            Object parentCode = item.get(sourceAttribute());
             if(Objects.nonNull(parentCode) && Utils.STR.isNotBlank(parentCode.toString())) {
                 codes.add(parentCode.toString());
-            }
-            Object geographyTypeIdObj = item.get("parentGeographyTypeId");
-            if(Objects.nonNull(geographyTypeIdObj) && Utils.STR.isNotBlank(geographyTypeIdObj.toString())) {
-                parentGeographyTypes.add(UUID.fromString(geographyTypeIdObj.toString()));
             }
         });
 
@@ -72,11 +55,13 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
             ObjectMetadata objectMetadata = optionalObjectMetadata.get();
-            Attribute codeAttr = objectMetadata.getAttributeByName("code");
-            Attribute geographyTypeAttr = objectMetadata.getAttributeByName("geographyTypeId");
+            Attribute codeAttr = objectMetadata.getAttributeByName(CODE);
+            Attribute geographyTypeAttr = objectMetadata.getAttributeByName(GEOGRAPHY_TYPE_ID);
+            Field<Object> geographyTypeIdField = (Field<Object>) geographyTypeAttr.getField();
             objectList = internalObjectQueryRepository.findAllByCondition(
                     targetObjectName,
-                    codeAttr.getField().in(codes).and(geographyTypeAttr.getField().in(parentGeographyTypes)),
+                    codeAttr.getField().in(codes)
+                            .and(geographyTypeIdField.eq(getGeographyTypeId())),
                     DEFAULT_RETURN_FIELDS
             );
         } else {
@@ -89,7 +74,7 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
                             Utils.CL.newArrayList(
                                     new FilterObject[]{
                                             FilterCondition.create(CODE, FilterOperator.IN, codes),
-                                            FilterCondition.create(GEOGRAPHY_TYPE_ID, FilterOperator.IN, parentGeographyTypes)
+                                            FilterCondition.create(GEOGRAPHY_TYPE_ID, FilterOperator.EQUALS, getGeographyTypeId())
                                     }
                             )
                     ).build())
@@ -100,7 +85,10 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
             objectList = result.getContents();
         }
 
-        Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(Utils.CL.emptyIfNull(objectList), objectKey -> String.valueOf(objectKey.get(CODE)), objectValue -> objectValue);
+        Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
+                Utils.CL.emptyIfNull(objectList),
+                objectKey -> String.valueOf(objectKey.get(CODE)),
+                objectValue -> objectValue);
         Map<String, Map<String, Map<String, Object>>> objectMap = new HashMap<>();
         objectMap.put(attribute.getFieldName(), codeMap);
 

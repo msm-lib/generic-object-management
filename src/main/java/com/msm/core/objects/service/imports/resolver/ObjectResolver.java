@@ -16,9 +16,9 @@ public class ObjectResolver implements Resolver {
     private final StrategyResolver<String, ReferenceResolver> objectRefResolverFactory;
 
     @Override
-    public Map<String, Map<String, Map<String, Object>>> resolve(String objectName, Attribute attribute, List<Map<String, Object>> items) {
-        ReferenceResolver referenceResolver = objectRefResolverFactory.resolve(Utils.STR.format(ObjectConstants.OBJECT_ATTRIBUTE_REF_TEMPLATE, objectName, attribute.getFieldName()));
-        return referenceResolver.resolve(objectName, attribute, items);
+    public Map<String, Map<String, Map<String, Object>>> resolve(String sourceObjectName, Attribute attribute, List<Map<String, Object>> items) {
+        ReferenceResolver referenceResolver = objectRefResolverFactory.resolve(Utils.STR.format(ObjectConstants.OBJECT_ATTRIBUTE_REF_TEMPLATE, sourceObjectName, attribute.getAttributeRef().getObjectRef(), attribute.getFieldName()));
+        return referenceResolver.resolve(sourceObjectName, attribute, items);
     }
 
 }
