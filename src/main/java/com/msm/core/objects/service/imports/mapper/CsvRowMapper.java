@@ -24,6 +24,7 @@ public class CsvRowMapper implements RowMapper<RowMapperContext, Map<String, Obj
             String columnName = attribute.getColumnName();
 //            String columnName = Utils.STR.lowCase(columnNameDb).toLowerCase();
             //record.isSet("email")
+            //headerMap.put("code", 0)
 
             if(context.getRow().isMapped(columnName)){
                 try {

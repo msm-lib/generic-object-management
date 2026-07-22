@@ -1,7 +1,7 @@
 package com.msm.core.objects.service.imports;
 
+import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.service.imports.mapper.RowMapper;
-import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,15 +21,15 @@ import java.util.Map;
 @Slf4j
 @RequiredArgsConstructor
 public class CsvObjectReader implements FileReader<String, Map<String, Object>> {
-
-    private final static int BATCH_SIZE = 500;
-    private final ReferenceResolver referenceResolver;
+    private final GenericObjectConfigProperties genericObjectConfigProperties;
     private final RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper;
     private final BatchExecutionService batchExecutionService;
 
 
     public List<Map<String, Object>> read(String objectName, String urlString) {
+        int BATCH_SIZE = genericObjectConfigProperties.getImportFile().getBatchSize();
         List<Map<String, Object>> items = new LinkedList<>();
+
         try {
             Path path = Paths.get(urlString);
             BufferedReader reader = Files.newBufferedReader(path);

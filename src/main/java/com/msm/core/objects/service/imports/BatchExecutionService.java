@@ -33,10 +33,12 @@ public class BatchExecutionService {
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
 
         validateAndPopulateDataService.validate(objectMetadata, items);
-        internalObjectQueryRepository.bulkUpsertReturning(
-                objectName,
-                items,
-                List.of("code"));
+        internalObjectQueryRepository.save(objectName,
+                items);
+//        internalObjectQueryRepository.bulkUpsertReturning(
+//                objectName,
+//                items,
+//                List.of("code"));
         items.clear();
     }
 

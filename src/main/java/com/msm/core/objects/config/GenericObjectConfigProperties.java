@@ -19,5 +19,7 @@ public class GenericObjectConfigProperties {
     @Data
     public static class ImportFile {
         private String basePathUrl;
+        private int bufferSize = 64 * 1024;
+        private int batchSize = 20;
     }
 }

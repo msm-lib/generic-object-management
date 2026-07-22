@@ -741,9 +741,10 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public MultipartCsvObjectReader multipartCsvObjectReader(
+            GenericObjectConfigProperties genericObjectConfigProperties,
             RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper,
             BatchExecutionService batchExecutionService) {
-        return new MultipartCsvObjectReader(csvRowMapper, batchExecutionService);
+        return new MultipartCsvObjectReader(genericObjectConfigProperties, csvRowMapper, batchExecutionService);
     }
 
     @Bean
