@@ -31,7 +31,7 @@ public abstract class BusinessProcessEntity extends AuditingEntity {
             fieldName = "orgIdReference",
             objectRef = "organization"
     ))
-    @SecuredField({SecurityDataScopeType.BUSINESS_UNIT, SecurityDataScopeType.PARENT_CHILD})
+    @SecuredField({SecurityDataScopeType.BUSINESS_UNIT, SecurityDataScopeType.PARENT_CHILD, SecurityDataScopeType.PARENT_CHILD_PARENT})
     @Column(name = "org_id")
     private UUID orgId;
 

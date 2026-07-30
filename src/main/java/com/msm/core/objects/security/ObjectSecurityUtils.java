@@ -1,6 +1,7 @@
 package com.msm.core.objects.security;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.msm.core.commons.Utils;
 import com.msm.core.objects.utils.RequestUtils;
 import com.msm.core.security.PermissionHelper;
 import com.msm.core.security.context.DataScopeContext;
@@ -12,6 +13,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Enumeration;
 import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 public class ObjectSecurityUtils {
@@ -19,23 +21,36 @@ public class ObjectSecurityUtils {
     public static final String AUTH_TOKEN_PREFIX = "Bearer ";
     public static final String TENANT = "x-tenant";
     public static final String TEAMS = "x-team-ids";
-    public static final String ORGS = "x-org-ids";
-    public static final String PARENT_CHILDS = "x-child-ids";
+    public static final String ORG_IDS = "x-org-ids";
+    public static final String CHILD_IDS = "x-child-ids";
+    public static final String PARENT_IDS = "x-parent-ids";
     public static final String OWNER = "x-user-id";
     public static final Set<String> SECURITY_HEADERS = Set.of(
             TENANT,
             TEAMS,
-            ORGS,
-            PARENT_CHILDS,
+            ORG_IDS,
+            CHILD_IDS,
+            PARENT_IDS,
             OWNER
     );
 
     public static DataScopeContext getDataScopeContext(HttpServletRequest request) {
+        Set<UUID> teamIdsHeader = Utils.CL.emptyIfNull(parseHeader(request, TEAMS, new TypeReference<Set<UUID>>() {}));
+        Set<UUID> orgIdsHeader = Utils.CL.emptyIfNull(parseHeader(request, ORG_IDS, new TypeReference<Set<UUID>>() {}));
+        Set<UUID> childIdsHeader = Utils.CL.emptyIfNull(parseHeader(request, CHILD_IDS, new TypeReference<Set<UUID>>() {}));
+        Set<UUID> parentIdsHeader = Utils.CL.emptyIfNull(parseHeader(request, PARENT_IDS, new TypeReference<Set<UUID>>() {}));
+        UUID ownerIdHeader = RequestUtils.getHeader(request, OWNER, new TypeReference<>() {});
+
+
+        childIdsHeader.addAll(orgIdsHeader);//for parent child
+        parentIdsHeader.addAll(childIdsHeader);//for parent child parent
+
         return PermissionHelper.createDataScopeContext(
-                parseHeader(request, TEAMS, new TypeReference<>() {}),
-                parseHeader(request, ORGS, new TypeReference<>() {}),
-                parseHeader(request, PARENT_CHILDS, new TypeReference<>() {}),
-                RequestUtils.getHeader(request, OWNER, new TypeReference<>() {})
+                teamIdsHeader,
+                orgIdsHeader,
+                childIdsHeader,
+                parentIdsHeader,
+                ownerIdHeader
         );
     }
 
