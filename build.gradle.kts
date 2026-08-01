@@ -9,7 +9,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.8")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.16")
     }
 }
 
@@ -42,13 +42,28 @@ repositories {
     mavenCentral()
 }
 extra["jooq.version"] = "3.21.1"
+extra["commons-lang3.version"] = "3.18.0"
+val queryDslVersion = "6.10.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "1.9.5"
+val msmCommonVersion = "1.9.6"
 
 dependencies {
 
     // Spring core
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.8"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
+    constraints {
+        implementation("org.apache.commons:commons-lang3:3.18.0")
+    }
+    configurations.all {
+        exclude(group = "commons-lang", module = "commons-lang")
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.apache.commons" && requested.name == "commons-lang3") {
+                useVersion("3.18.0")
+                because("Fix CVE-2025-48924")
+            }
+        }
+    }
+
     implementation("org.springframework:spring-context")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     // Spring auto config
@@ -80,14 +95,40 @@ dependencies {
 //    implementation(files("/Users/danhnh/Infomation/Development/Lib/common/build/libs/commons-1.0.0.jar"))
     implementation("com.github.msm-lib:commons:${msmCommonVersion}") { exclude(group = "org.slf4j") }
 
-    implementation("com.querydsl:querydsl-core:5.1.0")
-    implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")
-    annotationProcessor("com.querydsl:querydsl-apt:5.0.0:jakarta")
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
 
-    // easy rules
+
+    // =======================================================================
+    // QueryDsl
+    // =======================================================================
+    implementation("io.github.openfeign.querydsl:querydsl-core:${queryDslVersion}")
+    implementation("io.github.openfeign.querydsl:querydsl-jpa:${queryDslVersion}")
+    annotationProcessor("io.github.openfeign.querydsl:querydsl-apt:${queryDslVersion}:jpa")
+    // Persistence API processor
+    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
+    // =======================================================================
+
+
+
+    // =======================================================================
+    // Easy rules
+    // =======================================================================
     implementation("org.jeasy:easy-rules-core:4.1.0")
-    implementation("org.jeasy:easy-rules-mvel:4.1.0")
+    implementation("org.mvel:mvel2:2.5.2.Final")
+    constraints {
+        implementation("com.thoughtworks.xstream:xstream:1.4.21") {
+            because("Fix RCE of XStream")
+        }
+        implementation("org.json:json:20240303") {
+            because("Fix Denial of Service CVE-2023-5072")
+        }
+        implementation("org.apache.commons:commons-lang3:3.18.0") {
+            because("Fix Uncontrolled Recursion CVE-2025-48924")
+        }
+    }
+    // =======================================================================
+
+
+
 
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq:3.21.1")
