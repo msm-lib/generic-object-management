@@ -106,6 +106,34 @@ public class DefaultRequestClient implements RequestClient {
     }
 
     @Override
+    public <T> T patch(String baseUrl, String path, Object body, Class<T> responseType) {
+        return patch(baseUrl, path, new HttpHeaders(), null, body, responseType);
+    }
+
+    @Override
+    public <T> T patch(String baseUrl, String path, HttpHeaders headers, Object body, Class<T> responseType) {
+        return patch(baseUrl, path, headers, null, body, responseType);
+    }
+
+    @Override
+    public <T> T patch(String baseUrl, String path, Map<String, Object> queryParams, Object body, Class<T> responseType) {
+        return patch(baseUrl, path, new HttpHeaders(), queryParams, body, responseType);
+    }
+
+    @Override
+    public <T> T patch(String baseUrl, String path, HttpHeaders headers, Map<String, Object> queryParams, Object body, Class<T> responseType) {
+        return exchange(
+                baseUrl,
+                path,
+                HttpMethod.PATCH,
+                headers,
+                queryParams,
+                body,
+                responseType
+        );
+    }
+
+    @Override
     public void delete(String baseUrl, String path, HttpHeaders headers) {
         delete(baseUrl, path, headers, null);
     }

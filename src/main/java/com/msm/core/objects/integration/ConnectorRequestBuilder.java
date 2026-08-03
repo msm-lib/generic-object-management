@@ -159,6 +159,34 @@ public class ConnectorRequestBuilder {
         );
     }
 
+    public <T> T patch(String path, Object body, Class<T> responseType) {
+
+        HttpRequestContext context = createContext(
+                HttpMethod.PATCH,
+                path,
+                body
+        );
+
+        return integrationClientExchange.exchange(
+                context,
+                responseType
+        );
+    }
+
+    public <T> T patch(String path, Object body, ParameterizedTypeReference<T> responseType) {
+
+        HttpRequestContext context = createContext(
+                HttpMethod.PATCH,
+                path,
+                body
+        );
+
+        return integrationClientExchange.exchange(
+                context,
+                responseType
+        );
+    }
+
     public void delete(String path) {
 
         HttpRequestContext context = createContext(

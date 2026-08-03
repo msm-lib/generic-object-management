@@ -23,6 +23,11 @@ public interface RequestClient {
     <T> T put(String baseUrl, String path, Map<String, Object> queryParams, Object body, Class<T> responseType);
     <T> T put(String baseUrl, String path, HttpHeaders headers, Map<String, Object> queryParams, Object body, Class<T> responseType);
 
+    <T> T patch(String baseUrl, String path, Object body, Class<T> responseType);
+    <T> T patch(String baseUrl, String path, HttpHeaders headers, Object body, Class<T> responseType);
+    <T> T patch(String baseUrl, String path, Map<String, Object> queryParams, Object body, Class<T> responseType);
+    <T> T patch(String baseUrl, String path, HttpHeaders headers, Map<String, Object> queryParams, Object body, Class<T> responseType);
+
     void delete(String baseUrl, String path, HttpHeaders headers);
     void delete(String baseUrl, String path, Map<String, Object> queryParams);
     void delete(String baseUrl, String path, HttpHeaders headers, Map<String, Object> queryParams);
