@@ -42,6 +42,10 @@ public class PermissionService {
             return true;
         }
 
+        if(!ObjectMetadataFactory.getObjectMetadataByName(objectName).isSecurityEnabled()) {
+            return true;
+        }
+
         AuthorizationContext authorizationContext = requestContext.getAuthorization();
         return authorizationContext.hasPermission(objectName, PermissionAction.LOOKUP);
     }
@@ -49,7 +53,12 @@ public class PermissionService {
 
     public boolean canView(String objectName) {
         RequestContext requestContext = RequestContextHolder.getRequestContext();
+
         if (isSupperAdmin(requestContext)) {
+            return true;
+        }
+
+        if(!ObjectMetadataFactory.getObjectMetadataByName(objectName).isSecurityEnabled()) {
             return true;
         }
 

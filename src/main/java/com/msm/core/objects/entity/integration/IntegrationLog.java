@@ -1,5 +1,6 @@
 package com.msm.core.objects.entity.integration;
 
+import com.msm.core.security.annotations.IgnorePermission;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-
+@IgnorePermission
 @Getter
 @Setter
 @NoArgsConstructor
