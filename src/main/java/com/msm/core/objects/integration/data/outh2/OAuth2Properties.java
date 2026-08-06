@@ -2,6 +2,8 @@ package com.msm.core.objects.integration.data.outh2;
 
 import lombok.Data;
 
+import java.util.Map;
+
 @Data
 public class OAuth2Properties {
 
@@ -16,6 +18,8 @@ public class OAuth2Properties {
     private String scope;
 
     private String accessTokenPath;
+
+    private Map<String, String> headers;
 
     // optional
     private int maxAttempts = 3;

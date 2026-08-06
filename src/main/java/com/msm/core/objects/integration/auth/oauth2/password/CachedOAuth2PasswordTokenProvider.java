@@ -65,7 +65,11 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
 
     private OAuth2Token fetchToken(OAuth2PasswordProperties oAuth2Context) {
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        Utils.CL.emptyIfNull(oAuth2Context.getHeaders()).forEach(headers::add);
+        if(Utils.CL.isEmpty(oAuth2Context.getHeaders())) {
+            headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        }
+
         Map<String, String> formBody = buildBody(oAuth2Context);
         Object response = requestClient.post(
                 oAuth2Context.getTokenUrl(),
@@ -118,7 +122,9 @@ public class CachedOAuth2PasswordTokenProvider implements TokenProvider {
 
     private OAuth2PasswordProperties getOAuth2Properties(HttpRequestContext ctx) {
         ConnectorProperties connectorProperties = integrationProperties.getConnectors().get(ctx.getConnectorName());
-        return Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
+        OAuth2PasswordProperties oAuth2PasswordProperties = Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2PasswordProperties.class);
+        oAuth2PasswordProperties.setHeaders(connectorProperties.getAuth().getHeaders());
+        return oAuth2PasswordProperties;
     }
 
     private String cacheKey(OAuth2PasswordProperties oAuth2Context) {

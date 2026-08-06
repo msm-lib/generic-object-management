@@ -7,10 +7,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -166,34 +172,21 @@ public class DefaultRequestClient implements RequestClient {
             Object body,
             Class<T> responseType) {
 
-        String url = Utils.STR.defaultIfBlank(baseUrl, () -> "") + Utils.STR.defaultIfBlank(path, () -> "");
-        if (Utils.STR.isEmpty(url)) {
-            throw new RuntimeException("Unknown baseUrl");
-        }
-        log.info("[INTERNAL] {} {}", method, url);
+        validateUrl(baseUrl, path, method);
 
         try {
             URI uri = buildUri(baseUrl, path, queryParams);
             RestClient.RequestBodySpec request = restClient
-                    .method(method).uri(uri)
+                    .method(method)
+                    .uri(uri)
                     .headers(h -> h.addAll(headers));
-            if (Objects.nonNull(body)) {
-                request.body(body);
-            }
+            resolveRequestBody(request, headers, body);
 
             return request
                     .retrieve()
                     .onStatus(
                             HttpStatusCode::isError,
-                            (req, res) -> {
-                                String bodyError = new String(res.getBody().readAllBytes());
-                                log.error("[HTTP ERROR] URL: {} STATUS: {} BODY: {} ",
-                                        req.getURI(),
-                                        res.getStatusCode(),
-                                        bodyError
-                                );
-                                throw new IntegrationRequestException(res.getStatusCode().value(), res.getStatusCode().toString(), bodyError);
-                            }
+                            this::throwLogError
                     )
                     .body(responseType);
 
@@ -212,35 +205,25 @@ public class DefaultRequestClient implements RequestClient {
             Object body,
             ParameterizedTypeReference<T> responseType) {
 
-        String url = Utils.STR.defaultIfBlank(baseUrl, () -> "") + Utils.STR.defaultIfBlank(path, () -> "");
-        if (Utils.STR.isEmpty(url)) {
-            throw new RuntimeException("Unknown baseUrl");
-        }
 
-        log.info("[INTERNAL] {} {}", method, url);
+        validateUrl(baseUrl, path, method);
+
 
         try {
 
             URI uri = buildUri(baseUrl, path, queryParams);
-            RestClient.RequestBodySpec request = restClient.method(method).uri(uri).headers(h -> h.addAll(headers));
+            RestClient.RequestBodySpec request = restClient
+                    .method(method)
+                    .uri(uri)
+                    .headers(h -> h.addAll(headers));
 
-            if (Objects.nonNull(body)) {
-                request.body(body);
-            }
+            resolveRequestBody(request, headers, body);
 
             return request
                     .retrieve()
                     .onStatus(
                             HttpStatusCode::isError,
-                            (req, res) -> {
-                                String bodyError = new String(res.getBody().readAllBytes());
-                                log.error("[HTTP ERROR] URL: {} STATUS: {} BODY: {} ",
-                                        req.getURI(),
-                                        res.getStatusCode(),
-                                        bodyError
-                                );
-                                throw new IntegrationRequestException(res.getStatusCode().value(), res.getStatusCode().toString(), bodyError);
-                            }
+                            this::throwLogError
                     )
                     .body(responseType);
 
@@ -284,5 +267,41 @@ public class DefaultRequestClient implements RequestClient {
             return;
         }
         builder.queryParam(key, value);
+    }
+
+    private void validateUrl(String baseUrl, String path, HttpMethod method) {
+        String url = Utils.STR.defaultIfBlank(baseUrl, () -> "") + Utils.STR.defaultIfBlank(path, () -> "");
+        if (Utils.STR.isEmpty(url)) {
+            throw new RuntimeException("Unknown baseUrl");
+        }
+
+        log.info("[INTERNAL] {} {}", method, url);
+    }
+
+    private void resolveRequestBody(RestClient.RequestBodySpec request, HttpHeaders headers, Object body) {
+        if (Objects.nonNull(body)) {
+            MediaType contentType = headers.getContentType();
+            if (MediaType.APPLICATION_FORM_URLENCODED.equalsTypeAndSubtype(contentType) && body instanceof Map<?, ?> mapBody) {
+                MultiValueMap<String, String> multiValueMap = new LinkedMultiValueMap<>();
+                mapBody.forEach((key, value) -> {
+                    if (key != null && value != null) {
+                        multiValueMap.add(key.toString(), value.toString());
+                    }
+                });
+                request.body(multiValueMap);
+            } else {
+                request.body(body);
+            }
+        }
+    }
+
+    private void throwLogError(HttpRequest request, ClientHttpResponse res) throws IOException {
+        String bodyError = new String(res.getBody().readAllBytes());
+        log.error("[HTTP ERROR] URL: {} STATUS: {} BODY: {} ",
+                request.getURI(),
+                res.getStatusCode(),
+                bodyError
+        );
+        throw new IntegrationRequestException(res.getStatusCode().value(), res.getStatusCode().toString(), bodyError);
     }
 }

@@ -44,7 +44,7 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
         OAuth2Properties oAuth2Context = getOAuth2Properties(ctx);
         String keyCache = cacheKey(oAuth2Context);
         OAuth2Token auth2CacheToken = redisCacheOperator.get(keyCache, OAuth2Token.class);
-        if (auth2CacheToken == null || JwtUtils.isTokenExpired(oAuth2Context.getAccessTokenPath()) || ctx.isForceReNewToken()) {
+        if (auth2CacheToken == null || JwtUtils.isTokenExpired(auth2CacheToken.getAccessToken()) || ctx.isForceReNewToken()) {
             auth2CacheToken = retryFetchToken(ctx, oAuth2Context);
             redisCacheOperator.set(keyCache, auth2CacheToken);
         }
@@ -64,7 +64,10 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
 
     private OAuth2Token fetchToken(OAuth2Properties oAuth2Context) {
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        Utils.CL.emptyIfNull(oAuth2Context.getHeaders()).forEach(headers::add);
+        if(Utils.CL.isEmpty(oAuth2Context.getHeaders())) {
+            headers.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+        }
         Map<String, String> formBody = buildBody(oAuth2Context);
         Object response = requestClient.post(
                 oAuth2Context.getTokenUrl(),
@@ -93,7 +96,10 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
         formBody.put("grant_type", properties.getGrantType());
         formBody.put("client_id", properties.getClientId());
         formBody.put("client_secret", properties.getClientSecret());
-        formBody.put("scope", properties.getScope());
+        if(Utils.STR.isNotBlank(properties.getScope())) {
+            formBody.put("scope", properties.getScope());
+        }
+
         return formBody;
     }
 
@@ -119,7 +125,9 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
 
     private OAuth2Properties getOAuth2Properties(HttpRequestContext ctx) {
         ConnectorProperties connectorProperties = integrationProperties.getConnectors().get(ctx.getConnectorName());
-        return Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2Properties.class);
+        OAuth2Properties oAuth2Properties = Utils.O.convertObject(connectorProperties.getAuth().getProperties(), OAuth2Properties.class);
+        oAuth2Properties.setHeaders(connectorProperties.getAuth().getHeaders());
+        return oAuth2Properties;
     }
 
     private String cacheKey(OAuth2Properties oAuth2Context) {

@@ -29,6 +29,7 @@ public class AuthProviderProperties {
     private String provider;
 
     private Map<String, Object> properties;
+    private Map<String, String> headers;
 
     public void setProperties(Map<String, String> rawProperties) {
         if (rawProperties == null) return;
