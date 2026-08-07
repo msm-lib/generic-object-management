@@ -95,4 +95,8 @@ public class ObjectSecurityUtils {
             }
         }
     }
+
+    public static String buildKey(String... keys) {
+        return String.join(":", keys);
+    }
 }

@@ -6,6 +6,7 @@ import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
+import com.msm.core.objects.security.ObjectSecurityUtils;
 import com.msm.core.objects.security.SecurityFieldResolver;
 import com.msm.core.objects.security.SecurityFieldResolverFactory;
 import com.msm.core.security.DataScopeResolver;
@@ -94,7 +95,8 @@ public class PermissionService {
             return false;
         }
 
-        String supportType = objectConversionRequest.getSourceObject() + ":" + objectConversionRequest.getTargetObject();
+
+        String supportType = ObjectSecurityUtils.buildKey(objectConversionRequest.getSourceObject(), objectConversionRequest.getTargetObject());
         SecurityFieldResolver securityFieldResolver =  securityFieldResolverFactory.resolve(supportType);
         Map<String, Object> securityDataScopeTypeObjectMap = securityFieldResolver.resolve(objectName, objectConversionRequest, requestContext);
         return securityCheckProvider.checkDataScope(objectName, securityDataScopeTypeObjectMap, PermissionAction.CREATE);

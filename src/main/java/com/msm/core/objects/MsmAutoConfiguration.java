@@ -408,11 +408,10 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SystemHookEvent systemHookEvent(
-            ObjectDependencyServiceImpl objectDependencyService,
-            @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator,
-            GenericObjectMetadataService genericObjectMetadataService
+            GenericObjectMetadataService genericObjectMetadataService,
+            ValidateAndPopulateDataService validateAndPopulateDataService
     ) {
-        return new SystemHookEvent(objectDependencyService, defaultAttributeValidator, genericObjectMetadataService);
+        return new SystemHookEvent(genericObjectMetadataService, validateAndPopulateDataService);
     }
 
     @Bean

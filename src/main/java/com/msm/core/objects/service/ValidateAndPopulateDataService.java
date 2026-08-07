@@ -17,8 +17,12 @@ public class ValidateAndPopulateDataService {
 
     private final AttributeValidator defaultAttributeValidator;
 
-    public void validate(ObjectMetadata objectMetadata, Map<String, Object> payload) {
+    public void populateAndValidate(ObjectMetadata objectMetadata, Map<String, Object> payload) {
         populate(objectMetadata, payload);
+        validate(objectMetadata, payload);
+    }
+
+    public void validate(ObjectMetadata objectMetadata, Map<String, Object> payload) {
         List<MessageError> messageErrors =  defaultAttributeValidator.validate(objectMetadata, payload);
         if(!messageErrors.isEmpty()) {
             List<ObjectErrorDetail> objectErrorDetails = messageErrors.stream().map(msg -> ObjectErrorDetail.create(msg.getCode(), Map.of("attribute", msg.getAttribute()), msg.getMessage())).toList();
@@ -26,8 +30,8 @@ public class ValidateAndPopulateDataService {
         }
     }
 
-    public void validate(ObjectMetadata objectMetadata, List<Map<String, Object>> payload) {
-        payload.forEach(objectPayload -> validate(objectMetadata, objectPayload));
+    public void populateAndValidate(ObjectMetadata objectMetadata, List<Map<String, Object>> payload) {
+        payload.forEach(objectPayload -> populateAndValidate(objectMetadata, objectPayload));
     }
 
     public void populate(ObjectMetadata objectMetadata, Map<String, Object> payload) {

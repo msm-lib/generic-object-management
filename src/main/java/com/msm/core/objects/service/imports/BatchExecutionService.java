@@ -32,7 +32,7 @@ public class BatchExecutionService {
         //account_code_key
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
 
-        validateAndPopulateDataService.validate(objectMetadata, items);
+        validateAndPopulateDataService.populateAndValidate(objectMetadata, items);
         internalObjectQueryRepository.save(objectName,
                 items);
 //        internalObjectQueryRepository.bulkUpsertReturning(
