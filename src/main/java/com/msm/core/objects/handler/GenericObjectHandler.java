@@ -76,9 +76,9 @@ public class GenericObjectHandler {
     public void createCodeIfNull(String objectName, Map<String, Object> payload) {
         Object code = payload.get("code");
         if(Objects.isNull(code)) {
-            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+            String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowerCase(objectName)), () -> "");
             int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
-            payload.put("code", Utils.toCodeGenerator(prefix, len));
+            payload.put("code", Utils.R.toCodeGenerator(prefix, len));
         }
     }
 
@@ -86,9 +86,9 @@ public class GenericObjectHandler {
         payloads.forEach(objectMap -> {
             Object code = objectMap.get("code");
             if(Objects.isNull(code)) {
-                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowCase(objectName)), () -> "");
+                String prefix = Utils.STR.defaultIfBlank(ObjectConstants.PREFIX_OBJECT_CODE.get(Utils.STR.lowerCase(objectName)), () -> "");
                 int len = Utils.STR.isEmpty(prefix) ? 8 : 7;
-                objectMap.put("code", Utils.toCodeGenerator(prefix, len));
+                objectMap.put("code", Utils.R.toCodeGenerator(prefix, len));
             }
         });
     }

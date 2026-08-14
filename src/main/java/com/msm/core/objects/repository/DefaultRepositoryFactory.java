@@ -23,11 +23,11 @@ public class DefaultRepositoryFactory implements RepositoryFactory {
 
             Class<?> domainType = resolveDomainType(repo);
             byEntity.put(domainType, repo);
-            byEntityName.put(Utils.STR.lowCase(domainType.getSimpleName()), repo);
+            byEntityName.put(Utils.STR.lowerCase(domainType.getSimpleName()), repo);
             String[] beanNames = beanFactory.getBeanNamesForType(repo.getClass());
 
             for (String beanName : beanNames) {
-                byRepositoryName.put(Utils.STR.lowCase(beanName), repo);
+                byRepositoryName.put(Utils.STR.lowerCase(beanName), repo);
             }
         }
     }

@@ -33,7 +33,7 @@ public class GenericObjectMetadataService {
     private final DSLContext dsl;
 
     public Optional<ObjectMetadata> getObjectMetadata(String objectName) {
-        String objectKey = Utils.STR.lowCase(objectName);
+        String objectKey = Utils.STR.lowerCase(objectName);
         Optional<ObjectMetadata> objectAttribute = ObjectMetadataFactory.getObjectMetadata(objectKey);
         if(objectAttribute.isPresent()) {
             return objectAttribute;
@@ -194,7 +194,7 @@ public class GenericObjectMetadataService {
 
     private String buildRef(String column, List<String> excludeRefs) {
         String fieldName = Utils.STR.toCamelCaseUnderscore(column);
-        if(Utils.STR.lowCase(column).endsWith("_id") && !excludeRefs.contains(fieldName)) {
+        if(Utils.STR.lowerCase(column).endsWith("_id") && !excludeRefs.contains(fieldName)) {
             return fieldName + "Reference";
         }
         return null;
@@ -210,7 +210,7 @@ public class GenericObjectMetadataService {
     }
 
     public Optional<ObjectMetadata> getObjectAttribute0(String objectName) {
-        String objectKey = Utils.STR.lowCase(objectName);
+        String objectKey = Utils.STR.lowerCase(objectName);
         Optional<ObjectMetadata> objectAttribute = ObjectAttributeFactory.get(objectKey);
         if(objectAttribute.isPresent()) {
             return objectAttribute;
