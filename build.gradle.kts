@@ -45,7 +45,7 @@ extra["jooq.version"] = "3.21.1"
 extra["commons-lang3.version"] = "3.18.0"
 val queryDslVersion = "6.10.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "2.0.2"
+val msmCommonVersion = "2.0.3"
 
 dependencies {
 
