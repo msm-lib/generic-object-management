@@ -26,4 +26,8 @@ public class ObjectConstants {
             "uat",  "https://api-uat.digiretail.myminds.net"
     );
 
+    public static final String TOKEN_HEADER_NAME = "tokenHeaderName";
+    public static final String TOKEN_NAME = "token";
+
+
 }
