@@ -226,28 +226,28 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         return results;
     }
 
-    public Map<String, Object> findByCondition(String objectName, Condition condition) {
+    public Map<String, Object> findOneByCondition(String objectName, Condition condition) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         Map<String, Object> objectMap = internalQueryService.findOneByCondition(objectMetadata, condition);
         mapFrom(objectMetadata, objectMap);
         return objectMap;
     }
 
-    public Map<String, Object> findByCondition(String objectName, Condition condition, List<String> returnFields) {
+    public Map<String, Object> findOneByCondition(String objectName, Condition condition, List<String> returnFields) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         Map<String, Object> objectMap = internalQueryService.findOneByCondition(objectMetadata, condition, returnFields);
         mapFrom(objectMetadata, objectMap);
         return objectMap;
     }
 
-    public List<Map<String, Object>> findAllByCondition(String objectName, Condition condition) {
+    public List<Map<String, Object>> findByCondition(String objectName, Condition condition) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         List<Map<String, Object>> objectMap = internalQueryService.findByCondition(objectMetadata, condition);
         Utils.CL.emptyIfNull(objectMap).forEach(object -> mapFrom(objectMetadata, object));
         return objectMap;
     }
 
-    public List<Map<String, Object>> findAllByCondition(String objectName, Condition condition, List<String> returnFields) {
+    public List<Map<String, Object>> findByCondition(String objectName, Condition condition, List<String> returnFields) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         List<Map<String, Object>> objectMap = internalQueryService.findByCondition(objectMetadata, condition, returnFields);
         Utils.CL.emptyIfNull(objectMap).forEach(object -> mapFrom(objectMetadata, object));

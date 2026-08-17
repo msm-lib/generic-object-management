@@ -53,7 +53,7 @@ public abstract class AbstractObjectAttributeRefResolver implements ReferenceRes
 
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
-            objectList = internalObjectQueryRepository.findAllByCondition(targetObjectName, DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), returnFields());
+            objectList = internalObjectQueryRepository.findByCondition(targetObjectName, DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes), returnFields());
         } else {
             String objectRefName = attribute.getAttributeRef().getObjectRef();
             ObjectFilterRequest objectFilterRequest = ObjectFilterRequest

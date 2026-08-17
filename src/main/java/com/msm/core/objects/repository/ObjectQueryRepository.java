@@ -47,13 +47,13 @@ public interface ObjectQueryRepository {
 
     List<Map<String, Object>> findByIds(String objectName, List<Object> ids, List<String> returnFields);
 
-    Map<String, Object> findByCondition(String objectName, Condition condition);
+    Map<String, Object> findOneByCondition(String objectName, Condition condition);
 
-    Map<String, Object> findByCondition(String objectName, Condition condition, List<String> returnFields);
+    Map<String, Object> findOneByCondition(String objectName, Condition condition, List<String> returnFields);
 
-    List<Map<String, Object>> findAllByCondition(String objectName, Condition condition);
+    List<Map<String, Object>> findByCondition(String objectName, Condition condition);
 
-    List<Map<String, Object>> findAllByCondition(String objectName, Condition condition, List<String> returnFields);
+    List<Map<String, Object>> findByCondition(String objectName, Condition condition, List<String> returnFields);
 
     List<Map<String, Object>> bulkCreateIgnoreConflictOnConstraintName(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName);
 

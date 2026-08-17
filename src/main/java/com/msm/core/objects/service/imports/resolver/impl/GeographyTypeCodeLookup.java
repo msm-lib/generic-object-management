@@ -74,7 +74,7 @@ public class GeographyTypeCodeLookup implements ReferenceResolver {
             ObjectMetadata objectMetadata = optionalObjectMetadata.get();
             Attribute codeAttr = objectMetadata.getAttributeByName("code");
             Attribute geographyTypeAttr = objectMetadata.getAttributeByName("geographyTypeId");
-            objectList = internalObjectQueryRepository.findAllByCondition(
+            objectList = internalObjectQueryRepository.findByCondition(
                     targetObjectName,
                     codeAttr.getField().in(codes).and(geographyTypeAttr.getField().in(parentGeographyTypes)),
                     DEFAULT_RETURN_FIELDS

@@ -58,7 +58,7 @@ public abstract class AbstractAccountAttributeLookup implements ReferenceResolve
             Attribute codeAttr = objectMetadata.getAttributeByName(CODE);
             Attribute geographyTypeAttr = objectMetadata.getAttributeByName(ATTRIBUTE_TYPE);
             Field<Object> geographyTypeIdField = (Field<Object>) geographyTypeAttr.getField();
-            objectList = internalObjectQueryRepository.findAllByCondition(
+            objectList = internalObjectQueryRepository.findByCondition(
                     targetObjectName,
                     codeAttr.getField().in(codes)
                             .and(geographyTypeIdField.eq(getAttributeType())),
