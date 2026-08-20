@@ -20,6 +20,7 @@ public class SystemHookEvent {
     private final GenericObjectMetadataService genericObjectMetadataService;
     private final ValidateAndPopulateDataService validateAndPopulateDataService;
 
+
 //    @HookSystemAfter(action = Constants.Action.CREATE, order = Integer.MIN_VALUE)
 //    public void hookSystemAfterCreate(ActionContext<Map<String, Object>> ctx) {
 //        objectDependencyService.saveObjectDependency(ctx);
@@ -39,7 +40,7 @@ public class SystemHookEvent {
             return;
         }
 
-        validateAndPopulateDataService.populateAndValidate(objectMetadataOptional.get(), ctx.getPayload());
+        validateAndPopulateDataService.createPopulateAndValidate(objectMetadataOptional.get(), ctx.getPayload());
     }
 
     @HookSystemBefore(action = Constants.Action.BULK_CREATE, order = Integer.MIN_VALUE)
@@ -50,7 +51,7 @@ public class SystemHookEvent {
             return;
         }
 
-        validateAndPopulateDataService.populateAndValidate(objectMetadataOptional.get(), ctx.getPayload());
+        validateAndPopulateDataService.createPopulateAndValidate(objectMetadataOptional.get(), ctx.getPayload());
     }
 
     @HookSystemBefore(action = Constants.Action.UPDATE, order = Integer.MIN_VALUE)
@@ -61,7 +62,18 @@ public class SystemHookEvent {
             return;
         }
 
-        validateAndPopulateDataService.validate(objectMetadataOptional.get(), ctx.getPayload());
+        validateAndPopulateDataService.updateValidate(objectMetadataOptional.get(), ctx.getPayload());
+    }
+
+    @HookSystemBefore(action = Constants.Action.BULK_UPDATE, order = Integer.MIN_VALUE)
+    public void hookSystemBeforeBulkUpdate(ActionContext<List<Map<String, Object>>> ctx) {
+        Optional<ObjectMetadata> objectMetadataOptional = genericObjectMetadataService.getObjectMetadata(ctx.getResource());
+        if(objectMetadataOptional.isEmpty()) {
+            log.warn("No object attribute found with name {}", ctx.getResource());
+            return;
+        }
+
+        validateAndPopulateDataService.updateValidate(objectMetadataOptional.get(), ctx.getPayload());
     }
 
 //    private void populateAndValidate(ObjectMetadata objectMetadata, Map<String, Object> payload) {
