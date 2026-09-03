@@ -6,12 +6,12 @@ import com.msm.core.exceptions.ObjectNotFoundException;
 import java.util.List;
 
 public class ObjectErrors {
-    public static ObjectValidateException validateException(List<ObjectErrorDetail> errors) {
-        return new ObjectValidateException(errors);
+    public static ObjectValidateException validateException(String objectName, List<ObjectErrorDetail> errors) {
+        return new ObjectValidateException(objectName, errors);
     }
 
-    public static ObjectValidateException validateException(List<ObjectErrorDetail> errors, Throwable cause) {
-        return new ObjectValidateException(errors, cause);
+    public static ObjectValidateException validateException(String objectName, List<ObjectErrorDetail> errors, Throwable cause) {
+        return new ObjectValidateException(objectName, errors, cause);
     }
 
     public static ObjectNotFoundException notFound(String name) {

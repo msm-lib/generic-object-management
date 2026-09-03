@@ -78,7 +78,7 @@ public class ValidateAndPopulateDataService {
         List<MessageError> messageErrors =  createAttributeValidator.validate(objectMetadata, payload);
         if(!messageErrors.isEmpty()) {
             List<ObjectErrorDetail> objectErrorDetails = messageErrors.stream().map(msg -> ObjectErrorDetail.create(msg.getCode(), Map.of("attribute", msg.getAttribute()), msg.getMessage())).toList();
-            throw ObjectErrors.validateException(objectErrorDetails);
+            throw ObjectErrors.validateException(objectMetadata.getName(), objectErrorDetails);
         }
     }
 
@@ -90,7 +90,7 @@ public class ValidateAndPopulateDataService {
         List<MessageError> messageErrors =  updateAttributeValidator.validate(objectMetadata, payload);
         if(!messageErrors.isEmpty()) {
             List<ObjectErrorDetail> objectErrorDetails = messageErrors.stream().map(msg -> ObjectErrorDetail.create(msg.getCode(), Map.of("attribute", msg.getAttribute()), msg.getMessage())).toList();
-            throw ObjectErrors.validateException(objectErrorDetails);
+            throw ObjectErrors.validateException(objectMetadata.getName(), objectErrorDetails);
         }
     }
 
