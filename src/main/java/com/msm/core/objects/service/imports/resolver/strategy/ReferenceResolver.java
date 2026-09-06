@@ -2,11 +2,12 @@ package com.msm.core.objects.service.imports.resolver.strategy;
 
 
 import com.msm.core.metadata.Attribute;
+import com.msm.core.strategy.TypedStrategy;
 
 import java.util.List;
 import java.util.Map;
 
-public interface ReferenceResolver {
+public interface ReferenceResolver extends TypedStrategy<String> {
     List<String> DEFAULT_RETURN_FIELDS = List.of(
             "id",
             "code",

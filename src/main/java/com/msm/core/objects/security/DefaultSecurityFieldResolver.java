@@ -10,7 +10,7 @@ import java.util.Map;
 public class DefaultSecurityFieldResolver implements SecurityFieldResolver {
 
     @Override
-    public String supportObjectType() {
+    public String support() {
         return "default";
     }
 

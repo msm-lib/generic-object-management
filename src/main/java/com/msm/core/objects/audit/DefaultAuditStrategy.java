@@ -11,10 +11,10 @@ import java.util.Map;
 
 public class DefaultAuditStrategy implements AuditStrategy {
 
-    @Override
-    public String supportObjectType() {
-        return DEFAULT_OBJECT_TYPE; // fallback
-    }
+//    @Override
+//    public String supportObjectType() {
+//        return DEFAULT_OBJECT_TYPE; // fallback
+//    }
 
     @Override
     public void apply(AuditAction action, ObjectMetadata meta, Map<String, Object> payload) {
@@ -47,5 +47,10 @@ public class DefaultAuditStrategy implements AuditStrategy {
         if (attr != null) {
             payload.put(attr.getFieldName(), value);
         }
+    }
+
+    @Override
+    public String support() {
+        return DEFAULT_OBJECT_TYPE; // fallback
     }
 }

@@ -11,6 +11,7 @@ import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.ObjectConstants;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
@@ -93,5 +94,10 @@ public abstract class AbstractAccountAttributeLookup implements ReferenceResolve
         objectMap.put(attribute.getFieldName(), codeMap);
 
         return objectMap;
+    }
+
+    @Override
+    public String support() {
+        return Utils.STR.format(ObjectConstants.OBJECT_ATTRIBUTE_REF_TEMPLATE, sourceObject(), targetObject(), sourceAttribute());
     }
 }

@@ -3,8 +3,7 @@ package com.msm.core.objects.security;
 public abstract class AbstractConversionSecurityFieldResolver implements SecurityFieldResolver {
 
     @Override
-    public String supportObjectType() {
-
+    public String support() {
         return ObjectSecurityUtils.buildKey(sourceObject(), targetObject());
     }
 

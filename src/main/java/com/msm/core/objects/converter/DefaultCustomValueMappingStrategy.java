@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class DefaultCustomValueMappingStrategy implements CustomValueMappingStrategy {
     @Override
-    public String supportObjectType() {
+    public String support() {
         return DEFAULT_OBJECT_TYPE;
     }
 
