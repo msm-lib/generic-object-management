@@ -44,6 +44,17 @@ import com.msm.core.objects.converter.MappingStrategyResolverFactory;
 import com.msm.core.objects.handler.GenericObjectHandler;
 import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
+import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.BatchProcessingService;
+import com.msm.core.objects.imports.ImportErrorService;
+import com.msm.core.objects.imports.ImportJobService;
+import com.msm.core.objects.imports.ImportService;
+import com.msm.core.objects.imports.excel.ExcelImportService;
+import com.msm.core.objects.imports.handler.CsvImportHandlerService;
+import com.msm.core.objects.imports.handler.ExcelImportHandlerService;
+import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
+import com.msm.core.objects.imports.reference.AttributeReferenceService;
+import com.msm.core.objects.imports.reference.TypeAndCodeReferenceResolver;
 import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
@@ -91,33 +102,6 @@ import com.msm.core.objects.service.ObjectDependencyServiceImpl;
 import com.msm.core.objects.service.PermissionService;
 import com.msm.core.objects.service.PreprocessCustomFieldValueService;
 import com.msm.core.objects.service.ValidateAndPopulateDataService;
-import com.msm.core.objects.service.imports.BatchExecutionService;
-import com.msm.core.objects.service.imports.FileImportService;
-import com.msm.core.objects.service.imports.MultipartCsvObjectReader;
-import com.msm.core.objects.service.imports.RowMapperContext;
-import com.msm.core.objects.service.imports.mapper.CsvRowMapper;
-import com.msm.core.objects.service.imports.mapper.RowMapper;
-import com.msm.core.objects.service.imports.resolver.ObjectResolver;
-import com.msm.core.objects.service.imports.resolver.Resolver;
-import com.msm.core.objects.service.imports.resolver.impl.AccountSiteRefAccountResolver;
-import com.msm.core.objects.service.imports.resolver.impl.CurrencyIdRefResolver;
-import com.msm.core.objects.service.imports.resolver.impl.GeographyTypeCodeLookup;
-import com.msm.core.objects.service.imports.resolver.impl.LegalIdentityIdRefResolver;
-import com.msm.core.objects.service.imports.resolver.impl.PaymentTermIdRefResolver;
-import com.msm.core.objects.service.imports.resolver.impl.accountattribute.ChannelAccountAttributeLookup;
-import com.msm.core.objects.service.imports.resolver.impl.accountattribute.ChannelDetailAccountAttributeLookup;
-import com.msm.core.objects.service.imports.resolver.impl.accountattribute.SubChannelAccountAttributeLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteAreaIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteContinentIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteCountryIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteDistrictIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteProvinceIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteRegionIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteSectorIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.impl.geography.AccountSiteWardIdGeographyLookup;
-import com.msm.core.objects.service.imports.resolver.strategy.DefaultObjectAttributeRefResolver;
-import com.msm.core.objects.service.imports.resolver.strategy.ObjectRefResolverFactory;
-import com.msm.core.objects.service.imports.resolver.strategy.ReferenceResolver;
 import com.msm.core.objects.service.internal.InternalGenericObjectService;
 import com.msm.core.objects.transaction.ObjectTransactionHook;
 import com.msm.core.security.DataScopeConditionResolver;
@@ -167,7 +151,6 @@ import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 
 @Slf4j
@@ -178,37 +161,70 @@ import java.util.concurrent.Executor;
 })
 public class MsmAutoConfiguration {
 
+    private void injectEntities(String packagePath, LocalContainerEntityManagerFactoryBean emfBean) {
+        List<String> entityClassNames = new ArrayList<>();
+        try {
+            ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
+            MetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(resolver);
+            Resource[] resources = resolver.getResources("classpath*:" + packagePath);
+            for (Resource resource : resources) {
+                if (resource.isReadable()) {
+                    var reader = readerFactory.getMetadataReader(resource);
+                    if (reader.getAnnotationMetadata().hasAnnotation(Entity.class.getName())) {
+                        entityClassNames.add(reader.getClassMetadata().getClassName());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+
+
+        if (!entityClassNames.isEmpty()) {
+            emfBean.setPersistenceUnitPostProcessors(pui -> {
+                for (String className : entityClassNames) {
+                    pui.addManagedClassName(className);
+                }
+            });
+        }
+    }
+
+
+
     @Bean
     public BeanPostProcessor msmEntityManagerFactoryPostProcessor() {
         return new BeanPostProcessor() {
             @Override
             public Object postProcessBeforeInitialization(Object bean, String beanName) {
                 if (bean instanceof LocalContainerEntityManagerFactoryBean emfBean) {
-                    List<String> entityClassNames = new ArrayList<>();
-                    try {
-                        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
-                        MetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(resolver);
-                        String packagePath = "com/msm/core/objects/entity/integration/**/*.class";
-                        Resource[] resources = resolver.getResources("classpath*:" + packagePath);
-                        for (Resource resource : resources) {
-                            if (resource.isReadable()) {
-                                var reader = readerFactory.getMetadataReader(resource);
-                                if (reader.getAnnotationMetadata().hasAnnotation(Entity.class.getName())) {
-                                    entityClassNames.add(reader.getClassMetadata().getClassName());
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
-                    }
+//                    List<String> entityClassNames = new ArrayList<>();
+//                    try {
+//                        ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
+//                        MetadataReaderFactory readerFactory = new CachingMetadataReaderFactory(resolver);
+//                        String packagePath = "com/msm/core/objects/entity/integration/**/*.class";
+//                        Resource[] resources = resolver.getResources("classpath*:" + packagePath);
+//                        for (Resource resource : resources) {
+//                            if (resource.isReadable()) {
+//                                var reader = readerFactory.getMetadataReader(resource);
+//                                if (reader.getAnnotationMetadata().hasAnnotation(Entity.class.getName())) {
+//                                    entityClassNames.add(reader.getClassMetadata().getClassName());
+//                                }
+//                            }
+//                        }
+//                    } catch (Exception e) {
+//                        log.error(e.getMessage(), e);
+//                    }
+//
+//                    if (!entityClassNames.isEmpty()) {
+//                        emfBean.setPersistenceUnitPostProcessors(pui -> {
+//                            for (String className : entityClassNames) {
+//                                pui.addManagedClassName(className);
+//                            }
+//                        });
+//                    }
 
-                    if (!entityClassNames.isEmpty()) {
-                        emfBean.setPersistenceUnitPostProcessors(pui -> {
-                            for (String className : entityClassNames) {
-                                pui.addManagedClassName(className);
-                            }
-                        });
-                    }
+                    injectEntities("com/msm/core/objects/entity/integration/**/*.class", emfBean);
+                    injectEntities("com/msm/core/objects/entity/imports/**/*.class", emfBean);
                 }
                 return bean;
             }
@@ -317,25 +333,6 @@ public class MsmAutoConfiguration {
     public HookEngine hookEngine(@Qualifier("hookTaskExecutor") Executor hookTaskExecutor) {
         return new DefaultHookEngine(new DefaultAsyncExecutor(hookTaskExecutor));
     }
-
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public RequestDataValidator defaultRequestDataValidator(
-//            @Qualifier("defaultAttributeValidator") AttributeValidator defaultAttributeValidator) {
-//        return new DefaultRequestDataValidator(defaultAttributeValidator);
-//    }
-
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public RequestDataProcessor defaultRequestDataProcessor(RequestDataValidator defaultRequestDataValidator) {
-//        return new DefaultRequestDataProcessor(defaultRequestDataValidator);
-//    }
-//
-//    @Bean
-//    @ConditionalOnMissingBean
-//    public RequestDataProcessorFactory requestDataProcessorFactory(List<RequestDataProcessor> requestDataProcessors, RequestDataProcessor defaultRequestDataProcessor) {
-//        return new RequestDataProcessorFactory(requestDataProcessors, defaultRequestDataProcessor);
-//    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -730,54 +727,154 @@ public class MsmAutoConfiguration {
 
     //============ Import ===========
 
-    @Bean("csvRowMapper")
-    @ConditionalOnMissingBean
-    public RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper() {
-        return new CsvRowMapper();
-    }
-
-    @Bean("defaultObjectAttributeRefResolver")
-    public ReferenceResolver defaultObjectAttributeRefResolver(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService) {
-        return new DefaultObjectAttributeRefResolver(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public ObjectRefResolverFactory objectRefResolverFactory(
-            List<ReferenceResolver> referenceResolvers,
-            @Qualifier("defaultObjectAttributeRefResolver") ReferenceResolver defaultObjectAttributeRefResolver
+    @Bean("importValidationService0")
+    public com.msm.core.objects.imports.validation.ImportValidationService importValidationService0(
+            @Qualifier("createAttributeValidator") AttributeValidator createAttributeValidator,
+            @Qualifier("updateAttributeValidator") AttributeValidator updateAttributeValidator
     ) {
-        return new ObjectRefResolverFactory(referenceResolvers, defaultObjectAttributeRefResolver);
+        return new com.msm.core.objects.imports.validation.ImportValidationService(
+                createAttributeValidator,
+                updateAttributeValidator
+        );
     }
 
-    @Bean
-    public Resolver objectResolver(ObjectRefResolverFactory objectRefResolverFactory) {
-        return new ObjectResolver(objectRefResolverFactory);
+
+    @Bean("processValidationBatchService")
+    public BatchProcessingService processValidationBatchService(
+            @Qualifier("importValidationService0") com.msm.core.objects.imports.validation.ImportValidationService importValidationService0,
+            ActionExecutor actionExecutor,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new BatchProcessingService(
+                importValidationService0,
+                actionExecutor,
+                internalObjectQueryRepository
+        );
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public BatchExecutionService batchExecutionService(
-            ValidateAndPopulateDataService validateAndPopulateDataService,
+
+
+    @Bean("importService")
+    public ImportService importService(
+            BatchImportService batchImportService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            Resolver objectResolver) {
-        return new BatchExecutionService(validateAndPopulateDataService, internalObjectQueryRepository, objectResolver);
+            ActionExecutor actionExecutor,
+            GenericObjectConfigProperties config,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new ImportService(
+                batchImportService,
+                internalObjectQueryRepository,
+                actionExecutor,
+                config,
+                genericObjectInternalService
+        );
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public MultipartCsvObjectReader multipartCsvObjectReader(
-            GenericObjectConfigProperties genericObjectConfigProperties,
-            RowMapper<RowMapperContext, Map<String, Object>> csvRowMapper,
-            BatchExecutionService batchExecutionService) {
-        return new MultipartCsvObjectReader(genericObjectConfigProperties, csvRowMapper, batchExecutionService);
+
+    @Bean("csvImportHandlerService")
+    public CsvImportHandlerService csvImportHandlerService(
+            BatchProcessingService processValidationBatch,
+            ActionExecutor actionExecutor,
+            GenericObjectConfigProperties config
+    ) {
+        return new CsvImportHandlerService(
+                processValidationBatch,
+                actionExecutor,
+                config
+        );
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public FileImportService fileImportService(MultipartCsvObjectReader multipartCsvObjectReader) {
-        return new FileImportService(multipartCsvObjectReader);
+    @Bean("attributeReferenceResolverService")
+    public AttributeCodeReferenceResolver attributeReferenceResolverService(
+            GenericObjectInternalService genericObjectInternalService,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new AttributeCodeReferenceResolver(
+                genericObjectInternalService,
+                internalObjectQueryRepository
+        );
+    }
+
+
+    @Bean("typeAndCodeReferenceResolver")
+    public TypeAndCodeReferenceResolver typeAndCodeReferenceResolver(
+            GenericObjectInternalService genericObjectInternalService,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new TypeAndCodeReferenceResolver(
+                genericObjectInternalService,
+                internalObjectQueryRepository
+        );
+    }
+
+    @Bean("attributeReferenceService")
+    public AttributeReferenceService attributeReferenceService(
+            AttributeCodeReferenceResolver attributeCodeReferenceResolver,
+            TypeAndCodeReferenceResolver typeAndCodeReferenceResolver
+    ) {
+        return new AttributeReferenceService(
+                attributeCodeReferenceResolver,
+                typeAndCodeReferenceResolver
+        );
+    }
+
+    //Excel
+    @Bean("excelImportService")
+    public ExcelImportService excelImportService(
+            BatchImportService batchImportService,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ActionExecutor actionExecutor,
+            GenericObjectConfigProperties config,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new ExcelImportService(
+                batchImportService,
+                internalObjectQueryRepository,
+                actionExecutor,
+                config,
+                genericObjectInternalService
+        );
+    }
+
+    @Bean("excelImportHandlerService")
+    public ExcelImportHandlerService excelImportHandlerService(
+            BatchProcessingService processValidationBatch,
+            ActionExecutor actionExecutor,
+            GenericObjectConfigProperties config
+    ) {
+        return new ExcelImportHandlerService(
+                processValidationBatch,
+                actionExecutor,
+                config
+        );
+    }
+
+
+    @Bean("importJobService")
+    public ImportJobService importJobService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            GenericObjectInternalService genericObjectInternalService
+    ) {
+        return new ImportJobService(
+                genericObjectInternalService,
+                internalObjectQueryRepository
+        );
+    }
+
+    @Bean("importErrorService")
+    public ImportErrorService importErrorService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new ImportErrorService(internalObjectQueryRepository);
+    }
+
+    @Bean("batchImportService")
+    public BatchImportService batchImportService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportErrorService importErrorService
+    ) {
+        return new BatchImportService(importErrorService, internalObjectQueryRepository);
     }
 
     @Bean
@@ -787,134 +884,6 @@ public class MsmAutoConfiguration {
             @Qualifier("internalRequestClient") RequestClient requestClient
     ) {
         return new GenericObjectInternalService(genericObjectConfigProperties, requestClient);
-    }
-
-    @Bean
-    public GeographyTypeCodeLookup geographyTypeCodeLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new GeographyTypeCodeLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteContinentIdGeographyLookup accountSiteContinentIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteContinentIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteSectorIdGeographyLookup accountSiteSectorIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteSectorIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteCountryIdGeographyLookup accountSiteCountryIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteCountryIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteRegionIdGeographyLookup accountSiteRegionIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteRegionIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteAreaIdGeographyLookup accountSiteAreaIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteAreaIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteProvinceIdGeographyLookup accountSiteProvinceIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteProvinceIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteDistrictIdGeographyLookup accountSiteDistrictIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteDistrictIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteWardIdGeographyLookup accountSiteWardIdGeographyLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteWardIdGeographyLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public AccountSiteRefAccountResolver accountSiteRefAccountResolver(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new AccountSiteRefAccountResolver(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public ChannelAccountAttributeLookup channelAccountAttributeLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new ChannelAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public SubChannelAccountAttributeLookup subChannelAccountAttributeLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new SubChannelAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public ChannelDetailAccountAttributeLookup channelDetailAccountAttributeLookup(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new ChannelDetailAccountAttributeLookup(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public CurrencyIdRefResolver currencyIdRefResolver(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new CurrencyIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public PaymentTermIdRefResolver paymentTermIdRefResolver(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new PaymentTermIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
-    }
-
-    @Bean
-    public LegalIdentityIdRefResolver legalIdentityIdRefResolver(
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
-    ) {
-        return new LegalIdentityIdRefResolver(internalObjectQueryRepository, genericObjectInternalService);
     }
 
 

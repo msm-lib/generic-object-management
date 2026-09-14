@@ -7,6 +7,7 @@ import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectQuery;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.filter.domain.pageable.Sort;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.audit.AuditAction;
@@ -301,6 +302,36 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
 
         return returnObjects;
+    }
+
+    @Override
+    public int[] insertBatch(String objectName, List<Map<String, Object>> payload) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        payload.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+
+        return internalQueryService.insert(objectMetadata, payload);
+    }
+
+    @Override
+    public int updateWithCondition(String objectName, Condition condition, Map<String, Object> newData) {
+        return internalQueryService.update(getObjectMetadata(objectName), newData, condition);
+    }
+
+    @Override
+    public int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData) {
+        return internalQueryService.updateWithExpressions(getObjectMetadata(objectName), newData, condition);
+    }
+
+    @Override
+    public List<Map<String, Object>> findByCondition(String objectName,
+                                                     Condition condition,
+                                                     int limit,
+                                                     List<Sort> sortFields,
+                                                     List<String> returnFields) {
+        return internalQueryService.findByCondition(getObjectMetadata(objectName), condition, limit, sortFields, returnFields);
     }
 
     private ObjectMetadata getObjectMetadata(String objectName) {

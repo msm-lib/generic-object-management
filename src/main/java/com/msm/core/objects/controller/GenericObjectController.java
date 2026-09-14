@@ -222,11 +222,24 @@ public class GenericObjectController {
     @Operation(summary = "Import object", description = "Returns http status")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
-    @PostMapping("/generic/objects/{objectName}/import")
-    public ResponseEntity<List<Map<String, Object>>> importDataByFileId(
+    @PostMapping("/generic/objects/{objectName}/imports/{type}/{importJob}")
+    public ResponseEntity<Map<String, Object>> importDataByFileId(
             @PathVariable("objectName") String objectName,
+            @PathVariable("type") String importType,
+            @PathVariable("importJob") UUID importJob,
             @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, request));
+        return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, importJob, importType, request));
+    }
+
+    @Operation(summary = "Import object", description = "Returns http status")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+    @PostMapping("/generic/objects/{objectName}/imports/{type}/validate")
+    public ResponseEntity<Map<String, Object>> validateImportCsvFile(
+            @PathVariable("objectName") String objectName,
+            @PathVariable("type") String importType,
+            @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(genericObjectService.validateImportFileByFileId(objectName, importType, request));
     }
 
     @Operation(summary = "Import file object", description = "Returns http status")

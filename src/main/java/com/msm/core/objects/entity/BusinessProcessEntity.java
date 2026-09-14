@@ -14,6 +14,7 @@ import lombok.EqualsAndHashCode;
 import java.util.List;
 import java.util.UUID;
 
+//@RefProfileConfig(refDataType = BusinessProcessRefMetadata.class)
 @EqualsAndHashCode(callSuper = true)
 @Data
 @MappedSuperclass

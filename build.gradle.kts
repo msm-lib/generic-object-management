@@ -45,7 +45,7 @@ extra["jooq.version"] = "3.21.1"
 extra["commons-lang3.version"] = "3.18.0"
 val queryDslVersion = "6.10.1"
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "2.1.2"
+val msmCommonVersion = "2.1.3"
 
 dependencies {
 
@@ -140,6 +140,7 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine")
 
     //excel, csv
+    implementation("com.github.pjfanning:excel-streaming-reader:5.3.0")
     implementation("org.apache.poi:poi:5.5.0")
     implementation("org.apache.poi:poi-ooxml:5.5.0")
     implementation("org.apache.commons:commons-csv:1.14.1")

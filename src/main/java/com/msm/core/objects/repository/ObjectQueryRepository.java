@@ -3,6 +3,7 @@ package com.msm.core.objects.repository;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.filter.domain.pageable.Sort;
 import org.jooq.Condition;
 
 import java.util.List;
@@ -62,4 +63,14 @@ public interface ObjectQueryRepository {
     List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName);
 
     List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, List<String> conflictFields);
+
+    int[] insertBatch(String objectName, List<Map<String, Object>> payload);
+    int updateWithCondition(String objectName, Condition condition, Map<String, Object> newData);
+    int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData);
+    List<Map<String, Object>> findByCondition(String objectName,
+                                              Condition condition,
+                                              int limit,
+                                              List<Sort> sortFields,
+                                              List<String> returnFields);
+
 }

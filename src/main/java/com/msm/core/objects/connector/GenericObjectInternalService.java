@@ -11,8 +11,8 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.connector.internal.ApiNamedConstants;
 import com.msm.core.objects.dto.QueryTemplate;
+import com.msm.core.objects.imports.ObjectServiceFactory;
 import com.msm.core.objects.integration.RequestClient;
-import com.msm.core.objects.service.imports.factory.ObjectServiceFactory;
 import com.msm.core.objects.utils.GenericObjectUtils;
 import lombok.RequiredArgsConstructor;
 
@@ -40,7 +40,7 @@ public class GenericObjectInternalService {
                         .conditions(Utils.CL.newArrayList(FilterCondition.create(Constants.OBJECT_PK, FilterOperator.IN, ids)))
                         .build())
                 .build();
-        String filterUrl = Utils.STR.format(ApiNamedConstants.External.PATH_FILTER, objectName);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_FILTER, objectName);
         PageResponse<Map<String, Object>> mapPageResponse =  internalRestClient.post(getBaseUrl(objectName), filterUrl, objectFilterRequest, PageResponse.class);;
         return mapPageResponse.getContents();
     }
@@ -49,7 +49,7 @@ public class GenericObjectInternalService {
         if (id == null) {
             return Utils.CL.newHashMap();
         }
-        String filterUrl = Utils.STR.format(ApiNamedConstants.External.PATH_BY_ID, objectName, id);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_ID, objectName, id);
 
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("returnFields", returnFields);
@@ -60,22 +60,32 @@ public class GenericObjectInternalService {
         if (id == null) {
             return Utils.CL.newHashMap();
         }
-        String patByIdUrl = Utils.STR.format(ApiNamedConstants.External.PATH_BY_ID, objectName, id);
+        String patByIdUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_ID, objectName, id);
         return internalRestClient.get(getBaseUrl(objectName), patByIdUrl, Map.class);
     }
 
     public PageResponse<Map<String, Object>> filter(String objectName, ObjectFilterRequest objectFilterRequest) {
-        String filterUrl = Utils.STR.format(ApiNamedConstants.External.PATH_FILTER, objectName);
+        String filterUrl = Utils.STR.format(ApiNamedConstants.PATH_FILTER, objectName);
         return internalRestClient.post(getBaseUrl(objectName), filterUrl, objectFilterRequest, PageResponse.class);
     }
 
     public Map<String, Object> query(String objectName, QueryTemplate queryTemplate) {
-        return internalRestClient.post(getBaseUrl(objectName), ApiNamedConstants.External.PATH_QUERY, queryTemplate, Map.class);
+        return internalRestClient.post(getBaseUrl(objectName), ApiNamedConstants.PATH_QUERY, queryTemplate, Map.class);
     }
 
     public List<Map<String, Object>> getAllObjects(String objectName) {
-        String queryAllObjectUrl = Utils.STR.format(ApiNamedConstants.External.PATH_BY_OBJECT, objectName);
+        String queryAllObjectUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_OBJECT, objectName);
         return internalRestClient.get(getBaseUrl(objectName), queryAllObjectUrl, List.class);
+    }
+
+    public Map<String, Object> createObject(String objectName, Map<String, Object> data) {
+        String createObjectPathUrl = Utils.STR.format(ApiNamedConstants.PATH_BY_OBJECT, objectName);
+        return internalRestClient.post(
+                getBaseUrl(objectName),
+                createObjectPathUrl,
+                data,
+                Map.class
+        );
     }
 
 

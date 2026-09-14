@@ -13,6 +13,8 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
+import com.msm.core.objects.imports.ImportActionNamed;
+import com.msm.core.objects.imports.model.ObjectImportContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -212,11 +215,32 @@ public class GenericObjectService {
     }
 
     @Transactional
-    public List<Map<String, Object>> importFileByFileId(String objectName, Map<String, Object> request) {
+    public Map<String, Object> importFileByFileId(String objectName, UUID importJob, String type, Map<String, Object> request) {
+        String actionName = ImportActionNamed.Csv.IMPORT_FILE;
+        if(Objects.equals(type, ImportActionNamed.Excel.NAME)) {
+            actionName = ImportActionNamed.Excel.IMPORT_FILE;
+        }
+
+        ActionContext<ObjectImportContext> actionRequest = ActionContext
+                .<ObjectImportContext>builder()
+                .resource(objectName)
+                .action(actionName)
+                .payload(ObjectImportContext.of(objectName, importJob, request))
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
+    public Map<String, Object> validateImportFileByFileId(String objectName, String type, Map<String, Object> request) {
+        String actionName = ImportActionNamed.Csv.VALIDATION;
+        if(Objects.equals(type, ImportActionNamed.Excel.NAME)) {
+            actionName = ImportActionNamed.Excel.VALIDATION;
+        }
+
         ActionContext<Map<String, Object>> actionRequest = ActionContext
                 .<Map<String, Object>>builder()
                 .resource(objectName)
-                .action(Constants.Action.IMPORT_OBJECT)
+                .action(actionName)
                 .payload(request)
                 .build();
         return actionExecutor.execute(actionRequest);
