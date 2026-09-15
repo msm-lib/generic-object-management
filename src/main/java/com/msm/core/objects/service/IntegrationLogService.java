@@ -4,6 +4,7 @@ import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Constants;
 import com.msm.core.objects.entity.metadata.IntegrationLogMeta;
+import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Propagation;
@@ -14,11 +15,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IntegrationLogService {
     private final ActionExecutor actionExecutor;
+    private final ObjectQueryRepository internalObjectQueryRepository;
+
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createIntegrationLog(Map<String, Object> integrationLog) {
-        log(integrationLog);
+        internalObjectQueryRepository.save(IntegrationLogMeta.OBJECT_NAME, integrationLog);
     }
 
     private void log(Map<String, Object> integrationLog) {

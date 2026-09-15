@@ -35,15 +35,6 @@ public class BatchProcessingService {
 
 
     public void processBatch(UUID importJobId, ObjectMetadata metadata, List<ImportRow> rows) {
-
-        internalObjectQueryRepository.updateWithExpressions(
-                ImportJobMeta.OBJECT_NAME,
-                ImportJobMeta.ID.getField().eq(importJobId),
-                Map.of(ImportJobMeta.TOTAL_ROWS.getFieldName(), ImportJobMeta.TOTAL_ROWS.getField().add(rows.size()))
-        );
-
-        fillReferenceData(importJobId, metadata.getName(), rows.stream().map(ImportRow::rowData).collect(Collectors.toList()));
-
         List<ImportErrorData> errors = new ArrayList<>();
 
         for (ImportRow row : rows) {

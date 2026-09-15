@@ -55,6 +55,7 @@ import com.msm.core.objects.imports.handler.ExcelImportHandlerService;
 import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
 import com.msm.core.objects.imports.reference.AttributeReferenceService;
 import com.msm.core.objects.imports.reference.TypeAndCodeReferenceResolver;
+import com.msm.core.objects.imports.service.ReferenceProcessService;
 import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
@@ -703,8 +704,11 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IntegrationLogService integrationService(ActionExecutor actionExecutor) {
-        return new IntegrationLogService(actionExecutor);
+    public IntegrationLogService integrationService(
+            ActionExecutor actionExecutor,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new IntegrationLogService(actionExecutor, internalObjectQueryRepository);
     }
 
     @Bean
@@ -739,8 +743,17 @@ public class MsmAutoConfiguration {
     }
 
 
-    @Bean("processValidationBatchService")
-    public BatchProcessingService processValidationBatchService(
+    @Bean("referenceProcessService")
+    public ReferenceProcessService referenceProcessService(
+            ActionExecutor actionExecutor
+    ) {
+        return new ReferenceProcessService(
+                actionExecutor
+        );
+    }
+
+    @Bean("batchProcessingService")
+    public BatchProcessingService batchProcessingService(
             @Qualifier("importValidationService0") com.msm.core.objects.imports.validation.ImportValidationService importValidationService0,
             ActionExecutor actionExecutor,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
@@ -760,14 +773,16 @@ public class MsmAutoConfiguration {
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config,
-            GenericObjectInternalService genericObjectInternalService
+            GenericObjectInternalService genericObjectInternalService,
+            ReferenceProcessService referenceProcessService
     ) {
         return new ImportService(
                 batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
                 config,
-                genericObjectInternalService
+                genericObjectInternalService,
+                referenceProcessService
         );
     }
 
@@ -826,14 +841,16 @@ public class MsmAutoConfiguration {
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config,
-            GenericObjectInternalService genericObjectInternalService
+            GenericObjectInternalService genericObjectInternalService,
+            ReferenceProcessService referenceProcessService
     ) {
         return new ExcelImportService(
                 batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
                 config,
-                genericObjectInternalService
+                genericObjectInternalService,
+                referenceProcessService
         );
     }
 

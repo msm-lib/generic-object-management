@@ -28,6 +28,7 @@ import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
 import com.msm.core.objects.imports.model.RowMapperContext;
+import com.msm.core.objects.imports.service.ReferenceProcessService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ public class ExcelImportService {
     private final ActionExecutor actionExecutor;
     private final GenericObjectConfigProperties config;
     private final GenericObjectInternalService genericObjectInternalService;
+    private final ReferenceProcessService referenceProcessService;
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_FILE)
@@ -142,7 +144,7 @@ public class ExcelImportService {
 
         log.warn("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
         String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
-//        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/xlsx/2026/09/14/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789381617383_69de0605.xlsx?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789381617383_69de0605.xlsx%22%3B%20filename%2A%3DUTF-8%27%27KHGH_SharePoint_Template_Draft.xlsx&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEB0aDmFwLXNvdXRoZWFzdC0xIkgwRgIhAKS5hwIP00R0g%2FDK3gXNmL2DIApBjwHRYRE9nn2SGfdoAiEAmYWP5VT0lTqDI1AC%2BYAept5FnUuEFF%2FMFBoM6mIZguUqoQQI5v%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARAAGgwwNzE0MTgwMTkwNzAiDH%2Fo8KFU7OsnZG4tUyr1A0AHPL8R%2Fr7g8rpQxeGoKNcXGZ7W3g6hyBvngcqZfp4SdGnTGo7H3nQkErqsPaXTN4WQaGjvIn6%2Bev6vKXxljOK4mx6nzX%2BsrWbL6iR9mM9aUCnYq8e4ORjYGEob6pNHe%2BOYsrjQgRHQe4SlLBGlAEFME4%2BKfQGvD0s6Y%2BXJVGUnBcdlCjgZvRHiAqQ%2Bknw2jaui0CpKF5j0x6ml%2BXfTjRvwUATh%2FuigaoqcU01w1hE63kopSbbvDcfX65yaTJP5jLbQAJwqpJwORjtL61%2BWGsk0d8r2Z%2FkNO2UdvTy2iViOolksLuubCQxnzkcb3ci8Sjm8FpUiwkOdOW%2B2gpCweKjaUW1n2aCbiK8YS%2Fh57VTGSFc1vg0O4Hos5hMRSooWuquzsCqXtlKOJ4BF3Y7VHDaw3EvpxtcwIZN4M95Ws7REBXXr8G%2BtbJRpmMKmILu9i653girYpXRIE8mTfTFQPZP1NmfftUTs8%2FjGbPSdXnFnGvEoAwFEC9Ts2%2BLsbYpBx%2FQHoL%2FybmE1x59LstN5JEQwR%2BuUUvwDkRQZ9iev3GsM8MnIDEsK%2BFhaSQhQ7Ur2w0tPUU11cRFE5rm8m%2F3LmRTZcQ2aBLQuH8qIp2UjYL9bI2mDhLc%2FVKl2zPDp4rnDpkKGjUfUMYMhfzsw%2BP%2BK2TRNzN%2FnKTCw35%2FVBjqlAVvtaZCmLxZeWwStTCNZxKvmjEkjUIjMCj2mPEbZBDTtcUICueBX13RSZuMwc18zldMg80tlENNjvrPeisnoWkZwYP12t1yVXOLuHz0c1b%2FtU%2FdUSCs%2FA8z7RYZVCCerRzIGDPR3aDUNjbTUKA%2B4xsL6r5QmqVUmdgsaUrGQ6uviHAD10Tnx4efYJWcbwZjgEwEVUvcvyes03l7eGIvRolCA9WBcvA%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260914T140528Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7HCRGY4TN%2F20260914%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=66960ef78952c428132d81c30cf688e2c93fbe6dcf0e6ec7d58fb960504f571a";
+//        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/xlsx/2026/09/15/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789453625040_75b6a0f6.xlsx?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789453625040_75b6a0f6.xlsx%22%3B%20filename%2A%3DUTF-8%27%27KHGH_SharePoint_Template_Draft.xlsx&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEC0aDmFwLXNvdXRoZWFzdC0xIkgwRgIhAIibXpe%2BUDgsZzrbDb1eseZb737Y9bkOLjEIvfERK0asAiEAnp%2Br7qDiIY8GBVcXi%2FA3jMq6x%2B0%2BWW6kNzMXnYpG%2BGEqoQQI9v%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARAAGgwwNzE0MTgwMTkwNzAiDBVt72OeR6MkMbSO5Cr1Axohj7To1WUM2vCQIdLUNTGrk9AT2PNmWqQJAw0IU6nckOZWWYweeKwQZt2uba%2BToxdHccX1WREj2aXMLPdEe1hg5S%2Ba7TFSOzb6k8FnLA0jIbPhsf8NJ1mez3LRql%2BoAaq6CXJa6RUWp56xQqIkNMsdBNTrVdflpY2Hr%2Beclnq0%2FQxGzwNlTtmNk%2B7aAqg4%2Fg2ENuDBxMi3rm4RjzY%2BZ2sC0uoQDHzAtj0B2MhSMj0qBnjQy92aV7iJ0TJq2KgxNbx11y8DGXrpeKTybepTaOIv7l6xm5gyy0GbDzRqIHCwIXou8GdRge945DddiqfRXG%2BNZBMWDAOTeKLx5l2BRkN1zCoiigXvbBuU6u3qCj%2BcHFB7wioykgdt57%2FGKTZfxPb%2FEITifa8EtFECmu75gX9bvv7LP0pqfGAXAimsvTkdoF0opHHhHidYmjKiMD3k0XcQwOiybqj9qIrc7tYY8r%2ByTZKLjR3%2FZ3FVTv86kFZJ1U4bCoBPQHxhcqvt7em2SHuyBDaRx%2F%2FGRF2P%2BuTL6AEPQuD968A14Vp0w3gPB6ZwnsRtYIbkRh2vUj887F7TLkM0wu9sPA3aEU1QWFkfFjhUafwvv2CKqUWUYbH9L3y97fgK8HGgXQJDsbGswVVjEel2Tk1nl%2Bs9dYAQ3pMlrT1xOBBLFTD%2BnaPVBjqlAcvCQn7LRb%2BkBJic037ZZtKrAPR90zJ0EOx4O9ZoB7UdvIy1JU%2B%2BqAIgwLc8lzaV00OLCeXGq7d9gojcV%2B7lcA3q6q%2FVMGPFpE0rM0UR14YgoBqfnU8vmR6NxUkPsWXesorLHY6yVkt7hG0fCOKrN3OV0gj0QkFFir0pwvOhIkGQ3SBfsaUnq64eLoOMPJHDJbNWLnx2x3mAep6WjCfu%2FjTc6pNWiA%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260915T062713Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7JAJR4RXZ%2F20260915%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=17ea29b1826a9dfce69dc173685951c17e6b633cac7a02445805e75e6fc13af5";
         ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
 
         internalObjectQueryRepository.update(
@@ -186,7 +188,8 @@ public class ExcelImportService {
                 cellMapping(importId, rowRawRow.objectName(), cachedHeaderMap[0], rowData);
                 batchBuffer.add(ImportRow.of(rowRawRow.rowNumber(), rowData));
                 if (batchBuffer.size() >= batchSize) {
-                    batchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
+//                    batchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
+                    executeBatchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
                     batchBuffer.clear();
                 }
             }
@@ -204,7 +207,8 @@ public class ExcelImportService {
         actionExecutor.execute(actionRequest);
 
         if (!batchBuffer.isEmpty()) {
-            batchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
+//            batchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
+            executeBatchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
         }
 
         return finishValidation(importValidation.importId());
@@ -274,7 +278,13 @@ public class ExcelImportService {
     }
 
 
-    private void batchProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
+    private void executeBatchProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
+        trackingRowProcessing(importId, rows.size());
+        referenceProcessService.batchRefProcessing(importId, importObjectName, rows);
+        batchDataProcessAction(importId, importObjectName, rows);
+    }
+
+    private void batchDataProcessAction(UUID importId, String importObjectName, List<ImportRow> rows) {
         ActionContext<BatchRowData> actionContext = ActionContext
                 .<BatchRowData>builder()
                 .resource(importObjectName)
@@ -336,5 +346,12 @@ public class ExcelImportService {
                 .build();
     }
 
+    private void trackingRowProcessing(UUID importId, long rowCount) {
+        internalObjectQueryRepository.updateWithExpressions(
+                ImportJobMeta.OBJECT_NAME,
+                ImportJobMeta.ID.getField().eq(importId),
+                Map.of(ImportJobMeta.TOTAL_ROWS.getFieldName(), ImportJobMeta.TOTAL_ROWS.getField().add(rowCount))
+        );
+    }
 }
 
