@@ -6,9 +6,9 @@ import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.imports.BatchProcessingService;
-import com.msm.core.objects.imports.ImportActionNamed;
 import com.msm.core.objects.imports.ImportHelper;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
@@ -33,7 +33,7 @@ public class ExcelImportHandlerService {
     private final GenericObjectConfigProperties config;
 
 
-    @Handler(action = ImportActionNamed.Excel.READ_FILE)
+    @Handler(action = ObjectActionNamed.Excel.READ_FILE)
     public void read(ActionContext<ReadActionContext<Row>> actionContext) {
         ReadActionContext<Row> readActionContext = actionContext.getPayload();
         ImportHelper.readExcelStream(
@@ -45,7 +45,7 @@ public class ExcelImportHandlerService {
         );
     }
 
-    @Handler(action = ImportActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
+    @Handler(action = ObjectActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
     public Map<Integer, String> columnMapping(ActionContext<ColumnHeaderMapperContext<Row>> actionContext) {
         ColumnHeaderMapperContext<Row> context = actionContext.getPayload();
         Map<Integer, String> dataHeaderMap = new LinkedHashMap<>();
@@ -61,17 +61,17 @@ public class ExcelImportHandlerService {
         return dataHeaderMap;
     }
 
-    @Handler(action = ImportActionNamed.Excel.ROW_MAPPING)
+    @Handler(action = ObjectActionNamed.Excel.ROW_MAPPING)
     public Map<String, Object> rowMapping(ActionContext<RowMapperContext<Row>> actionContext) {
         return mapRow(actionContext.getPayload());
     }
 
-    @Handler(action = ImportActionNamed.Excel.CELL_MAPPING)
+    @Handler(action = ObjectActionNamed.Excel.CELL_MAPPING)
     public Object cellProcessMap(ActionContext<CellMapperContext> actionContext) {
         return cellMap(actionContext.getPayload());
     }
 
-    @Handler(action = ImportActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
+    @Handler(action = ObjectActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
     public void batchRowDataProcessing(ActionContext<BatchRowData> actionContext) {
         BatchRowData batchRowData = actionContext.getPayload();
         ObjectMetadata metadata = ObjectMetadataFactory.getObjectMetadataByName(batchRowData.importObjectName());

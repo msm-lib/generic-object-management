@@ -9,6 +9,7 @@ import com.msm.core.filter.domain.pageable.Sort;
 import com.msm.core.filter.domain.pageable.SortDirection;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dto.QueryTemplate;
@@ -52,7 +53,7 @@ public class ImportService {
     private final GenericObjectInternalService genericObjectInternalService;
 
 
-    @Handler(action = ImportActionNamed.Csv.IMPORT_FILE)
+    @Handler(action = ObjectActionNamed.Csv.IMPORT_FILE)
     public Map<String, Object> importData(ActionContext<ObjectImportContext> actionContext) {
 
         ObjectImportContext objectImportContext = actionContext.getPayload();
@@ -124,7 +125,7 @@ public class ImportService {
     }
 
 
-    @Handler(action = ImportActionNamed.Csv.VALIDATION)
+    @Handler(action = ObjectActionNamed.Csv.VALIDATION)
     public Map<String, Object> validate(ActionContext<Map<String, Object>> actionContext) {
         UUID importId = DataRecord.of(actionContext.getPayload()).get(IMPORT_JOB_ID_NAME, UUID.class);
         //importJobId
@@ -170,7 +171,7 @@ public class ImportService {
         ActionContext<ReadActionContext<CSVRecord>> actionRequest = ActionContext
                 .<ReadActionContext<CSVRecord>>builder()
                 .resource(importValidation.importObjectName())
-                .action(ImportActionNamed.Csv.READ_FILE)
+                .action(ObjectActionNamed.Csv.READ_FILE)
                 .payload(request)
                 .build();
 
@@ -195,7 +196,7 @@ public class ImportService {
         ActionContext<RowMapperContext<CSVRecord>> actionContext = ActionContext
                 .<RowMapperContext<CSVRecord>>builder()
                 .resource(row.objectName())
-                .action(ImportActionNamed.Csv.ROW_MAPPING)
+                .action(ObjectActionNamed.Csv.ROW_MAPPING)
                 .payload(mapperContext)
                 .build();
 
@@ -214,7 +215,7 @@ public class ImportService {
                 ActionContext<CellMapperContext> actionContext = ActionContext
                         .<CellMapperContext>builder()
                         .resource(objectCellResource)
-                        .action(ImportActionNamed.Csv.CELL_MAPPING)
+                        .action(ObjectActionNamed.Csv.CELL_MAPPING)
                         .payload(cellMapperContext)
                         .build();
 
@@ -229,7 +230,7 @@ public class ImportService {
         ActionContext<BatchRowData> actionContext = ActionContext
                 .<BatchRowData>builder()
                 .resource(importObjectName)
-                .action(ImportActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
+                .action(ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
                 .payload(BatchRowData.of(importId, importObjectName, rows))
                 .build();
         actionExecutor.execute(actionContext);

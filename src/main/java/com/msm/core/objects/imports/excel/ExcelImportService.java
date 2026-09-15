@@ -9,6 +9,7 @@ import com.msm.core.filter.domain.pageable.Sort;
 import com.msm.core.filter.domain.pageable.SortDirection;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dto.QueryTemplate;
@@ -16,7 +17,6 @@ import com.msm.core.objects.entity.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.BatchImportService;
-import com.msm.core.objects.imports.ImportActionNamed;
 import com.msm.core.objects.imports.model.BatchImportResult;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
@@ -55,7 +55,7 @@ public class ExcelImportService {
     private final GenericObjectInternalService genericObjectInternalService;
 
 
-    @Handler(action = ImportActionNamed.Excel.IMPORT_FILE)
+    @Handler(action = ObjectActionNamed.Excel.IMPORT_FILE)
     public Map<String, Object> importData(ActionContext<ObjectImportContext> actionContext) {
 
         ObjectImportContext objectImportContext = actionContext.getPayload();
@@ -127,7 +127,7 @@ public class ExcelImportService {
     }
 
 
-    @Handler(action = ImportActionNamed.Excel.VALIDATION)
+    @Handler(action = ObjectActionNamed.Excel.VALIDATION)
     public Map<String, Object> validate(ActionContext<Map<String, Object>> actionContext) {
         UUID importId = DataRecord.of(actionContext.getPayload()).get(IMPORT_JOB_ID_NAME, UUID.class);
         //importJobId
@@ -197,7 +197,7 @@ public class ExcelImportService {
         ActionContext<ReadActionContext<Row>> actionRequest = ActionContext
                 .<ReadActionContext<Row>>builder()
                 .resource(importValidation.importObjectName())
-                .action(ImportActionNamed.Excel.READ_FILE)
+                .action(ObjectActionNamed.Excel.READ_FILE)
                 .payload(request)
                 .build();
 
@@ -221,7 +221,7 @@ public class ExcelImportService {
         ActionContext<ColumnHeaderMapperContext<Row>> actionContext = ActionContext
                 .<ColumnHeaderMapperContext<Row>>builder()
                 .resource(row.objectName())
-                .action(ImportActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
+                .action(ObjectActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
                 .payload(mapperContext)
                 .build();
 
@@ -244,7 +244,7 @@ public class ExcelImportService {
         ActionContext<RowMapperContext<Row>> actionContext = ActionContext
                 .<RowMapperContext<Row>>builder()
                 .resource(row.objectName())
-                .action(ImportActionNamed.Excel.ROW_MAPPING)
+                .action(ObjectActionNamed.Excel.ROW_MAPPING)
                 .payload(mapperContext)
                 .build();
 
@@ -263,7 +263,7 @@ public class ExcelImportService {
                 ActionContext<CellMapperContext> actionContext = ActionContext
                         .<CellMapperContext>builder()
                         .resource(objectCellResource)
-                        .action(ImportActionNamed.Excel.CELL_MAPPING)
+                        .action(ObjectActionNamed.Excel.CELL_MAPPING)
                         .payload(cellMapperContext)
                         .build();
 
@@ -278,7 +278,7 @@ public class ExcelImportService {
         ActionContext<BatchRowData> actionContext = ActionContext
                 .<BatchRowData>builder()
                 .resource(importObjectName)
-                .action(ImportActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
+                .action(ObjectActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
                 .payload(BatchRowData.of(importId, importObjectName, rows))
                 .build();
         actionExecutor.execute(actionContext);

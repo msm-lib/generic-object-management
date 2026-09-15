@@ -8,6 +8,7 @@ import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
@@ -150,7 +151,7 @@ public class BatchProcessingService {
         ActionContext<AttributeReferenceContext> actionContext = ActionContext
                 .<AttributeReferenceContext>builder()
                 .resource(objectCellResource)
-                .action(ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+                .action(ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
                 .payload(attributeReferenceContext)
                 .build();
 

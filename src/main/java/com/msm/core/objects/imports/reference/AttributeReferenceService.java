@@ -3,7 +3,7 @@ package com.msm.core.objects.imports.reference;
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.commons.Utils;
-import com.msm.core.objects.imports.ImportActionNamed;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.imports.model.AttributeLookup;
 import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class AttributeReferenceService {
 
 
     //Default ref by code
-    @Handler(action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return attributeCodeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
@@ -65,7 +65,7 @@ public class AttributeReferenceService {
 
 
 
-    @Handler(resource = "accountsite.continentId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.continentId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> continentIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -76,7 +76,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.sectorId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.sectorId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> sectorIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -87,7 +87,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.countryId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.countryId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> countryIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -98,7 +98,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.regionId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.regionId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> regionIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -109,7 +109,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.areaId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.areaId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> areaIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -120,7 +120,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.provinceId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.provinceId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> provinceIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -131,7 +131,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.districtId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.districtId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> districtIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -142,7 +142,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.wardId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.wardId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> wardIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -210,7 +210,7 @@ public class AttributeReferenceService {
 
 
 
-    @Handler(resource = "accountsite.channelId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.channelId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> channelIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -221,7 +221,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.subChannelId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.subChannelId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> subChannelIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -232,7 +232,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.channelDetailId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.channelDetailId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> channelDetailIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -243,7 +243,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.subDetailId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.subDetailId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> subDetailIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -254,7 +254,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.bizTypeId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.bizTypeId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> bizTypeIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -265,7 +265,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.subTypeId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.subTypeId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> subTypeIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -276,7 +276,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.transactionStatusId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.transactionStatusId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> transactionStatusIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -287,7 +287,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.classId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.classId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> classIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
@@ -298,7 +298,7 @@ public class AttributeReferenceService {
         );
     }
 
-    @Handler(resource = "accountsite.accountSegmentId", action = ImportActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    @Handler(resource = "accountsite.accountSegmentId", action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> accountSegmentIdRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(

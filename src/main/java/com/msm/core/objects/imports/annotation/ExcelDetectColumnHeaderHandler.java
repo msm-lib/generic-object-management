@@ -5,7 +5,7 @@ import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.condition.AlwaysTrueCondition;
 import com.msm.core.commons.Condition;
 import com.msm.core.commons.Constants;
-import com.msm.core.objects.imports.ImportActionNamed;
+import com.msm.core.objects.ObjectActionNamed;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Documented
-@Handler(action = ImportActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
+@Handler(action = ObjectActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
 public @interface ExcelDetectColumnHeaderHandler {
     String resource() default Constants.GENERIC_RESOURCE_NAME;
     ExtendContextKey[] keyContexts() default {};

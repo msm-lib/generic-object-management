@@ -703,8 +703,8 @@ public class MsmAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IntegrationLogService integrationService(@Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository) {
-        return new IntegrationLogService(internalObjectQueryRepository);
+    public IntegrationLogService integrationService(ActionExecutor actionExecutor) {
+        return new IntegrationLogService(actionExecutor);
     }
 
     @Bean

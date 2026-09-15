@@ -10,10 +10,10 @@ import com.msm.core.filter.domain.FilterOperator;
 import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
-import com.msm.core.objects.imports.ImportActionNamed;
 import com.msm.core.objects.imports.model.ObjectImportContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -216,9 +216,9 @@ public class GenericObjectService {
 
     @Transactional
     public Map<String, Object> importFileByFileId(String objectName, UUID importJob, String type, Map<String, Object> request) {
-        String actionName = ImportActionNamed.Csv.IMPORT_FILE;
-        if(Objects.equals(type, ImportActionNamed.Excel.NAME)) {
-            actionName = ImportActionNamed.Excel.IMPORT_FILE;
+        String actionName = ObjectActionNamed.Csv.IMPORT_FILE;
+        if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {
+            actionName = ObjectActionNamed.Excel.IMPORT_FILE;
         }
 
         ActionContext<ObjectImportContext> actionRequest = ActionContext
@@ -232,9 +232,9 @@ public class GenericObjectService {
 
     @Transactional
     public Map<String, Object> validateImportFileByFileId(String objectName, String type, Map<String, Object> request) {
-        String actionName = ImportActionNamed.Csv.VALIDATION;
-        if(Objects.equals(type, ImportActionNamed.Excel.NAME)) {
-            actionName = ImportActionNamed.Excel.VALIDATION;
+        String actionName = ObjectActionNamed.Csv.VALIDATION;
+        if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {
+            actionName = ObjectActionNamed.Excel.VALIDATION;
         }
 
         ActionContext<Map<String, Object>> actionRequest = ActionContext

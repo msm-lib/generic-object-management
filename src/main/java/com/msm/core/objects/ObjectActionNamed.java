@@ -1,6 +1,8 @@
-package com.msm.core.objects.imports;
+package com.msm.core.objects;
 
-public class ImportActionNamed {
+public final class ObjectActionNamed {
+    private ObjectActionNamed(){}
+
     public static final class Csv {
         public static final String NAME = "csv";
         public static final String VALIDATION = "csv_import_validation";
@@ -23,5 +25,9 @@ public class ImportActionNamed {
         public static final String CELL_MAPPING = "excel_cell_mapping_processing";
         public static final String FIELD_REFERENCE_RESOLVE = "excel_field_reference_resolve_processing";
         public static final String BATCH_ROW_DATA_PROCESSING = "excel_batch_row_data_processing";
+    }
+
+    public static final class IntegrationLog {
+        public static final String NAME = "excel";
     }
 }

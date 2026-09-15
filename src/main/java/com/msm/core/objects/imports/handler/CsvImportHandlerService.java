@@ -5,10 +5,10 @@ import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.imports.BatchProcessingService;
 import com.msm.core.objects.imports.CsvDelimiterDetector;
-import com.msm.core.objects.imports.ImportActionNamed;
 import com.msm.core.objects.imports.ImportHelper;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
@@ -45,7 +45,7 @@ public class CsvImportHandlerService {
     private final GenericObjectConfigProperties config;
 
 
-    @Handler(action = ImportActionNamed.Csv.READ_FILE)
+    @Handler(action = ObjectActionNamed.Csv.READ_FILE)
     public void read(ActionContext<ReadActionContext<CSVRecord>> actionContext) {
         ReadActionContext<CSVRecord> readActionContext = actionContext.getPayload();
         readRow(
@@ -55,7 +55,7 @@ public class CsvImportHandlerService {
         );
     }
 
-//    @Handler(action = ImportActionNamed.Csv.DETECT_COLUMN_HEADER_MAPPING)
+//    @Handler(action = ObjectActionNamed.Csv.DETECT_COLUMN_HEADER_MAPPING)
 //    public Map<Integer, String> columnMapping(ActionContext<ColumnHeaderMapperContext<Row>> actionContext) {
 //        ColumnHeaderMapperContext<CSVRecord> context = actionContext.getPayload();
 //        Map<Integer, String> dataHeaderMap = new LinkedHashMap<>();
@@ -71,17 +71,17 @@ public class CsvImportHandlerService {
 //        return dataHeaderMap;
 //    }
 
-    @Handler(action = ImportActionNamed.Csv.ROW_MAPPING)
+    @Handler(action = ObjectActionNamed.Csv.ROW_MAPPING)
     public Map<String, Object> rowMapping(ActionContext<RowMapperContext<CSVRecord>> actionContext) {
         return mapRow(actionContext.getPayload());
     }
 
-    @Handler(action = ImportActionNamed.Csv.CELL_MAPPING)
+    @Handler(action = ObjectActionNamed.Csv.CELL_MAPPING)
     public Object cellProcessMap(ActionContext<CellMapperContext> actionContext) {
         return cellMap(actionContext.getPayload());
     }
 
-    @Handler(action = ImportActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
+    @Handler(action = ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
     public void batchRowDataProcessing(ActionContext<BatchRowData> actionContext) {
         BatchRowData batchRowData = actionContext.getPayload();
         ObjectMetadata metadata = ObjectMetadataFactory.getObjectMetadataByName(batchRowData.importObjectName());
