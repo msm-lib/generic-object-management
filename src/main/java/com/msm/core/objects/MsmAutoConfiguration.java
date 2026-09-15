@@ -162,7 +162,7 @@ import java.util.concurrent.Executor;
 })
 public class MsmAutoConfiguration {
 
-    private void injectEntities(String packagePath, LocalContainerEntityManagerFactoryBean emfBean) {
+    private List<String> injectEntities(String packagePath) {
         List<String> entityClassNames = new ArrayList<>();
         try {
             ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(this.getClass().getClassLoader());
@@ -180,14 +180,7 @@ public class MsmAutoConfiguration {
             log.error(e.getMessage(), e);
         }
 
-
-        if (!entityClassNames.isEmpty()) {
-            emfBean.setPersistenceUnitPostProcessors(pui -> {
-                for (String className : entityClassNames) {
-                    pui.addManagedClassName(className);
-                }
-            });
-        }
+        return entityClassNames;
     }
 
 
@@ -224,8 +217,14 @@ public class MsmAutoConfiguration {
 //                        });
 //                    }
 
-                    injectEntities("com/msm/core/objects/entity/integration/**/*.class", emfBean);
-                    injectEntities("com/msm/core/objects/entity/imports/**/*.class", emfBean);
+                    List<String> entityClassNames = injectEntities("com/msm/core/objects/entity/**/*.class");
+                    if (!entityClassNames.isEmpty()) {
+                        emfBean.setPersistenceUnitPostProcessors(pui -> {
+                            for (String className : entityClassNames) {
+                                pui.addManagedClassName(className);
+                            }
+                        });
+                    }
                 }
                 return bean;
             }
