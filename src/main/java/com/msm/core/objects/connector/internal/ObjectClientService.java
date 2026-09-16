@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public abstract class ObjectClientService {
 
-    private final RequestClient internalRestClient;
+    protected final RequestClient internalRestClient;
 
     public List<Map<String, Object>> getAllObjectByIds(String objectName, List<UUID> ids, List<String> returnFields) {
         if (Utils.CL.isEmpty(ids)) {

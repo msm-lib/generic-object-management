@@ -8,6 +8,7 @@ import com.msm.core.objects.imports.model.ImportRowResult;
 import com.msm.core.objects.imports.model.ImportStatus;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @RequiredArgsConstructor
 public class BatchImportService {
 
@@ -85,7 +87,10 @@ public class BatchImportService {
             String objectName,
             Map<String, Object> row
     ) {
-
-        internalObjectQueryRepository.save(objectName, row);
+        try {
+            internalObjectQueryRepository.save(objectName, row);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.warn("Duplicate detected for object: {}, falling back to update. Error: {}", objectName, e.getMessage());
+        }
     }
 }
