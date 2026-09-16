@@ -2,18 +2,14 @@ package com.msm.core.objects.imports.reference;
 
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
-import com.msm.core.commons.Utils;
 import com.msm.core.objects.ObjectActionNamed;
-import com.msm.core.objects.imports.model.AttributeLookup;
 import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import lombok.RequiredArgsConstructor;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @RequiredArgsConstructor
-public class AttributeReferenceService {
+public class CsvAttributeReferenceService {
     private final AttributeCodeReferenceResolver attributeCodeReferenceResolver;
     private final TypeAndCodeReferenceResolver typeAndCodeReferenceResolver;
 
@@ -27,41 +23,6 @@ public class AttributeReferenceService {
     }
 
 
-    private static final String GEOGRAPHY_TYPE_ID = "geographyTypeId";
-    private static final AttributeLookup ATTRIBUTE_CODE_LOOKUP = AttributeLookup.of("code", null);
-    private static final List<AttributeLookup> ATTRIBUTE_CONTINENT_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000001"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_SECTOR_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000002"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_COUNTRY_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000003"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_REGION_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000004"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_AREA_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000005"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_PROVINCE_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000006"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_DISTRICT_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000007"))
-    );
-    private static final List<AttributeLookup> ATTRIBUTE_WARD_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(GEOGRAPHY_TYPE_ID, Set.of("11111111-0001-0001-0001-000000000008"))
-    );
-
 
 
 
@@ -70,7 +31,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_CONTINENT_LOOKUP,
+                RefConstants.ATTRIBUTE_CONTINENT_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -81,7 +42,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_SECTOR_LOOKUP,
+                RefConstants.ATTRIBUTE_SECTOR_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -92,7 +53,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_COUNTRY_LOOKUP,
+                RefConstants.ATTRIBUTE_COUNTRY_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -103,7 +64,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_REGION_LOOKUP,
+                RefConstants.ATTRIBUTE_REGION_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -114,7 +75,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_AREA_LOOKUP,
+                RefConstants.ATTRIBUTE_AREA_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -125,7 +86,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_PROVINCE_LOOKUP,
+                RefConstants.ATTRIBUTE_PROVINCE_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -136,7 +97,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_DISTRICT_LOOKUP,
+                RefConstants.ATTRIBUTE_DISTRICT_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -147,65 +108,11 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_WARD_LOOKUP,
+                RefConstants.ATTRIBUTE_WARD_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
     }
-
-
-
-
-
-
-
-
-
-    private static final String ACCOUNT_ATTRIBUTE_TYPE_NAME = "type";
-    private static final List<AttributeLookup> ATTRIBUTE_CHANNEL_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("CHANNEL"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_SUB_CHANNEL_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("SUB_CHANNEL"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_CHANNEL_DETAIL_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("CHANNEL_DETAIL"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_SUB_DETAIL_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("SUB_DETAIL"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_BIZ_TYPE_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("BIZ_TYPE"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_SUB_TYPE_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("SUB_TYPE"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_TRANSACTION_STATUS_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("TRANSACTION_STATUS"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_CLASS_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("CLASS"))
-    );
-
-    private static final List<AttributeLookup> ATTRIBUTE_ACCOUNT_SEGMENT_LOOKUP = Utils.CL.newArrayList(
-            ATTRIBUTE_CODE_LOOKUP,
-            AttributeLookup.of(ACCOUNT_ATTRIBUTE_TYPE_NAME, Set.of("ACCOUNT_SEGMENT"))
-    );
 
 
 
@@ -215,7 +122,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_CHANNEL_LOOKUP,
+                RefConstants.ATTRIBUTE_CHANNEL_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -226,7 +133,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_SUB_CHANNEL_LOOKUP,
+                RefConstants.ATTRIBUTE_SUB_CHANNEL_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -237,7 +144,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_CHANNEL_DETAIL_LOOKUP,
+                RefConstants.ATTRIBUTE_CHANNEL_DETAIL_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -248,7 +155,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_SUB_DETAIL_LOOKUP,
+                RefConstants.ATTRIBUTE_SUB_DETAIL_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -259,7 +166,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_BIZ_TYPE_LOOKUP,
+                RefConstants.ATTRIBUTE_BIZ_TYPE_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -270,7 +177,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_SUB_TYPE_LOOKUP,
+                RefConstants.ATTRIBUTE_SUB_TYPE_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -281,7 +188,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_TRANSACTION_STATUS_LOOKUP,
+                RefConstants.ATTRIBUTE_TRANSACTION_STATUS_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -292,7 +199,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_CLASS_LOOKUP,
+                RefConstants.ATTRIBUTE_CLASS_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );
@@ -303,7 +210,7 @@ public class AttributeReferenceService {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
         return typeAndCodeReferenceResolver.resolve(
                 attributeReferenceContext.importObjectName(),
-                ATTRIBUTE_ACCOUNT_SEGMENT_LOOKUP,
+                RefConstants.ATTRIBUTE_ACCOUNT_SEGMENT_LOOKUP,
                 attributeReferenceContext.attribute(),
                 attributeReferenceContext.data()
         );

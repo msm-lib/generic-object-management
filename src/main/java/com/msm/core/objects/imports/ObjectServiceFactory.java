@@ -162,6 +162,9 @@ public class ObjectServiceFactory {
         registerObjectService("deliverymethod", "inventory");
 
 
+        //catalog
+        registerObjectService("product", "catalog");
+
     }
 
     public static String getServiceName(String objectType) {

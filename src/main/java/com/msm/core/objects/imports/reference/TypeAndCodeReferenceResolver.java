@@ -100,12 +100,20 @@ public class TypeAndCodeReferenceResolver {
         AttributeRefHelper.retainAllRefData(sourceAttribute, objectList);
         Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
                 Utils.CL.emptyIfNull(objectList),
-                objectKey -> String.valueOf(objectKey.get(CODE)),
+                objectKey -> String.valueOf(objectKey.get(getDefaultKey(attributeLookups))),
                 objectValue -> objectValue);
         Map<String, Map<String, Map<String, Object>>> objectMap = new HashMap<>();
         objectMap.put(sourceAttribute.getFieldName(), codeMap);
 
         return objectMap;
+    }
+
+    private String getDefaultKey(List<AttributeLookup> attributeLookups) {
+        Optional<AttributeLookup> attributeLookup = attributeLookups.stream().filter(AttributeLookup::isKey).findFirst();
+        if (attributeLookup.isPresent()) {
+            return attributeLookup.get().attributeName();
+        }
+        return CODE;
     }
 
 }

@@ -12,12 +12,14 @@ import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.reference.AttributeRefHelper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RequiredArgsConstructor
 public class ReferenceProcessService {
     private final ActionExecutor actionExecutor;
@@ -74,16 +76,21 @@ public class ReferenceProcessService {
             Attribute attribute,
             List<Map<String, Object>> items) {
 
-        String objectCellResource = Utils.STR.format("{0}.{1}",  importObjectName, attribute.getFieldName());
-        AttributeReferenceContext attributeReferenceContext = AttributeReferenceContext.of(importId,  importObjectName, attribute, items);
+        try {
+            String objectCellResource = Utils.STR.format("{0}.{1}",  importObjectName, attribute.getFieldName());
+            AttributeReferenceContext attributeReferenceContext = AttributeReferenceContext.of(importId,  importObjectName, attribute, items);
 
-        ActionContext<AttributeReferenceContext> actionContext = ActionContext
-                .<AttributeReferenceContext>builder()
-                .resource(objectCellResource)
-                .action(ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
-                .payload(attributeReferenceContext)
-                .build();
+            ActionContext<AttributeReferenceContext> actionContext = ActionContext
+                    .<AttributeReferenceContext>builder()
+                    .resource(objectCellResource)
+                    .action(ObjectActionNamed.Excel.FIELD_REFERENCE_RESOLVE)
+                    .payload(attributeReferenceContext)
+                    .build();
 
-        return actionExecutor.execute(actionContext);
+            return actionExecutor.execute(actionContext);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+        return Map.of();
     }
 }

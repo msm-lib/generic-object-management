@@ -106,19 +106,22 @@ public class GenericObjectInternalService {
     String localhost(String serviceName) {
         switch (serviceName) {
             case "user" -> {
-                return "http://localhost:8086";
+                return "https://api-dev.digiretail.myminds.net";
             }
             case "customer" -> {
-                return "http://localhost:8087";
+                return "https://api-dev.digiretail.myminds.net";
             }
             case "inventory" -> {
-                return "http://localhost:8089";
+                return "https://api-dev.digiretail.myminds.net";
             }
             case "master-data" -> {
                 return "http://localhost:8090";
             }
             case "order" -> {
                 return "http://localhost:8088";
+            }
+            case "catalog" -> {
+                return "https://api-dev.digiretail.myminds.net";
             }
             default -> {
                 return "http://localhost:8080";

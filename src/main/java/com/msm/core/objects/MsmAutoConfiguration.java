@@ -53,7 +53,8 @@ import com.msm.core.objects.imports.excel.ExcelImportService;
 import com.msm.core.objects.imports.handler.CsvImportHandlerService;
 import com.msm.core.objects.imports.handler.ExcelImportHandlerService;
 import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
-import com.msm.core.objects.imports.reference.AttributeReferenceService;
+import com.msm.core.objects.imports.reference.CsvAttributeReferenceService;
+import com.msm.core.objects.imports.reference.ExcelAttributeReferenceService;
 import com.msm.core.objects.imports.reference.TypeAndCodeReferenceResolver;
 import com.msm.core.objects.imports.service.ReferenceProcessService;
 import com.msm.core.objects.integration.DefaultRequestClient;
@@ -704,10 +705,9 @@ public class MsmAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public IntegrationLogService integrationService(
-            ActionExecutor actionExecutor,
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+            ActionExecutor actionExecutor
     ) {
-        return new IntegrationLogService(actionExecutor, internalObjectQueryRepository);
+        return new IntegrationLogService(actionExecutor);
     }
 
     @Bean
@@ -823,11 +823,22 @@ public class MsmAutoConfiguration {
     }
 
     @Bean("attributeReferenceService")
-    public AttributeReferenceService attributeReferenceService(
+    public CsvAttributeReferenceService attributeReferenceService(
             AttributeCodeReferenceResolver attributeCodeReferenceResolver,
             TypeAndCodeReferenceResolver typeAndCodeReferenceResolver
     ) {
-        return new AttributeReferenceService(
+        return new CsvAttributeReferenceService(
+                attributeCodeReferenceResolver,
+                typeAndCodeReferenceResolver
+        );
+    }
+
+    @Bean("excelAttributeReferenceService")
+    public ExcelAttributeReferenceService excelAttributeReferenceService(
+            AttributeCodeReferenceResolver attributeCodeReferenceResolver,
+            TypeAndCodeReferenceResolver typeAndCodeReferenceResolver
+    ) {
+        return new ExcelAttributeReferenceService(
                 attributeCodeReferenceResolver,
                 typeAndCodeReferenceResolver
         );
