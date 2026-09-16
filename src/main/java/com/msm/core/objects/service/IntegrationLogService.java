@@ -15,13 +15,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class IntegrationLogService {
     private final ActionExecutor actionExecutor;
-    private final ObjectQueryRepository internalObjectQueryRepository;
+//    private final ObjectQueryRepository internalObjectQueryRepository;
 
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createIntegrationLog(Map<String, Object> integrationLog) {
-        internalObjectQueryRepository.save(IntegrationLogMeta.OBJECT_NAME, integrationLog);
+//        internalObjectQueryRepository.save(IntegrationLogMeta.OBJECT_NAME, integrationLog);
+        log(integrationLog);
     }
 
     private void log(Map<String, Object> integrationLog) {
