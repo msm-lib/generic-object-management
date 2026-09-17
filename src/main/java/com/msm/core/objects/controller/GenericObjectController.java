@@ -227,7 +227,7 @@ public class GenericObjectController {
             @PathVariable("objectName") String objectName,
             @PathVariable("type") String importType,
             @PathVariable("importJob") UUID importJob,
-            @RequestBody Map<String, Object> request) {
+            @RequestBody(required = false) Map<String, Object> request) {
         return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, importJob, importType, request));
     }
 
@@ -241,6 +241,17 @@ public class GenericObjectController {
             @RequestBody Map<String, Object> request) {
         return ResponseEntity.ok(genericObjectService.validateImportFileByFileId(objectName, importType, request));
     }
+
+//    @Operation(summary = "Download object errors", description = "Returns http status")
+//    @ApiResponses(value = {
+//            @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
+//    @PostMapping("/generic/objects/{objectName}/imports/{type}/{importJob}/download-errors")
+//    public ResponseEntity<Map<String, Object>> importDataByFileId(
+//            @PathVariable("objectName") String objectName,
+//            @PathVariable("type") String importType,
+//            @PathVariable("importJob") UUID importJob) {
+//        return ResponseEntity.ok(genericObjectService.downloadErrorsFile(objectName, importJob, importType));
+//    }
 
     @Operation(summary = "Import file object", description = "Returns http status")
     @ApiResponses(value = {
