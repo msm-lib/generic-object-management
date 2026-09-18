@@ -33,6 +33,7 @@ import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.connector.MasterDataApiService;
@@ -45,18 +46,22 @@ import com.msm.core.objects.handler.GenericObjectHandler;
 import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
 import com.msm.core.objects.imports.BatchImportService;
-import com.msm.core.objects.imports.BatchProcessingService;
+import com.msm.core.objects.imports.BatchValidationService;
+import com.msm.core.objects.imports.FileReaderService;
+import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ImportErrorService;
 import com.msm.core.objects.imports.ImportJobService;
-import com.msm.core.objects.imports.ImportService;
+import com.msm.core.objects.imports.ReferenceProcessService;
+import com.msm.core.objects.imports.config.ImportConfigLoader;
+import com.msm.core.objects.imports.csv.CsvImportService;
+import com.msm.core.objects.imports.csv.handler.CsvImportHandlerService;
 import com.msm.core.objects.imports.excel.ExcelImportService;
-import com.msm.core.objects.imports.handler.CsvImportHandlerService;
-import com.msm.core.objects.imports.handler.ExcelImportHandlerService;
+import com.msm.core.objects.imports.excel.handler.ExcelImportHandlerService;
 import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
 import com.msm.core.objects.imports.reference.CsvAttributeReferenceService;
 import com.msm.core.objects.imports.reference.ExcelAttributeReferenceService;
 import com.msm.core.objects.imports.reference.TypeAndCodeReferenceResolver;
-import com.msm.core.objects.imports.service.ReferenceProcessService;
+import com.msm.core.objects.imports.s3.ExcelOriginalMultipartAsyncService;
 import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
@@ -150,6 +155,7 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.web.client.RestClient;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -159,7 +165,8 @@ import java.util.concurrent.Executor;
 @AutoConfiguration
 @EnableConfigurationProperties({
         GenericObjectConfigProperties.class,
-        IntegrationProperties.class
+        IntegrationProperties.class,
+        ObjectImportRegistry.class
 })
 public class MsmAutoConfiguration {
 
@@ -230,6 +237,11 @@ public class MsmAutoConfiguration {
                 return bean;
             }
         };
+    }
+
+    @Bean
+    public ImportConfigLoader yamlConfigLoader() {
+        return new ImportConfigLoader();
     }
 
     @Bean(name = "hookTaskExecutor")
@@ -744,20 +756,22 @@ public class MsmAutoConfiguration {
 
     @Bean("referenceProcessService")
     public ReferenceProcessService referenceProcessService(
-            ActionExecutor actionExecutor
+            ActionExecutor actionExecutor,
+            ImportConfigService importConfigService
     ) {
         return new ReferenceProcessService(
-                actionExecutor
+                actionExecutor,
+                importConfigService
         );
     }
 
     @Bean("batchProcessingService")
-    public BatchProcessingService batchProcessingService(
+    public BatchValidationService batchProcessingService(
             @Qualifier("importValidationService0") com.msm.core.objects.imports.validation.ImportValidationService importValidationService0,
             ActionExecutor actionExecutor,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
     ) {
-        return new BatchProcessingService(
+        return new BatchValidationService(
                 importValidationService0,
                 actionExecutor,
                 internalObjectQueryRepository
@@ -767,7 +781,7 @@ public class MsmAutoConfiguration {
 
 
     @Bean("importService")
-    public ImportService importService(
+    public CsvImportService importService(
             BatchImportService batchImportService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
@@ -775,7 +789,7 @@ public class MsmAutoConfiguration {
             GenericObjectInternalService genericObjectInternalService,
             ReferenceProcessService referenceProcessService
     ) {
-        return new ImportService(
+        return new CsvImportService(
                 batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
@@ -786,27 +800,42 @@ public class MsmAutoConfiguration {
     }
 
 
-    @Bean("csvImportHandlerService")
-    public CsvImportHandlerService csvImportHandlerService(
-            BatchProcessingService processValidationBatch,
+    @Bean("fileReaderService")
+    public FileReaderService fileReaderService(
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config
+    ) {
+        return new FileReaderService(
+                actionExecutor,
+                config
+        );
+    }
+
+    @Bean("csvImportHandlerService")
+    public CsvImportHandlerService csvImportHandlerService(
+            BatchValidationService processValidationBatch,
+            ActionExecutor actionExecutor,
+            GenericObjectConfigProperties config,
+            FileReaderService fileReaderService
     ) {
         return new CsvImportHandlerService(
                 processValidationBatch,
                 actionExecutor,
-                config
+                config,
+                fileReaderService
         );
     }
 
     @Bean("attributeReferenceResolverService")
     public AttributeCodeReferenceResolver attributeReferenceResolverService(
             GenericObjectInternalService genericObjectInternalService,
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportConfigService importConfigService
     ) {
         return new AttributeCodeReferenceResolver(
                 genericObjectInternalService,
-                internalObjectQueryRepository
+                internalObjectQueryRepository,
+                importConfigService
         );
     }
 
@@ -814,11 +843,13 @@ public class MsmAutoConfiguration {
     @Bean("typeAndCodeReferenceResolver")
     public TypeAndCodeReferenceResolver typeAndCodeReferenceResolver(
             GenericObjectInternalService genericObjectInternalService,
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportConfigService importConfigService
     ) {
         return new TypeAndCodeReferenceResolver(
                 genericObjectInternalService,
-                internalObjectQueryRepository
+                internalObjectQueryRepository,
+                importConfigService
         );
     }
 
@@ -844,6 +875,37 @@ public class MsmAutoConfiguration {
         );
     }
 
+    @Bean("importConfigService")
+    public ImportConfigService importConfigService(
+            ObjectImportRegistry objectImportRegistry
+    ) {
+        return new ImportConfigService(
+                objectImportRegistry
+        );
+    }
+
+
+    @Bean("s3Client")
+    @ConditionalOnMissingBean
+    @Qualifier("s3Client")
+    public S3Client s3Client() {
+        return S3Client.create();
+    }
+
+
+    @Bean("excelOriginalMultipartAsyncService")
+    public ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService(
+            GenericObjectInternalService genericObjectInternalService,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            S3Client s3Client
+    ) {
+        return new ExcelOriginalMultipartAsyncService(
+                genericObjectInternalService,
+                internalObjectQueryRepository,
+                s3Client
+        );
+    }
+
     //Excel
     @Bean("excelImportService")
     public ExcelImportService excelImportService(
@@ -852,7 +914,8 @@ public class MsmAutoConfiguration {
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config,
             GenericObjectInternalService genericObjectInternalService,
-            ReferenceProcessService referenceProcessService
+            ReferenceProcessService referenceProcessService,
+            ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService
     ) {
         return new ExcelImportService(
                 batchImportService,
@@ -860,20 +923,23 @@ public class MsmAutoConfiguration {
                 actionExecutor,
                 config,
                 genericObjectInternalService,
-                referenceProcessService
+                referenceProcessService,
+                excelOriginalMultipartAsyncService
         );
     }
 
     @Bean("excelImportHandlerService")
     public ExcelImportHandlerService excelImportHandlerService(
-            BatchProcessingService processValidationBatch,
+            BatchValidationService processValidationBatch,
             ActionExecutor actionExecutor,
-            GenericObjectConfigProperties config
+            GenericObjectConfigProperties config,
+            FileReaderService fileReaderService
     ) {
         return new ExcelImportHandlerService(
                 processValidationBatch,
                 actionExecutor,
-                config
+                config,
+                fileReaderService
         );
     }
 
@@ -899,9 +965,14 @@ public class MsmAutoConfiguration {
     @Bean("batchImportService")
     public BatchImportService batchImportService(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            ImportErrorService importErrorService
+            ImportErrorService importErrorService,
+            ImportConfigService importConfigService
     ) {
-        return new BatchImportService(importErrorService, internalObjectQueryRepository);
+        return new BatchImportService(
+                importErrorService,
+                internalObjectQueryRepository,
+                importConfigService
+        );
     }
 
     @Bean

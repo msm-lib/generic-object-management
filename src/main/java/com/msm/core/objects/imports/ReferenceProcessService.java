@@ -1,4 +1,4 @@
-package com.msm.core.objects.imports.service;
+package com.msm.core.objects.imports;
 
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReferenceProcessService {
     private final ActionExecutor actionExecutor;
-
+    protected final ImportConfigService importConfigService;
 
     public void batchRefProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
         List<Map<String, Object>> items = rows.stream().map(ImportRow::rowData).collect(Collectors.toList());
@@ -40,7 +40,10 @@ public class ReferenceProcessService {
                         if(objectRef != null) {
                             Object idObj = objectRef.get(Constants.OBJECT_PK);
                             itemMap.put(attrName, idObj);
-                            itemMap.put(Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName), objectRef);
+                            itemMap.put(
+                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
+                                    Utils.O.reMappingKeys(objectRef, importConfigService.getReferenceConfig(importObjectName, attrName).getMappingKeys())
+                            );
                         }
                     }
                 });

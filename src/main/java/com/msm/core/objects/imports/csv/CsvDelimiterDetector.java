@@ -1,4 +1,4 @@
-package com.msm.core.objects.imports;
+package com.msm.core.objects.imports.csv;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;

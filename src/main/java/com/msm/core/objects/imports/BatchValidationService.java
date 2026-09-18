@@ -27,7 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class BatchProcessingService {
+public class BatchValidationService {
     private final ImportValidationService importValidationService;
     private final ActionExecutor actionExecutor;
     private final ObjectQueryRepository internalObjectQueryRepository;

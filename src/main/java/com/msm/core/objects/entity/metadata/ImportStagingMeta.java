@@ -18,7 +18,7 @@ public final class ImportStagingMeta {
     public static final String OBJECT_NAME = "importstaging";
 
     public static final Table<?> TABLE =
-            DSL.table(DSL.name("bhc", "import_staging"));
+            DSL.table(DSL.name("import_staging"));
 
     // =========================================================
     // Primary & Foreign Keys

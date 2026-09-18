@@ -1,25 +1,12 @@
 package com.msm.core.objects.imports;
 
-import com.github.pjfanning.xlsx.StreamingReader;
 import com.msm.core.commons.Utils;
-import com.msm.core.objects.imports.model.RawRow;
-import lombok.Lombok;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URL;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
 
 @Slf4j
 public final class ImportHelper {
@@ -82,49 +69,133 @@ public final class ImportHelper {
         };
     }
 
-    public static void readExcelStream(String importObjectName, String fileUrl, int bufferSize, int batchSize, Consumer<RawRow<Row>> consumer) {
-        Workbook workbook = null;
-        InputStream inputStream = null;
-        try {
-            URL url = URI.create(fileUrl).toURL();
-            inputStream = url.openStream();
-            workbook = StreamingReader.builder()
-                    .rowCacheSize(batchSize)           // Data hold in RAM (Buffer Size)
-                    .bufferSize(bufferSize)            // Buffer size of InputStream (Bytes)
-                    .open(inputStream);
-
-            Sheet sheet = workbook.getSheetAt(0);
-            Iterator<Row> rowIterator = sheet.iterator();
-            if (rowIterator.hasNext()) {
-                rowIterator.next();
-            }
-
-            while (rowIterator.hasNext()) {
-                Row row = rowIterator.next();
-                consumer.accept(
-                        new RawRow<>(row.getRowNum(), importObjectName, row)
-                );
-            }
-        } catch (IOException e) {
-            throw Lombok.sneakyThrow(e);
-        } finally {
-            if (Objects.nonNull(workbook)) {
-                try {
-                    workbook.close();
-                } catch (IOException e) {
-                    log.error("Error while close workbook: {}", e.getMessage(), e);
-                }
-            }
-            if (Objects.nonNull(inputStream)) {
-                try {
-                    inputStream.close();
-                } catch (IOException e) {
-                    log.error("Error while close inputStream: {}", e.getMessage(), e);
-                }
-            }
-        }
-    }
-
+//    public static void readExcelStream(String importObjectName, UUID importId, String fileUrl, int bufferSize, int batchSize, Consumer<RawRow<Row>> consumer) {
+//        Workbook workbook = null;
+//        InputStream inputStream = null;
+//        try {
+//            URL url = URI.create(fileUrl).toURL();
+//            inputStream = url.openStream();
+//            workbook = StreamingReader.builder()
+//                    .rowCacheSize(batchSize)           // Data hold in RAM (Buffer Size)
+//                    .bufferSize(bufferSize)            // Buffer size of InputStream (Bytes)
+//                    .open(inputStream);
+//
+//            Sheet sheet = workbook.getSheetAt(0);
+//            Iterator<Row> rowIterator = sheet.iterator();
+//            if (rowIterator.hasNext()) {
+//                rowIterator.next();
+//            }
+//
+//            while (rowIterator.hasNext()) {
+//                Row row = rowIterator.next();
+//                consumer.accept(
+//                        new RawRow<>(row.getRowNum(), importObjectName, row)
+//                );
+//            }
+//        } catch (IOException e) {
+//            throw Lombok.sneakyThrow(e);
+//        } finally {
+//            if (Objects.nonNull(workbook)) {
+//                try {
+//                    workbook.close();
+//                } catch (IOException e) {
+//                    log.error("Error while close workbook: {}", e.getMessage(), e);
+//                }
+//            }
+//            if (Objects.nonNull(inputStream)) {
+//                try {
+//                    inputStream.close();
+//                } catch (IOException e) {
+//                    log.error("Error while close inputStream: {}", e.getMessage(), e);
+//                }
+//            }
+//        }
+//    }
+//
+//    public static void readExcel(String importObjectName, String fileUrl, Consumer<RawRow<Row>> consumer) {
+////        Workbook workbook = null;
+////        InputStream inputStream = null;
+//
+//        try {
+//            URL url = URI.create(fileUrl).toURL();
+//            try (
+//                    InputStream inputStream = url.openStream();
+//                    Workbook workbook = WorkbookFactory.create(inputStream)
+//            ) {
+//
+//                Sheet sheet = workbook.getSheetAt(0);
+//                Iterator<Row> rowIterator = sheet.iterator();
+//                if (rowIterator.hasNext()) {
+//                    rowIterator.next();
+//                }
+//
+//                while (rowIterator.hasNext()) {
+//                    Row row = rowIterator.next();
+//                    consumer.accept(
+//                            new RawRow<>(row.getRowNum(), importObjectName, row)
+//                    );
+//                }
+//
+//            }
+//        } catch (Exception e) {
+//            throw Lombok.sneakyThrow(e);
+//        } finally {
+//
+//        }
+////        try (
+////
+////                InputStream inputStream = url.openStream();
+////                Workbook workbook = WorkbookFactory.create(inputStream)
+////        ){
+//////            URL url = URI.create(fileUrl).toURL();
+//////            inputStream = url.openStream();
+//////            workbook = WorkbookFactory.create(inputStream);
+////
+////            Sheet sheet = workbook.getSheetAt(0);
+////            Iterator<Row> rowIterator = sheet.iterator();
+////            if (rowIterator.hasNext()) {
+////                rowIterator.next();
+////            }
+////
+////            while (rowIterator.hasNext()) {
+////                Row row = rowIterator.next();
+////                consumer.accept(
+////                        new RawRow<>(row.getRowNum(), importObjectName, row)
+////                );
+////            }
+////
+////        } catch (IOException e) {
+////            throw Lombok.sneakyThrow(e);
+////        } finally {
+////            if (Objects.nonNull(workbook)) {
+////                try {
+////                    workbook.close();
+////                } catch (IOException e) {
+////                    log.error("Error while close workbook: {}", e.getMessage(), e);
+////                }
+////            }
+////            if (Objects.nonNull(inputStream)) {
+////                try {
+////                    inputStream.close();
+////                } catch (IOException e) {
+////                    log.error("Error while close inputStream: {}", e.getMessage(), e);
+////                }
+////            }
+////        }
+//    }
+//
+//    private void finishFileProcess(String importObjectName, UUID importId, FileType fileType, FileProcessStatus status) {
+//
+//        FileProcessedEventContext.of(importObjectName, importId, fileType, status);
+//        ActionContext<ReadActionContext<Row>> actionRequest = ActionContext
+//                .<ReadActionContext<Row>>builder()
+//                .resource(importValidation.importObjectName())
+//                .action(ObjectActionNamed.Excel.READ_FILE)
+//                .payload(request)
+//                .build();
+//
+//        actionExecutor.execute(actionRequest);
+//    }
     public static List<String> arrayParser(String resource) {
         if (Utils.STR.isBlank(resource)) {
             return Utils.CL.newArrayList();

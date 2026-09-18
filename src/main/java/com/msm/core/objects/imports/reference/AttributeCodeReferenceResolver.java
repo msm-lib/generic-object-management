@@ -12,7 +12,9 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.AttributeRef;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.connector.GenericObjectInternalService;
+import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.jooq.impl.DSL;
@@ -28,6 +30,7 @@ public class AttributeCodeReferenceResolver {
     private static final String ATTRIBUTE_LOOKUP_NAME = "code";
     protected final GenericObjectInternalService genericObjectInternalService;
     protected final ObjectQueryRepository internalObjectQueryRepository;
+    protected final ImportConfigService importConfigService;
 
 
     public Map<String, Map<String, Map<String, Object>>> resolve(
@@ -42,6 +45,7 @@ public class AttributeCodeReferenceResolver {
         Set<String> codes = AttributeRefHelper.getCodes(attribute, items);
         if(Utils.CL.isEmpty(codes)) return new HashMap<>();
 
+        ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig = importConfigService.getReferenceConfig(sourceObjectName, attribute.getAttributeRef().getFieldName());
 
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
@@ -49,7 +53,7 @@ public class AttributeCodeReferenceResolver {
                     internalObjectQueryRepository.findByCondition(
                             targetObjectName,
                             DSL.field(ATTRIBUTE_LOOKUP_NAME).in(codes),
-                            AttributeRefHelper.getOrDefaultReturnFields(attributeRef)
+                            referenceDetailConfig.getFields()
                     )
             );
         } else {
@@ -58,14 +62,14 @@ public class AttributeCodeReferenceResolver {
                     .builder()
                     .objectInfo(ObjectFilterRequest.ObjectInfo.of(objectRefName))
                     .filters(FilterGroup.builder().operator(LogicalOperator.AND).conditions(Utils.CL.newArrayList(new FilterObject[]{FilterCondition.create(ATTRIBUTE_LOOKUP_NAME, FilterOperator.IN, codes)})).build())
-                    .returnFields(AttributeRefHelper.getOrDefaultReturnFields(attributeRef))
+                    .returnFields(referenceDetailConfig.getFields())
                     .build();
 
             PageResponse<Map<String, Object>> result = genericObjectInternalService.filter(objectRefName, objectFilterRequest);
             objectList = Utils.CL.emptyIfNull(result.getContents());
         }
 
-        AttributeRefHelper.retainAllRefData(attribute, objectList);
+        AttributeRefHelper.retainAllRefData(referenceDetailConfig.getFields(), objectList);
         Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
                 objectList,
                 objectKey -> String.valueOf(objectKey.get(ATTRIBUTE_LOOKUP_NAME)),

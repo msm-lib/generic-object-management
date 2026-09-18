@@ -14,6 +14,7 @@ import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
+import com.msm.core.objects.imports.model.DownloadErrorContext;
 import com.msm.core.objects.imports.model.ObjectImportContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -242,6 +243,19 @@ public class GenericObjectService {
                 .resource(objectName)
                 .action(actionName)
                 .payload(request)
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    @Transactional
+    public Map<String, Object> downloadErrorsFile(String objectName, UUID importJob, String type) {
+
+
+        ActionContext<DownloadErrorContext> actionRequest = ActionContext
+                .<DownloadErrorContext>builder()
+                .resource(objectName)
+                .action(ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
+                .payload(DownloadErrorContext.of(objectName, importJob))
                 .build();
         return actionExecutor.execute(actionRequest);
     }

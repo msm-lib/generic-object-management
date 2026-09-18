@@ -1,4 +1,4 @@
-package com.msm.core.objects.imports.handler;
+package com.msm.core.objects.imports.csv.handler;
 
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
@@ -7,52 +7,47 @@ import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
-import com.msm.core.objects.imports.BatchProcessingService;
-import com.msm.core.objects.imports.CsvDelimiterDetector;
+import com.msm.core.objects.imports.BatchValidationService;
+import com.msm.core.objects.imports.FileReaderService;
 import com.msm.core.objects.imports.ImportHelper;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
-import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
 import com.msm.core.objects.imports.model.RowMapperContext;
 import com.msm.core.objects.imports.reference.AttributeRefHelper;
-import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.io.input.BOMInputStream;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 
 @Slf4j
 @RequiredArgsConstructor
 public class CsvImportHandlerService {
     private static final Set<String> IGNORE_ATTRIBUTE = Set.of("customValues");
-    private final BatchProcessingService batchProcessingService;
+    private final BatchValidationService batchValidationService;
     private final ActionExecutor actionExecutor;
     private final GenericObjectConfigProperties config;
+    private final FileReaderService fileReaderService;
 
 
     @Handler(action = ObjectActionNamed.Csv.READ_FILE)
-    public void read(ActionContext<ReadActionContext<CSVRecord>> actionContext) {
+    public void readData(ActionContext<ReadActionContext<CSVRecord>> actionContext) {
         ReadActionContext<CSVRecord> readActionContext = actionContext.getPayload();
-        readRow(
+        fileReaderService.readCsv(
                 readActionContext.importObjectName(),
+                readActionContext.importId(),
                 readActionContext.fileUrl(),
                 readActionContext.rowConsumer()
         );
+//        readRow(
+//                readActionContext.importObjectName(),
+//                readActionContext.fileUrl(),
+//                readActionContext.rowConsumer()
+//        );
     }
 
 //    @Handler(action = ObjectActionNamed.Csv.DETECT_COLUMN_HEADER_MAPPING)
@@ -78,14 +73,26 @@ public class CsvImportHandlerService {
 
     @Handler(action = ObjectActionNamed.Csv.CELL_MAPPING)
     public Object cellProcessMap(ActionContext<CellMapperContext> actionContext) {
-        return cellMap(actionContext.getPayload());
+        CellMapperContext cellMapperContext = actionContext.getPayload();
+        Map<String, Object> rowData = cellMapperContext.rowData();
+        Object attrVal = rowData.get(cellMapperContext.attribute().getFieldName());
+
+        if (AttributeRefHelper.hasRef(cellMapperContext.attribute())) {
+            return attrVal;
+        }
+
+        if (Objects.nonNull(attrVal) && cellMapperContext.attribute().isCollectionField()) {
+            return ImportHelper.arrayParser(String.valueOf(attrVal));
+        }
+
+        return cellMapperContext.attribute().cast(attrVal);
     }
 
     @Handler(action = ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
     public void batchRowDataProcessing(ActionContext<BatchRowData> actionContext) {
         BatchRowData batchRowData = actionContext.getPayload();
         ObjectMetadata metadata = ObjectMetadataFactory.getObjectMetadataByName(batchRowData.importObjectName());
-        batchProcessingService.processBatch(batchRowData.importId(), metadata, batchRowData.rowData());
+        batchValidationService.processBatch(batchRowData.importId(), metadata, batchRowData.rowData());
     }
 
 
@@ -126,54 +133,54 @@ public class CsvImportHandlerService {
         return dataRowMap;
     }
 
-    public Object cellMap(CellMapperContext mapperContext) {
+//    public Object cellMap(CellMapperContext mapperContext) {
+//
+//        Map<String, Object> rowData = mapperContext.rowData();
+//        Object attrVal = rowData.get(mapperContext.attribute().getFieldName());
+//
+//        if (AttributeRefHelper.hasRef(mapperContext.attribute())) {
+//            return attrVal;
+//        }
+//
+//        if (Objects.nonNull(attrVal) && mapperContext.attribute().isCollectionField()) {
+//            return ImportHelper.arrayParser(String.valueOf(attrVal));
+//        }
+//
+//        return mapperContext.attribute().cast(attrVal);
+//    }
 
-        Map<String, Object> rowData = mapperContext.rowData();
-        Object attrVal = rowData.get(mapperContext.attribute().getFieldName());
 
-        if (AttributeRefHelper.hasRef(mapperContext.attribute())) {
-            return attrVal;
-        }
-
-        if (Objects.nonNull(attrVal) && mapperContext.attribute().isCollectionField()) {
-            return ImportHelper.arrayParser(String.valueOf(attrVal));
-        }
-
-        return mapperContext.attribute().cast(attrVal);
-    }
-
-
-    public void readRow(String importObjectName, String fileUrl, Consumer<RawRow<CSVRecord>> consumer) {
-
-        CharsetDecoder decoder = StandardCharsets.UTF_8
-                .newDecoder()
-                .onMalformedInput(CodingErrorAction.IGNORE)
-                .onUnmappableCharacter(CodingErrorAction.IGNORE);
-
-        int bufferSize = config.getImportFile().bufferSize(importObjectName);
-
-        try (BOMInputStream bomInputStream = BOMInputStream.builder().setURI(URI.create(fileUrl)).get();
-             InputStreamReader isr = new InputStreamReader(bomInputStream, decoder);
-             BufferedReader reader = new BufferedReader(isr, bufferSize)
-        ) {
-            CSVFormat csvFormat = CsvDelimiterDetector.detect(
-                    reader,
-                    bufferSize
-            );
-
-            try (CSVParser csvParser = csvFormat.parse(reader)) {
-
-                for (CSVRecord csvRecord : csvParser) {
-                    consumer.accept(
-                            new RawRow<>(csvRecord.getRecordNumber(), importObjectName, csvRecord)
-                    );
-                }
-            }
-
-        } catch (Exception e) {
-            throw Lombok.sneakyThrow(e);
-        }
-    }
+//    public void readRow(String importObjectName, String fileUrl, Consumer<RawRow<CSVRecord>> consumer) {
+//
+//        CharsetDecoder decoder = StandardCharsets.UTF_8
+//                .newDecoder()
+//                .onMalformedInput(CodingErrorAction.IGNORE)
+//                .onUnmappableCharacter(CodingErrorAction.IGNORE);
+//
+//        int bufferSize = config.getImportFile().bufferSize(importObjectName);
+//
+//        try (BOMInputStream bomInputStream = BOMInputStream.builder().setURI(URI.create(fileUrl)).get();
+//             InputStreamReader isr = new InputStreamReader(bomInputStream, decoder);
+//             BufferedReader reader = new BufferedReader(isr, bufferSize)
+//        ) {
+//            CSVFormat csvFormat = CsvDelimiterDetector.detect(
+//                    reader,
+//                    bufferSize
+//            );
+//
+//            try (CSVParser csvParser = csvFormat.parse(reader)) {
+//
+//                for (CSVRecord csvRecord : csvParser) {
+//                    consumer.accept(
+//                            new RawRow<>(csvRecord.getRecordNumber(), importObjectName, csvRecord)
+//                    );
+//                }
+//            }
+//
+//        } catch (Exception e) {
+//            throw Lombok.sneakyThrow(e);
+//        }
+//    }
 
 
 

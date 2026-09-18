@@ -44,8 +44,10 @@ repositories {
 extra["jooq.version"] = "3.21.1"
 extra["commons-lang3.version"] = "3.18.0"
 val queryDslVersion = "6.10.1"
+val awssdkVersion = "2.29.47"
+
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "2.1.4"
+val msmCommonVersion = "2.1.5"
 
 dependencies {
 
@@ -146,6 +148,12 @@ dependencies {
     implementation("org.apache.commons:commons-csv:1.14.1")
 
     implementation("org.springframework.data:spring-data-redis")
+
+
+    //AWS S3
+    implementation("software.amazon.awssdk:s3:${awssdkVersion}")
+    implementation("software.amazon.awssdk:sts:${awssdkVersion}")
+    implementation("software.amazon.awssdk:sqs:${awssdkVersion}")
 }
 
 tasks.jar {

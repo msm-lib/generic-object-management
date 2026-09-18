@@ -64,6 +64,9 @@ public interface ObjectQueryRepository {
 
     List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, List<String> conflictFields);
 
+    int upsert(String objectName, Map<String, Object> payload, List<String> conflictOnConstraintNames, Condition condition);
+
+
     int[] insertBatch(String objectName, List<Map<String, Object>> payload);
     int updateWithCondition(String objectName, Condition condition, Map<String, Object> newData);
     int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData);

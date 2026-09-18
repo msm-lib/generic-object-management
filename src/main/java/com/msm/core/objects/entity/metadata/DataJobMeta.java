@@ -5,60 +5,61 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
-import static com.msm.core.commons.GenericTypeResolverFactory.resolve;
 import static com.msm.core.metadata.typesafe.MetaFieldBuilder.attr;
 
-public final class ImportErrorMeta {
+public final class DataJobMeta {
 
-    private ImportErrorMeta() {}
+    private DataJobMeta() {}
 
-    public static final String OBJECT_NAME = "importerror";
+    public static final String OBJECT_NAME = "datajob";
 
     public static final Table<?> TABLE =
-            DSL.table(DSL.name("import_error"));
+            DSL.table(DSL.name("data_job"));
 
     // =========================================================
-    // Primary & Foreign Keys
+    // Primary
     // =========================================================
 
     public static final TypedAttribute<UUID> ID =
             attr(TABLE, "id", "id", UUID.class);
 
-    public static final TypedAttribute<UUID> IMPORT_ID =
-            attr(TABLE, "importId", "import_id", UUID.class);
-
     // =========================================================
-    // Location & Type
+    // Core Info
     // =========================================================
 
-    public static final TypedAttribute<Long> ROW_NUMBER =
-            attr(TABLE, "rowNumber", "row_number", Long.class);
+    public static final TypedAttribute<String> JOB_TYPE =
+            attr(TABLE, "jobType", "job_type", String.class);
 
-    public static final TypedAttribute<String> ERROR_TYPE =
-            attr(TABLE, "errorType", "error_type", String.class);
+    public static final TypedAttribute<String> OBJECT_NAME_FIELD =
+            attr(TABLE, "objectName", "object_name", String.class);
 
-    public static final TypedAttribute<String> FIELD_NAME =
-            attr(TABLE, "fieldName", "field_name", String.class);
+    public static final TypedAttribute<String> STATUS =
+            attr(TABLE, "status", "status", String.class);
 
-    // =========================================================
-    // Error Details
-    // =========================================================
-
-    public static final TypedAttribute<String> ERROR_CODE =
-            attr(TABLE, "errorCode", "error_code", String.class);
-
-    public static final TypedAttribute<String> ERROR_MESSAGE =
-            attr(TABLE, "errorMessage", "error_message", String.class);
-
-
-    public static final TypedAttribute<Map<String, Object>> DATA =
-            attr(TABLE, "data", "data", resolve(Map.class, String.class, Object.class));
+    public static final TypedAttribute<String> FILE_NAME =
+            attr(TABLE, "fileName", "file_name", String.class);
 
     // =========================================================
-    // Auditing (Inherited from AuditingEntity)
+    // Progress & Metrics
+    // =========================================================
+
+    public static final TypedAttribute<Integer> PROGRESS =
+            attr(TABLE, "progress", "progress", Integer.class);
+
+    // =========================================================
+    // Timing
+    // =========================================================
+
+    public static final TypedAttribute<Instant> STARTED_AT =
+            attr(TABLE, "startedAt", "started_at", Instant.class);
+
+    public static final TypedAttribute<Instant> COMPLETED_AT =
+            attr(TABLE, "completedAt", "completed_at", Instant.class);
+
+    // =========================================================
+    // Auditing
     // =========================================================
 
     public static final TypedAttribute<Instant> CREATED_AT =
@@ -73,3 +74,4 @@ public final class ImportErrorMeta {
     public static final TypedAttribute<String> UPDATED_BY =
             attr(TABLE, "updatedBy", "updated_by", String.class);
 }
+

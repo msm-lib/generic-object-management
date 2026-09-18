@@ -5,18 +5,20 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
+import static com.msm.core.commons.GenericTypeResolverFactory.resolve;
 import static com.msm.core.metadata.typesafe.MetaFieldBuilder.attr;
 
-public final class ImportJobMeta {
+public final class ExportJobMeta {
 
-    private ImportJobMeta() {}
+    private ExportJobMeta() {}
 
-    public static final String OBJECT_NAME = "importjob";
+    public static final String OBJECT_NAME = "exportjob";
 
     public static final Table<?> TABLE =
-            DSL.table(DSL.name("import_job"));
+            DSL.table(DSL.name("bhc", "export_job"));
 
     // =========================================================
     // Primary
@@ -26,7 +28,7 @@ public final class ImportJobMeta {
             attr(TABLE, "id", "id", UUID.class);
 
     // =========================================================
-    // Info
+    // Core Info
     // =========================================================
 
     public static final TypedAttribute<String> OBJECT_NAME_FIELD =
@@ -35,30 +37,27 @@ public final class ImportJobMeta {
     public static final TypedAttribute<UUID> ATTACHMENT_ID =
             attr(TABLE, "attachmentId", "attachment_id", UUID.class);
 
+    public static final TypedAttribute<String> STATUS =
+            attr(TABLE, "status", "status", String.class);
+
     public static final TypedAttribute<String> FILE_NAME =
             attr(TABLE, "fileName", "file_name", String.class);
 
     public static final TypedAttribute<String> FILE_PATH =
             attr(TABLE, "filePath", "file_path", String.class);
 
-    public static final TypedAttribute<String> STATUS =
-            attr(TABLE, "status", "status", String.class);
+    public static final TypedAttribute<Map<String, Object>> FILTER_CRITERIA =
+            attr(TABLE, "filterCriteria", "filter_criteria", resolve(Map.class, String.class, Object.class));
 
     // =========================================================
-    // Metrics
+    // Metrics & Errors
     // =========================================================
 
     public static final TypedAttribute<Long> TOTAL_ROWS =
             attr(TABLE, "totalRows", "total_rows", Long.class);
 
-    public static final TypedAttribute<Long> VALID_ROWS =
-            attr(TABLE, "validRows", "valid_rows", Long.class);
-
-    public static final TypedAttribute<Long> SUCCESS_ROWS =
-            attr(TABLE, "successRows", "success_rows", Long.class);
-
-    public static final TypedAttribute<Long> ERROR_ROWS =
-            attr(TABLE, "errorRows", "error_rows", Long.class);
+    public static final TypedAttribute<String> ERROR_MESSAGE =
+            attr(TABLE, "errorMessage", "error_message", String.class);
 
     // =========================================================
     // Timing
@@ -71,17 +70,7 @@ public final class ImportJobMeta {
             attr(TABLE, "completedAt", "completed_at", Instant.class);
 
     // =========================================================
-    // Error Info
-    // =========================================================
-
-    public static final TypedAttribute<String> ERROR_FILE_PATH =
-            attr(TABLE, "errorFilePath", "error_file_path", String.class);
-
-    public static final TypedAttribute<String> ERROR_MESSAGE =
-            attr(TABLE, "errorMessage", "error_message", String.class);
-
-    // =========================================================
-    // Auditing (Inherited from AuditingEntity)
+    // Auditing & Lifecycle
     // =========================================================
 
     public static final TypedAttribute<Instant> CREATED_AT =
@@ -90,9 +79,24 @@ public final class ImportJobMeta {
     public static final TypedAttribute<String> CREATED_BY =
             attr(TABLE, "createdBy", "created_by", String.class);
 
+    public static final TypedAttribute<UUID> CREATED_BY_ID =
+            attr(TABLE, "createdById", "created_by_id", UUID.class);
+
     public static final TypedAttribute<Instant> UPDATED_AT =
             attr(TABLE, "updatedAt", "updated_at", Instant.class);
 
     public static final TypedAttribute<String> UPDATED_BY =
             attr(TABLE, "updatedBy", "updated_by", String.class);
+
+    public static final TypedAttribute<UUID> UPDATED_BY_ID =
+            attr(TABLE, "updatedById", "updated_by_id", UUID.class);
+
+    public static final TypedAttribute<Instant> DELETED_AT =
+            attr(TABLE, "deletedAt", "deleted_at", Instant.class);
+
+    public static final TypedAttribute<String> DELETED_BY =
+            attr(TABLE, "deletedBy", "deleted_by", String.class);
+
+    public static final TypedAttribute<UUID> DELETED_BY_ID =
+            attr(TABLE, "deletedById", "deleted_by_id", UUID.class);
 }

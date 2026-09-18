@@ -25,6 +25,9 @@ public final class ObjectActionNamed {
         public static final String CELL_MAPPING = "excel_cell_mapping_processing";
         public static final String FIELD_REFERENCE_RESOLVE = "excel_field_reference_resolve_processing";
         public static final String BATCH_ROW_DATA_PROCESSING = "excel_batch_row_data_processing";
+
+        public static final String DOWNLOAD_FILE_ERRORS = "excel_download_file_error_processing";
+        public static final String FILE_PROCESSED_EVENT = "excel_file_processed_event";
     }
 
     public static final class IntegrationLog {

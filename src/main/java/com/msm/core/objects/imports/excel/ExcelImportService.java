@@ -14,13 +14,16 @@ import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.entity.metadata.AttachmentInfoMeta;
+import com.msm.core.objects.entity.metadata.AttachmentMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.model.BatchImportResult;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
 import com.msm.core.objects.imports.model.ColumnHeaderMapperContext;
+import com.msm.core.objects.imports.model.DownloadErrorContext;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.model.ImportStatus;
 import com.msm.core.objects.imports.model.ImportValidation;
@@ -28,7 +31,7 @@ import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
 import com.msm.core.objects.imports.model.RowMapperContext;
-import com.msm.core.objects.imports.service.ReferenceProcessService;
+import com.msm.core.objects.imports.s3.ExcelOriginalMultipartAsyncService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -102,10 +105,10 @@ public class ExcelImportService {
             lastRowNumber = DataRecord.of(rows.getLast()).get(ImportStagingMeta.ROW_NUMBER);
         }
 
-        return finish(objectImportContext.importJob());
+        return finishImport(objectImportContext.importJob());
     }
 
-    private Map<String, Object> finish(UUID importId) {
+    private Map<String, Object> finishImport(UUID importId) {
 
         // success/error count
         // COMPLETED hoặc COMPLETED_WITH_ERRORS
@@ -144,7 +147,7 @@ public class ExcelImportService {
 
         log.warn("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
         String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
-//        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/xlsx/2026/09/15/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789453625040_75b6a0f6.xlsx?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789453625040_75b6a0f6.xlsx%22%3B%20filename%2A%3DUTF-8%27%27KHGH_SharePoint_Template_Draft.xlsx&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEDQaDmFwLXNvdXRoZWFzdC0xIkcwRQIhANoYTarqZa51zU3Lz4GN3KxWclueLG2Qxt9Ai2GMZgNWAiAaRtVHFYcodRmwrzEvlEZcbC9dY%2FLjqBrm%2FsA0wVLUUiqhBAj9%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F8BEAAaDDA3MTQxODAxOTA3MCIM8ORG%2FtdaWGtIL%2Fn6KvUDOlywcaKRkUoJIXF2v017Nh9Zq%2BLaqZxpr%2BZ1breANrt0oSGNyR7wGMSqzgnBF6gBlq88js9UCav5rmL7hU9lmFFlIFLZWM5kawfu8T7og46LO1aHXdHEp%2F62h7OioAJnSLbiDAoAori0VL%2Fg2u3tGzxzh95nF46wZh5V%2FYrBXPpt2H%2FgwzDD9KNXbXv9UxGZp0H6g6GuaTl10voMwfrtnwu5KDxVagta9%2BMVEcDy3tL0vyKtLnBVGSN%2Bkl%2FWrM5q%2B10wcSNOADGkBP%2BMYSSYNX567HM6y7b2fjhSHstsmT%2BwW79GNP5RErFI8YjJ9vzGUfoC0kbiSKX9Bg844u3W7jWtJ%2FY%2B%2BRpLq3QcKt7jQ0egO%2F%2BJBsqSJ7nkyHhyem8EtQ1FMADq0XYElcQP3qk5oysS%2FCcTQMy%2BPpc2Qm%2FZPR%2B9%2FGTLJ0IQPIubxr6evBeht3riccYs8QURw5CYaNwi2JJuppgxwcRMSX%2F0vIeZZ6Bxpj317Se6EOdAx0QRvs9F9vMF%2Bx6k64deMKictHobgJSTObOORUw3l3MB775d2wCh2jkxFfBBRkJK6GsT%2Buk50xbTuCCqp5RMl4SLgEyT5UrR3hDP8FXkXUPuZelHA3M%2FYDCNDzAQMDnISsbXfZ4u%2BJtBAEo3SfZuHMX66LrIasFy3BQZMM%2FbpNUGOqYBtKG%2B%2BKk10bY0hjwQWYDqLP2DMmsHPbVLbtbiY4IyYWrvENDdho5olNfaFZTNcBLiMa6W5WMqjj9xfu240FjRA8sBhEDf78dGw3HGBaYNpVpv6Hh8A3S3Ep0x3J4fNctSeH9rJvHmolTOMu04mz2VfIKAPrsy5woXffCM3jroQ428yv0yTp5bctWkCTdfeGivw3EYthaIMWzyaBmalVBkB90dbpGx%2FA%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260915T132355Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7HLNLLCB6%2F20260915%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=86ff15bee5708a397a64981f886f022b499dd43cda8560c95b24274492f973d9";
+//        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/xlsx/2026/09/16/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789542224338_72b918a5.xlsx?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789542224338_72b918a5.xlsx%22%3B%20filename%2A%3DUTF-8%27%27KHGH_SharePoint_Template_Draft.xlsx&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEEwaDmFwLXNvdXRoZWFzdC0xIkgwRgIhAP%2FACqHTGLLN6fUzjjN9YNPkXCzbFenVxtRD3Ua6hBcyAiEAoO9SS%2B%2BYQM3GwhEibovEWdXVhfW3xPNwNU9O2buMdU0qmAQIFRAAGgwwNzE0MTgwMTkwNzAiDD3Vi1QiYKpaBqhYyCr1AwEPY7DAssM53K7hQROs8%2FdVP42YRW0vbGfmt2UPZk2C3b%2BrgB56c8ymzkWlAALvNiT%2Fvk%2BtM4ycDdhgPp7%2BbTH8n4XGOndtxWukYHrVrJDHUjxWCO%2B8Q6I89LFilLvbtRTodaDaDarLIsELa0UA%2BIvxaVFaybwReddLBWAkspIzdI%2BuYztTJIVlXgpAqZulOOhqB69%2FCXDQGYaFEEtblp2R45eMEMKagy9rUrqnTyFkzcUDwSHfDTzEbzQ24h69mHQdxdSGgrcmqwwlNr4k8PHY%2FFhlvt5lH02aqhUYD5eJ73iTtK37Kc44GG7HRXGgvNN8EuSKJWLiQikQNs7cBcVg2f0hn4w5x568WfBtC8%2FEeX4nTxJj8uiLLKeY1ETQ4XUj7Qz9tWkoR43OMT9XU51e1eqoK3LO6ay5W8PZRQMTE5ePPTUESAj%2FjMV6ZA%2FkfuAWoBvxjfWuLAwpfabc6igU%2FAwCXUn7GfQ4glLrSktSBtvYT8ccEOdTN0oahAWMRajY9QT%2F2W5%2BCXI%2FTLe7mWe2hILFWV084itDizn8ohdZk0CbtMO95VLteeApvuNo%2B27bS5TmZIBkJNVFsAUprnc2adQaMABKdsQzUrUeWOvX%2BqIW5FQlTrNCSkj6HVJ1utgbZoZpfl2NKxEKwo%2Fx7j%2B1Q9uzbjDzgarVBjqlAXeAPaAA4Ca%2BMDY1sNWk51T8Wj%2BFoeeYxHWOjhZuHpcv9KjjR6ltIgoXihMniNF%2Bj366LiW4R5EDLAnV7ip8VEgON32zyWjOkiFcpckDk2A6psjO0suNsoWWOePkSjzYIgvFczMxK5yszFLm8yHEu38iLoMa7NSasT6z12z5pb%2FUCsh5S%2F%2FUGLo4EubYeJUd5D7Krxi2otEDtEGoHn0TkwJeiLB8mw%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260916T144424Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7EDID2OFG%2F20260916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=8ee70a363bb1e645b4c78fae688edba4156cbaf64e1a3b4e4fd4f9f5755abcfc";
         ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
 
         internalObjectQueryRepository.update(
@@ -195,7 +198,7 @@ public class ExcelImportService {
             }
         };
 
-        ReadActionContext<Row> request = ReadActionContext.of(importValidation.importObjectName(), importValidation.fileUrl(), rowConsumer);
+        ReadActionContext<Row> request = ReadActionContext.of(importValidation.importObjectName(), importId, importValidation.fileUrl(), rowConsumer);
 
         ActionContext<ReadActionContext<Row>> actionRequest = ActionContext
                 .<ReadActionContext<Row>>builder()
@@ -353,5 +356,22 @@ public class ExcelImportService {
                 Map.of(ImportJobMeta.TOTAL_ROWS.getFieldName(), ImportJobMeta.TOTAL_ROWS.getField().add(rowCount))
         );
     }
+
+
+    private final ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService;
+
+    @Handler(action = ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
+    public Map<String, Object> downloadErrors(ActionContext<DownloadErrorContext> actionContext) {
+        DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().importId()));
+        excelOriginalMultipartAsyncService.writeErrorsToOriginalSheetMultipartAsync(dataRecord);
+        Map<String, Object> attachmentDownloadInfo = genericObjectInternalService.query(
+                AttachmentMeta.OBJECT_NAME,
+                createQueryAttachmentInfo(dataRecord.get(ImportJobMeta.ATTACHMENT_ID))
+        );
+
+        return attachmentDownloadInfo;
+    }
+
+
 }
 

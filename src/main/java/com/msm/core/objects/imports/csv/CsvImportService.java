@@ -1,4 +1,4 @@
-package com.msm.core.objects.imports;
+package com.msm.core.objects.imports.csv;
 
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
@@ -16,6 +16,8 @@ import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.entity.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
+import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.model.BatchImportResult;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMapperContext;
@@ -26,7 +28,6 @@ import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
 import com.msm.core.objects.imports.model.RowMapperContext;
-import com.msm.core.objects.imports.service.ReferenceProcessService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +44,7 @@ import java.util.function.Consumer;
 
 @Slf4j
 @RequiredArgsConstructor
-public class ImportService {
+public class CsvImportService {
     private static final Set<String> IGNORE_ATTRIBUTE = Set.of("customValues");
     private static final String ATTACHMENT_OBJECT_NAME = "attachment";
     private static final String IMPORT_JOB_ID_NAME = "importJobId";
@@ -141,8 +142,8 @@ public class ImportService {
         DataRecord attachmentRecord = DataRecord.of(attachmentDownloadInfo);
 
         log.warn("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
-        String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
-//        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/csv/2026/09/16/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789540156927_1974e902.csv?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789540156927_1974e902.csv%22%3B%20filename%2A%3DUTF-8%27%27Profile_validate_success.csv&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEEYaDmFwLXNvdXRoZWFzdC0xIkYwRAIgNk4CJHL08GJG7onhWTZE08VNmAzWmp89srAOp9GbqO4CIGqDqf7CSLb3ZGpOPWxRMW0ScXgbqN7qB9AHy%2FOiw3rnKpgECA8QABoMMDcxNDE4MDE5MDcwIgxO81kEgP%2F%2FKP0%2BiDoq9QMbRmp6Qw3cEjypRcZUjkI3KJz%2BIE4bc%2FxQEqzWZdGBtCQrDBO63cWIvmvwx%2B4Pe%2Bf1H1ng1LYiis2wqm%2FSRHRpK8%2BWnvP1UTnGUl5B5qfy%2FoY1ddsIwT%2FuGtQHjiWJRVghowKdQ4AHLEG2yijIu5GOQgdxPs3y4NKheC3rSxkXQD%2F8hnfdtsTD1v1dfbxo%2FoNAgU6upkLhFJFFgxhPbRquAnFfBdHImfsOW9CsDy48hGaHl51PN%2B%2BqL6hjvp6cCnSo3suEEzMidWYgK0ETQ2eNr9guAQPc1x8YNhu0l8AsP0g0V3FKTHckcT33vRXc5bnnWYK0NVAC8dK%2BZs8mGnJJwQayO2y0mycnX8KU2ziE%2BM%2F1TB3dp8W6YzqZV1kKmB8R%2B0uB1ZKyVrhzbP1ESVTcsMbJaLgSPbKHNJL8W5PlAUfoBnGjUhX2NVfgcKUI5PHcwVrX0NB1mRUp4MyhCLrWweHw2vFUI8n496jscagaIkqbv%2Fm6L56gxT%2FZjucMiQqtXk2oQFZb0B0Gt%2Fjrpew%2BwB3fKWvWwZB99O3dGiUHoPckh2saDte0Efo96%2BEBbAN%2BoIAa9ymwBARiOy3%2BbtC9i6YHsxa5iisWDDRI0iTri5TO%2FH4L9HRt0inemIFvVNAVpm9Xf6TL8IGV8BcjcylsbKzxQcUwuOSo1QY6pwHlvjL5ZuP3ISZdTQGIie8GGBzjF8qpXQfRgEOaNZngISXhIKI7H7IIbQU3D8FDX%2FzUG3qa6eS3zn9R7pzOous1ekyWcHsRQJiYXLiAFhkXCU5fEHpWBk3lugUkjBcJR9h8DXcnliCwNh4fDOHQsec1jsbMgRwq6ip7PcfmNkCpJEwst3JrQqPM7g9ZLss%2Bx8aa70cyqVPqnX24UyeFrMzpr3ZB%2FeJ4rw%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260916T062925Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7ID2NHERR%2F20260916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=458f4cc613bb6aa487ec8d3d01705146ab8cdb423988a7ec25715cc62151c2ad";
+//        String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
+        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/csv/2026/09/16/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789539157499_2306b6e2.csv?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789539157499_2306b6e2.csv%22%3B%20filename%2A%3DUTF-8%27%27Profile.csv&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEFkaDmFwLXNvdXRoZWFzdC0xIkgwRgIhAOZNBSJhTNKQDLZfqyeuIl3Zc%2BlQs8iiRT1dv4U1AV4wAiEA3sGVbGvorG9i6YBMPQshUt%2BjdEFmGoAFBiStUdkxKxEqmAQIIhAAGgwwNzE0MTgwMTkwNzAiDFBWeRrbi2hYa3w2%2BSr1A7mU8Ska%2B%2BrLeKigwwVo4CBLiZDXVBHVTF217A7zV2yOASseRHQdemymrdDqLIVkhRK46gbp6qiVQSZjcex1P5xhIVFZHciwTnW74c9rJaYiCielZ%2Fh6cCG71xNILBQbRjU0AhdFLqMA4X%2F%2BbBeHXl9tzUPyaU%2FBNGxDXgXjjcQHH13ObRd1Eu%2F2CLFm8cYOVUN4%2BqVZsHZcBi3jMhEv3LrFNQPqnzWqIFuuYkImOnu8mYhTlbrhxesYuWG%2FgwIIJqUxf1VG80dWO4OW1X%2BfJ03R38WZsEL7r6UYKEe%2FI1pf5Tp4TwW0HHrordJblTgogmTd6H0JVD74TCvy4gG8fpjwBvOY%2BjaCB6dpWi%2FhNRjq2b4l9GSJLhvWg5aD7ZCBEysn7QR2vhSJRczep6KqZ1RZzV1EIX9fGyJ5PWgGsujG8Ifbng0Ait%2BybgbDzFxu4Cl%2F%2F1XBolAmC7HR8bC6pETZ3WJthnex4%2B%2B1tw7dYXz4HZB3RKAU3tK1Iyl3kiy%2B9irTSgF6alExAA4ZcZNOGFgb5fSawVDQ5pgDSoduEmTtxxoCGuJGMO5MNoqR1MLLUAz0TtJF0d09VVVe2qqgPcWB%2F5eHrhAsZwetggvmA6mJtIV%2Flt%2B9fDUVYxGnb%2FVbHb3s3%2BLewQcsFsw3%2BN2kf%2BjAK9jifDD0%2FqzVBjqlAXLDJPUde0G9i78y9i1tnmEQ7IdPXKx1h2B3diqKCGnTBlp8mUqueaLuOBU9VO3V8u7B%2BhS5HtXHjmI%2FaJC%2BMcUKDCQAnMopxW0nQ0Qa79X4fdp77SaCfZQxeFg6oWyWH120Xbbz3dYZaDiG7myXkvWYMpvcKZLRNOQrbQbfvnQSyrGur0oRQU4sT6trNRDw5ap8xV0nnyUCqTKQNF%2BzBfH%2FaW2nTg%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260917T051201Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7DFNWSWBK%2F20260917%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=6aa03182bcad40378f3e7a247d96407f3bb7e19a5eb640df27bd881438d42462";
         ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
 
         internalObjectQueryRepository.update(
@@ -168,7 +169,7 @@ public class ImportService {
             }
         };
 
-        ReadActionContext<CSVRecord> request = ReadActionContext.of(importValidation.importObjectName(), importValidation.fileUrl(), rowConsumer);
+        ReadActionContext<CSVRecord> request = ReadActionContext.of(importValidation.importObjectName(), importId, importValidation.fileUrl(), rowConsumer);
 
         ActionContext<ReadActionContext<CSVRecord>> actionRequest = ActionContext
                 .<ReadActionContext<CSVRecord>>builder()
@@ -303,6 +304,86 @@ public class ImportService {
                 Map.of(ImportJobMeta.TOTAL_ROWS.getFieldName(), ImportJobMeta.TOTAL_ROWS.getField().add(rowCount))
         );
     }
+
+
+
+//    public void generateErrorExcelStream(String fileUrl, UUID importHistoryId, OutputStream outputStream) {
+//
+//        List<Map<String, Object>> errors = internalObjectQueryRepository.findByCondition(
+//                ImportErrorMeta.OBJECT_NAME,
+//                ImportErrorMeta.IMPORT_ID.getField().eq(importHistoryId)
+//        );
+//
+//        Map<Long, DataRecord> dataError = Utils.D.groupBy(
+//                errors,
+//                objectMap -> (Long) objectMap.get(ImportErrorMeta.ROW_NUMBER.getFieldName()),
+//                DataRecord::ofNullable
+//        );
+
+//
+//
+//        // 2. Sử dụng SXSSFWorkbook để ghi streaming trực tiếp nhằm tối ưu RAM
+//        try (SXSSFWorkbook targetWorkbook = new SXSSFWorkbook(100)) { // Giữ tối đa 100 dòng trên RAM
+//
+//            Sheet targetSheet = targetWorkbook.createSheet("Error Logs");
+//
+//            // Biến theo dõi dòng ghi hiện tại trong file mới
+//            // Sử dụng mảng 1 phần tử hoặc đối tượng để có thể thay đổi giá trị bên trong Lambda Consumer
+//            final int[] currentWriteRow = {0};
+//
+//            // 3. Gọi hàm readExcelStream CŨ CỦA BẠN để đọc file gốc bằng buffer từ S3
+//            ImportHelper.readExcelStream(
+//                    "importjob",
+//                    fileUrl,
+//                    64 * 1024, // Buffer size 64KB cho mạng
+//                    100,       // rowCacheSize cho thư viện streaming reader
+//                    rawRow -> {
+//                        Row originalRow = rawRow.data();
+//                        int totalCols = originalRow.getLastCellNum() > 0 ? originalRow.getLastCellNum() : 0;
+//
+//                        // Tạo Header cho file mới dựa vào dòng đầu tiên đọc được
+//                        if (currentWriteRow[0] == 0) {
+//                            Row headerRow = targetSheet.createRow(currentWriteRow[0]++);
+//                            for (int i = 0; i < totalCols; i++) {
+//                                Cell cell = originalRow.getSheet().getRow(0).getCell(i);
+//                                headerRow.createCell(i).setCellValue(cell != null ? cell.getStringCellValue() : "");
+//                            }
+//                            // Thêm cột Errors ở cuối dòng Header
+//                            headerRow.createCell(totalCols).setCellValue("Errors");
+//                        }
+//
+//                        // Tạo dòng mới và copy dữ liệu cũ sang
+//                        Row newRow = targetSheet.createRow(currentWriteRow[0]++);
+//                        for (int i = 0; i < totalCols; i++) {
+//                            Cell cell = originalRow.getCell(i);
+//                            newRow.createCell(i).setCellValue(cell != null ? cell.getStringCellValue() : "");
+//                        }
+//
+//                        // 4. Kiểm tra xem số dòng hiện tại (rawRow.getRowNum()) có lỗi trong DB hay không
+//
+//                        String errorMessage = dataError.get(originalRow.getRowNum());
+//                        if (errorMessage != null) {
+//                            newRow.createCell(totalCols).setCellValue(errorMessage);
+//                        } else {
+//                            newRow.createCell(totalCols).setCellValue("");
+//                        }
+//                    }
+//            );
+//
+//            // 5. Ghi thẳng dữ liệu Excel ra OutputStream đã truyền vào (Luồng mạng của Response hoặc file tùy ý)
+//            targetWorkbook.write(outputStream);
+//            targetWorkbook.dispose(); // Xóa các file tạm đệm của SXSSFWorkbook trên đĩa
+//            outputStream.flush();
+//
+//        } catch (IOException e) {
+//            log.error("Lỗi khi xử lý ghi Excel Streaming trong Service: {}", e.getMessage(), e);
+//            throw new RuntimeException("Không thể sinh file lỗi Excel", e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+
 
 }
 

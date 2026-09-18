@@ -58,7 +58,7 @@ public class GenericObjectConfigProperties {
     public static class ObjectConfig {
         private int bufferSize = 64 * 1024;
         private int batchSize = 20;
-        private Header header;
+        private Header header = new Header();
     }
 
     @Data

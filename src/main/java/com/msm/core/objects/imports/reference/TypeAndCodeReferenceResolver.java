@@ -12,8 +12,9 @@ import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.AttributeRef;
 import com.msm.core.metadata.ObjectMetadata;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.connector.GenericObjectInternalService;
-import com.msm.core.objects.imports.model.AttributeLookup;
+import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
@@ -34,15 +35,16 @@ public class TypeAndCodeReferenceResolver {
 
     protected final GenericObjectInternalService genericObjectInternalService;
     protected final ObjectQueryRepository internalObjectQueryRepository;
+    protected final ImportConfigService importConfigService;
 
 
 
-    private Condition buildCondition(ObjectMetadata objectMetadata, List<AttributeLookup> attributeLookups, Map<String, Set<String>> lookupValues) {
+    private Condition buildCondition(ObjectMetadata objectMetadata, List<ObjectImportRegistry.LookupValuesConfig> attributeLookups, Map<String, Set<String>> lookupValues) {
         Condition condition = DSL.noCondition();
-        for (AttributeLookup attributeLookup : attributeLookups) {
-            Set<String> lookupVals = lookupValues.get(attributeLookup.attributeName());
+        for (ObjectImportRegistry.LookupValuesConfig attributeLookup : attributeLookups) {
+            Set<String> lookupVals = lookupValues.get(attributeLookup.getAttributeName());
             if (Utils.CL.size(lookupVals) > 0) {
-                Attribute attr = objectMetadata.getAttributeByName(attributeLookup.attributeName());
+                Attribute attr = objectMetadata.getAttributeByName(attributeLookup.getAttributeName());
                 Field<Object> typeField = (Field<Object>) attr.getField();
                 condition = condition.and(typeField.in(lookupVals));
             }
@@ -51,20 +53,31 @@ public class TypeAndCodeReferenceResolver {
         return condition;
     }
 
-    private List<FilterObject> buildFilterCondition(List<AttributeLookup> attributeLookups, Map<String, Set<String>> lookupValues) {
+    private List<FilterObject> buildFilterCondition(List<ObjectImportRegistry.LookupValuesConfig> attributeLookups, Map<String, Set<String>> lookupValues) {
         return attributeLookups.stream()
-                .map(e -> FilterCondition.create(e.attributeName(), FilterOperator.IN, lookupValues.get(e.attributeName())))
+                .map(e -> FilterCondition.create(e.getAttributeName(), FilterOperator.IN, lookupValues.get(e.getAttributeName())))
                 .collect(Collectors.toList());
+    }
+
+    private boolean isEmpty(Map<String, Set<String>> lookupValues) {
+        return lookupValues.values().stream()
+                .anyMatch(set -> set == null || set.isEmpty());
     }
 
     public Map<String, Map<String, Map<String, Object>>> resolve(
             String sourceObjectName,
-            List<AttributeLookup> attributeLookups,
             Attribute sourceAttribute,//continentId
             List<Map<String, Object>> items) {
 
-//        Set<String> codes = AttributeRefHelper.getCodes(attribute, items);
+        ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig = importConfigService
+                .getReferenceConfig(sourceObjectName, sourceAttribute.getAttributeRef().getFieldName());
+        List<ObjectImportRegistry.LookupValuesConfig> attributeLookups = referenceDetailConfig.getLookups();
+
         Map<String, Set<String>> lookupValues = AttributeRefHelper.getLookupValueMap(sourceAttribute, attributeLookups, items);
+
+        if(isEmpty(lookupValues)) {
+            return Map.of();
+        }
 
         AttributeRef attributeRef = sourceAttribute.getAttributeRef();
         String targetObjectName = attributeRef.getObjectRef();
@@ -73,20 +86,17 @@ public class TypeAndCodeReferenceResolver {
         List<Map<String, Object>> objectList;
         if(optionalObjectMetadata.isPresent()) {
             ObjectMetadata objectMetadata = optionalObjectMetadata.get();
-//            Attribute codeAttr = objectMetadata.getAttributeByName(CODE);
-//            Attribute typeAttr = objectMetadata.getAttributeByName(GEOGRAPHY_TYPE_ID);
-//            Field<Object> typeIdField = (Field<Object>) typeAttr.getField();
             objectList = internalObjectQueryRepository.findByCondition(
                     targetObjectName,
                     buildCondition(objectMetadata, attributeLookups, lookupValues),
-                    AttributeRefHelper.getOrDefaultReturnFields(attributeRef)
+                    referenceDetailConfig.getFields()
             );
         } else {
             String objectRefName = sourceAttribute.getAttributeRef().getObjectRef();
             ObjectFilterRequest objectFilterRequest = ObjectFilterRequest
                     .builder()
                     .objectInfo(ObjectFilterRequest.ObjectInfo.of(objectRefName))
-                    .returnFields(AttributeRefHelper.getOrDefaultReturnFields(attributeRef))
+                    .returnFields(referenceDetailConfig.getFields())
                     .filters(FilterGroup.builder().operator(LogicalOperator.AND).conditions(
                             buildFilterCondition(attributeLookups, lookupValues)
                     ).build())
@@ -97,7 +107,7 @@ public class TypeAndCodeReferenceResolver {
             objectList = result.getContents();
         }
 
-        AttributeRefHelper.retainAllRefData(sourceAttribute, objectList);
+        AttributeRefHelper.retainAllRefData(referenceDetailConfig.getFields(), objectList);
         Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
                 Utils.CL.emptyIfNull(objectList),
                 objectKey -> String.valueOf(objectKey.get(getDefaultKey(attributeLookups))),
@@ -108,10 +118,13 @@ public class TypeAndCodeReferenceResolver {
         return objectMap;
     }
 
-    private String getDefaultKey(List<AttributeLookup> attributeLookups) {
-        Optional<AttributeLookup> attributeLookup = attributeLookups.stream().filter(AttributeLookup::isKey).findFirst();
+    private String getDefaultKey(List<ObjectImportRegistry.LookupValuesConfig> attributeLookups) {
+        Optional<ObjectImportRegistry.LookupValuesConfig> attributeLookup = attributeLookups
+                .stream()
+                .filter(ObjectImportRegistry.LookupValuesConfig::isPrimary)
+                .findFirst();
         if (attributeLookup.isPresent()) {
-            return attributeLookup.get().attributeName();
+            return attributeLookup.get().getAttributeName();
         }
         return CODE;
     }

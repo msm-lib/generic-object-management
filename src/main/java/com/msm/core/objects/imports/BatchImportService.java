@@ -1,6 +1,7 @@
 package com.msm.core.objects.imports;
 
 import com.msm.core.metadata.typesafe.DataRecord;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.model.BatchImportResult;
@@ -9,12 +10,15 @@ import com.msm.core.objects.imports.model.ImportStatus;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jooq.Condition;
+import org.jooq.impl.DSL;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -23,6 +27,7 @@ public class BatchImportService {
 
     private final ImportErrorService importErrorService;
     private final ObjectQueryRepository internalObjectQueryRepository;
+    private final ImportConfigService importConfigService;
 
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -41,7 +46,14 @@ public class BatchImportService {
 
 
             try {
-                importOne(importObjectName, importStagingRecord.get(ImportStagingMeta.DATA));
+                ObjectImportRegistry.IdentityConfig identityConfig = importConfigService.getObject(importObjectName).getIdentity();
+                ObjectImportRegistry.StrategyMode mode =  identityConfig.getStrategy();
+                if(ObjectImportRegistry.StrategyMode.UPSERT.equals(mode)) {
+                    Condition condition = Objects.nonNull(identityConfig.getCondition()) ? DSL.condition(identityConfig.getCondition()) : DSL.noCondition();
+                    upsert(importObjectName, importStagingRecord.get(ImportStagingMeta.DATA), identityConfig.getFields(), condition);
+                }
+
+//                importOne(importObjectName, importStagingRecord.get(ImportStagingMeta.DATA));
                 success++;
                 importRowResults.add(
                         new ImportRowResult(
@@ -82,6 +94,20 @@ public class BatchImportService {
         );
     }
 
+
+    private void upsert(
+            String objectName,
+            Map<String, Object> row,
+            List<String> conflictFields,
+            Condition condition
+    ) {
+        internalObjectQueryRepository.upsert(
+                objectName,
+                row,
+                conflictFields,
+                condition
+        );
+    }
 
     private void importOne(
             String objectName,

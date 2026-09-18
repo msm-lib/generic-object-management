@@ -305,6 +305,11 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
     }
 
     @Override
+    public int upsert(String objectName, Map<String, Object> payload, List<String> conflictOnConstraintNames, Condition condition) {
+        return internalQueryService.upsert(getObjectMetadata(objectName), payload, conflictOnConstraintNames, condition);
+    }
+
+    @Override
     public int[] insertBatch(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         payload.forEach(objectMap -> {
