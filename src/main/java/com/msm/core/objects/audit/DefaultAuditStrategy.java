@@ -5,16 +5,13 @@ import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.security.RequestContextHolder;
 import com.msm.core.security.context.RequestContext;
+import com.msm.core.security.model.Team;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 
 public class DefaultAuditStrategy implements AuditStrategy {
-
-//    @Override
-//    public String supportObjectType() {
-//        return DEFAULT_OBJECT_TYPE; // fallback
-//    }
 
     @Override
     public void apply(AuditAction action, ObjectMetadata meta, Map<String, Object> payload) {
@@ -26,6 +23,8 @@ public class DefaultAuditStrategy implements AuditStrategy {
                 put(meta, payload, Constants.CREATED_BY, ctx.getUsername());
                 put(meta, payload, Constants.CREATED_BY_ID, ctx.getUserId());
                 put(meta, payload, Constants.IS_DELETED, Boolean.FALSE);
+                put(meta, payload, Constants.TEAM_ID, getTeamId(ctx));
+                put(meta, payload, Constants.TEAM_ID_REF, ctx.getTeam());
             }
             case UPDATE -> {
                 put(meta, payload, Constants.UPDATED_AT, now);
@@ -53,4 +52,10 @@ public class DefaultAuditStrategy implements AuditStrategy {
     public String support() {
         return DEFAULT_OBJECT_TYPE; // fallback
     }
+
+    private Object getTeamId(RequestContext ctx) {
+        Team team = ctx.getTeam();
+        return Objects.nonNull(team) ? team.getId() : null;
+    }
+
 }

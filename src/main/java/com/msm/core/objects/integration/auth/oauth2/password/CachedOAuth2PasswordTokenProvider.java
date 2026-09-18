@@ -6,7 +6,7 @@ import com.msm.core.objects.cache.RedisCacheOperator;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.integration.IntegrationJsonUtil;
 import com.msm.core.objects.integration.RequestClient;
-import com.msm.core.objects.integration.auth.JwtUtils;
+import com.msm.core.objects.utils.JwtUtils;
 import com.msm.core.objects.integration.auth.RedisKeyGeneratorOptimized;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
 import com.msm.core.objects.integration.context.HttpRequestContext;
