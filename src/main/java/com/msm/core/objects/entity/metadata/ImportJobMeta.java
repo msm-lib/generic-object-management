@@ -5,8 +5,10 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
+import static com.msm.core.commons.GenericTypeResolverFactory.resolve;
 import static com.msm.core.metadata.typesafe.MetaFieldBuilder.attr;
 
 public final class ImportJobMeta {
@@ -32,14 +34,14 @@ public final class ImportJobMeta {
     public static final TypedAttribute<String> OBJECT_NAME_FIELD =
             attr(TABLE, "objectName", "object_name", String.class);
 
-    public static final TypedAttribute<UUID> ATTACHMENT_ID =
-            attr(TABLE, "attachmentId", "attachment_id", UUID.class);
-
-    public static final TypedAttribute<String> FILE_NAME =
-            attr(TABLE, "fileName", "file_name", String.class);
-
-    public static final TypedAttribute<String> FILE_PATH =
-            attr(TABLE, "filePath", "file_path", String.class);
+//    public static final TypedAttribute<UUID> ATTACHMENT_ID =
+//            attr(TABLE, "attachmentId", "attachment_id", UUID.class);
+//
+//    public static final TypedAttribute<String> FILE_NAME =
+//            attr(TABLE, "fileName", "file_name", String.class);
+//
+//    public static final TypedAttribute<String> FILE_PATH =
+//            attr(TABLE, "filePath", "file_path", String.class);
 
     public static final TypedAttribute<String> STATUS =
             attr(TABLE, "status", "status", String.class);
@@ -79,6 +81,11 @@ public final class ImportJobMeta {
 
     public static final TypedAttribute<String> ERROR_MESSAGE =
             attr(TABLE, "errorMessage", "error_message", String.class);
+
+
+    public static final TypedAttribute<Map<String, Object>> FILE_INFO =
+            attr(TABLE, "fileInfo", "file_info", resolve(Map.class, String.class, Object.class));
+
 
     // =========================================================
     // Auditing (Inherited from AuditingEntity)

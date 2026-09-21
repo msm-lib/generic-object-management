@@ -34,17 +34,14 @@ public final class ExportJobMeta {
     public static final TypedAttribute<String> OBJECT_NAME_FIELD =
             attr(TABLE, "objectName", "object_name", String.class);
 
+    public static final TypedAttribute<String> SERVICE =
+            attr(TABLE, "service", "service", String.class);
+
     public static final TypedAttribute<UUID> ATTACHMENT_ID =
             attr(TABLE, "attachmentId", "attachment_id", UUID.class);
 
     public static final TypedAttribute<String> STATUS =
             attr(TABLE, "status", "status", String.class);
-
-    public static final TypedAttribute<String> FILE_NAME =
-            attr(TABLE, "fileName", "file_name", String.class);
-
-    public static final TypedAttribute<String> FILE_PATH =
-            attr(TABLE, "filePath", "file_path", String.class);
 
     public static final TypedAttribute<Map<String, Object>> FILTER_CRITERIA =
             attr(TABLE, "filterCriteria", "filter_criteria", resolve(Map.class, String.class, Object.class));
@@ -68,6 +65,9 @@ public final class ExportJobMeta {
 
     public static final TypedAttribute<Instant> COMPLETED_AT =
             attr(TABLE, "completedAt", "completed_at", Instant.class);
+
+    public static final TypedAttribute<Map<String, Object>> FILE_INFO =
+            attr(TABLE, "fileInfo", "file_info", resolve(Map.class, String.class, Object.class));
 
     // =========================================================
     // Auditing & Lifecycle

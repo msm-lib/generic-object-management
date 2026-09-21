@@ -28,6 +28,15 @@ public final class ObjectActionNamed {
 
         public static final String DOWNLOAD_FILE_ERRORS = "excel_download_file_error_processing";
         public static final String FILE_PROCESSED_EVENT = "excel_file_processed_event";
+
+        public static final String EXPORT_FILE = "excel_export_file";
+
+        public static final class Export {
+            public static final String CREATE_HEADER = "export_excel_create_header_processing";
+            public static final String DETECT_COLUMN_HEADER_MAPPING = "export_excel_detect_column_mapping_processing";
+            public static final String ROW_MAPPING = "export_excel_row_mapping_processing";
+        }
+
     }
 
     public static final class IntegrationLog {

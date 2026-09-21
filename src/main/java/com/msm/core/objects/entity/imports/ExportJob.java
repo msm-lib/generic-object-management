@@ -36,15 +36,14 @@ public class ExportJob extends AuditingEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @NotNull
     @Size(max = 60)
     @Column(name = "object_name")
     private String objectName;
 
-    @Column(name = "attachment_id")
-    private UUID attachmentId;
+//    @Size(max = 60)
+//    @Column(name = "service")
+//    private String service;
 
-    @NotNull
     @Size(max = 60)
     @Column(name = "status")
     private String status;
@@ -53,14 +52,6 @@ public class ExportJob extends AuditingEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> filterCriteria = new HashMap<>();
 
-    @Size(max = 1000)
-    @Column(name = "file_name")
-    private String fileName;
-
-    @Column(name = "file_path", columnDefinition = "text")
-    private String filePath;
-
-    @NotNull
     @AttributeDefinition(defaultValue = "0", required = true)
     @Column(name = "total_rows")
     private Long totalRows;
@@ -73,5 +64,9 @@ public class ExportJob extends AuditingEntity {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "file_info")
+    private Map<String, Object> fileInfo;
 }
 

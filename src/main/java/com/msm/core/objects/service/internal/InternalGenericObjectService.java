@@ -54,6 +54,7 @@ public class InternalGenericObjectService {
         objectFilter.setReturnFields(returnFields);
 
         ActionContext<ObjectFilterRequest> actionRequest = createActionContext(objectName, Constants.FilterAction.FILTER_OBJECT_BY_ID, objectFilter);
+        actionRequest.setObjectId(id);
         return actionExecutor.execute(actionRequest);
     }
 

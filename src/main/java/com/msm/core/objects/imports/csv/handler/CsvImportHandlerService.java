@@ -2,19 +2,21 @@ package com.msm.core.objects.imports.csv.handler;
 
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
-import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.ObjectActionNamed;
-import com.msm.core.objects.config.GenericObjectConfigProperties;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.imports.BatchValidationService;
 import com.msm.core.objects.imports.FileReaderService;
+import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ImportHelper;
+import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import com.msm.core.objects.imports.model.BatchRowData;
-import com.msm.core.objects.imports.model.CellMapperContext;
+import com.msm.core.objects.imports.model.CellMappingContext;
 import com.msm.core.objects.imports.model.ReadActionContext;
-import com.msm.core.objects.imports.model.RowMapperContext;
+import com.msm.core.objects.imports.model.RowMappingContext;
 import com.msm.core.objects.imports.reference.AttributeRefHelper;
+import com.msm.core.objects.imports.reference.AttributeReferenceResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVRecord;
@@ -29,25 +31,22 @@ import java.util.Set;
 public class CsvImportHandlerService {
     private static final Set<String> IGNORE_ATTRIBUTE = Set.of("customValues");
     private final BatchValidationService batchValidationService;
-    private final ActionExecutor actionExecutor;
-    private final GenericObjectConfigProperties config;
     private final FileReaderService fileReaderService;
-
+    private final AttributeReferenceResolver attributeReferenceResolver;
+    private final ImportConfigService importConfigService;
 
     @Handler(action = ObjectActionNamed.Csv.READ_FILE)
     public void readData(ActionContext<ReadActionContext<CSVRecord>> actionContext) {
         ReadActionContext<CSVRecord> readActionContext = actionContext.getPayload();
+        ObjectImportRegistry.ProcessingConfig objectConfig = importConfigService.getProcessingConfig(actionContext.getResource());
+
         fileReaderService.readCsv(
                 readActionContext.importObjectName(),
                 readActionContext.importId(),
                 readActionContext.fileUrl(),
+                objectConfig.getBufferSize(),
                 readActionContext.rowConsumer()
         );
-//        readRow(
-//                readActionContext.importObjectName(),
-//                readActionContext.fileUrl(),
-//                readActionContext.rowConsumer()
-//        );
     }
 
 //    @Handler(action = ObjectActionNamed.Csv.DETECT_COLUMN_HEADER_MAPPING)
@@ -67,26 +66,34 @@ public class CsvImportHandlerService {
 //    }
 
     @Handler(action = ObjectActionNamed.Csv.ROW_MAPPING)
-    public Map<String, Object> rowMapping(ActionContext<RowMapperContext<CSVRecord>> actionContext) {
+    public Map<String, Object> rowMapping(ActionContext<RowMappingContext<CSVRecord>> actionContext) {
         return mapRow(actionContext.getPayload());
     }
 
     @Handler(action = ObjectActionNamed.Csv.CELL_MAPPING)
-    public Object cellProcessMap(ActionContext<CellMapperContext> actionContext) {
-        CellMapperContext cellMapperContext = actionContext.getPayload();
-        Map<String, Object> rowData = cellMapperContext.rowData();
-        Object attrVal = rowData.get(cellMapperContext.attribute().getFieldName());
+    public Object cellProcessMap(ActionContext<CellMappingContext> actionContext) {
+        CellMappingContext cellMappingContext = actionContext.getPayload();
+        Map<String, Object> rowData = cellMappingContext.rowData();
+        Object attrVal = rowData.get(cellMappingContext.attribute().getFieldName());
 
-        if (AttributeRefHelper.hasRef(cellMapperContext.attribute())) {
+        if (AttributeRefHelper.hasRef(cellMappingContext.attribute())) {
             return attrVal;
         }
 
-        if (Objects.nonNull(attrVal) && cellMapperContext.attribute().isCollectionField()) {
+        if (Objects.nonNull(attrVal) && cellMappingContext.attribute().isCollectionField()) {
             return ImportHelper.arrayParser(String.valueOf(attrVal));
         }
 
-        return cellMapperContext.attribute().cast(attrVal);
+        return cellMappingContext.attribute().cast(attrVal);
     }
+
+
+    @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+    public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
+        AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
+        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
+    }
+
 
     @Handler(action = ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
     public void batchRowDataProcessing(ActionContext<BatchRowData> actionContext) {
@@ -96,7 +103,11 @@ public class CsvImportHandlerService {
     }
 
 
-    public Map<String, Object> mapRow(RowMapperContext<CSVRecord> context) {
+
+
+
+
+    public Map<String, Object> mapRow(RowMappingContext<CSVRecord> context) {
         Map<String, Object> dataRowMap = new LinkedHashMap<>();
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(context.objectName());
         objectMetadata.getAttributes().forEach(attribute -> {

@@ -4,7 +4,6 @@ import com.msm.core.action.annotations.ExtendContextKey;
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.condition.AlwaysTrueCondition;
 import com.msm.core.commons.Condition;
-import com.msm.core.commons.Constants;
 import com.msm.core.objects.ObjectActionNamed;
 
 import java.lang.annotation.Documented;
@@ -16,9 +15,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Documented
-@Handler(action = ObjectActionNamed.Excel.ROW_MAPPING)
-public @interface ExcelRowMappingHandler {
-    String resource() default Constants.GENERIC_RESOURCE_NAME;
+@Handler(action = ObjectActionNamed.Excel.CELL_MAPPING)
+public @interface CellMappingHandler {
+    String resource();
     ExtendContextKey[] keyContexts() default {};
     Class<? extends Condition> condition() default AlwaysTrueCondition.class;
 }

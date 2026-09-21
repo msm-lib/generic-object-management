@@ -15,8 +15,17 @@ public class ImportConfigService {
         return registry.getObjects().getOrDefault(objectName, DEFAULT_OBJECT_IMPORT_CONFIG);
     }
 
-
     public ObjectImportRegistry.ReferenceDetailConfig getReferenceConfig(String objectName, String fieldName) {
         return getObject(objectName).getReferences().getOrDefault(fieldName, DEFAULT_REFERENCE_CONFIG);
+    }
+
+    public ObjectImportRegistry.ProcessingConfig getProcessingConfig(String objectName) {
+        ObjectImportRegistry.ObjectConfig objectConfig = getObject(objectName);
+        return objectConfig.getProcessing() == null ? registry.getProcessing() : objectConfig.getProcessing();
+    }
+
+    public ObjectImportRegistry.HeaderConfig getHeader(String objectName) {
+        ObjectImportRegistry.ObjectConfig objectConfig = getObject(objectName);
+        return objectConfig.getHeader() == null ? registry.getHeader() : objectConfig.getHeader();
     }
 }

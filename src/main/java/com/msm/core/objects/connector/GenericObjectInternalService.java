@@ -90,7 +90,7 @@ public class GenericObjectInternalService {
 
 
     String getBaseUrl(String objectName) {
-        String baseUrl = genericObjectConfigProperties.getImportFile().getBasePathUrl();
+        String baseUrl = genericObjectConfigProperties.getApiConfig().getBaseUrl();
         String serviceName = ObjectServiceFactory.getServiceName(objectName);
         if(isLocalhost(baseUrl)) {
             baseUrl = localhost(serviceName);

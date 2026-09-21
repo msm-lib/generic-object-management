@@ -10,24 +10,23 @@ import com.msm.core.filter.domain.pageable.SortDirection;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
-import com.msm.core.objects.config.GenericObjectConfigProperties;
-import com.msm.core.objects.connector.GenericObjectInternalService;
-import com.msm.core.objects.dto.QueryTemplate;
-import com.msm.core.objects.entity.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ReferenceProcessService;
+import com.msm.core.objects.imports.dtometda.AttachmentInfoMeta;
 import com.msm.core.objects.imports.model.BatchImportResult;
 import com.msm.core.objects.imports.model.BatchRowData;
-import com.msm.core.objects.imports.model.CellMapperContext;
+import com.msm.core.objects.imports.model.CellMappingContext;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.model.ImportStatus;
 import com.msm.core.objects.imports.model.ImportValidation;
 import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
-import com.msm.core.objects.imports.model.RowMapperContext;
+import com.msm.core.objects.imports.model.RowMappingContext;
+import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,9 +50,9 @@ public class CsvImportService {
     private final BatchImportService batchImportService;
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ActionExecutor actionExecutor;
-    private final GenericObjectConfigProperties config;
-    private final GenericObjectInternalService genericObjectInternalService;
     private final ReferenceProcessService referenceProcessService;
+    private final S3FileUtils s3FileUtils;
+    private final ImportConfigService importConfigService;
 
 
     @Handler(action = ObjectActionNamed.Csv.IMPORT_FILE)
@@ -61,7 +60,8 @@ public class CsvImportService {
 
         ObjectImportContext objectImportContext = actionContext.getPayload();
         long lastRowNumber = 0;
-        int batchSize = config.getImportFile().batchSize(actionContext.getResource());
+
+        int batchSize = importConfigService.getProcessingConfig(actionContext.getResource()).getBatchSize();
 
         while (true) {
 
@@ -133,17 +133,10 @@ public class CsvImportService {
         UUID importId = DataRecord.of(actionContext.getPayload()).get(IMPORT_JOB_ID_NAME, UUID.class);
         //importJobId
         DataRecord importJobRecord = DataRecord.of(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importId));
+        DataRecord attachmentRecord = DataRecord.of(s3FileUtils.getDownloadInfo(importJobRecord.asMap()));
 
-        Map<String, Object> attachmentDownloadInfo = genericObjectInternalService.query(
-                ATTACHMENT_OBJECT_NAME,
-                createQueryAttachmentInfo(importJobRecord.get(ImportJobMeta.ATTACHMENT_ID))
-        );
-
-        DataRecord attachmentRecord = DataRecord.of(attachmentDownloadInfo);
-
-        log.warn("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
-//        String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
-        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/csv/2026/09/16/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789539157499_2306b6e2.csv?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789539157499_2306b6e2.csv%22%3B%20filename%2A%3DUTF-8%27%27Profile.csv&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEFkaDmFwLXNvdXRoZWFzdC0xIkgwRgIhAOZNBSJhTNKQDLZfqyeuIl3Zc%2BlQs8iiRT1dv4U1AV4wAiEA3sGVbGvorG9i6YBMPQshUt%2BjdEFmGoAFBiStUdkxKxEqmAQIIhAAGgwwNzE0MTgwMTkwNzAiDFBWeRrbi2hYa3w2%2BSr1A7mU8Ska%2B%2BrLeKigwwVo4CBLiZDXVBHVTF217A7zV2yOASseRHQdemymrdDqLIVkhRK46gbp6qiVQSZjcex1P5xhIVFZHciwTnW74c9rJaYiCielZ%2Fh6cCG71xNILBQbRjU0AhdFLqMA4X%2F%2BbBeHXl9tzUPyaU%2FBNGxDXgXjjcQHH13ObRd1Eu%2F2CLFm8cYOVUN4%2BqVZsHZcBi3jMhEv3LrFNQPqnzWqIFuuYkImOnu8mYhTlbrhxesYuWG%2FgwIIJqUxf1VG80dWO4OW1X%2BfJ03R38WZsEL7r6UYKEe%2FI1pf5Tp4TwW0HHrordJblTgogmTd6H0JVD74TCvy4gG8fpjwBvOY%2BjaCB6dpWi%2FhNRjq2b4l9GSJLhvWg5aD7ZCBEysn7QR2vhSJRczep6KqZ1RZzV1EIX9fGyJ5PWgGsujG8Ifbng0Ait%2BybgbDzFxu4Cl%2F%2F1XBolAmC7HR8bC6pETZ3WJthnex4%2B%2B1tw7dYXz4HZB3RKAU3tK1Iyl3kiy%2B9irTSgF6alExAA4ZcZNOGFgb5fSawVDQ5pgDSoduEmTtxxoCGuJGMO5MNoqR1MLLUAz0TtJF0d09VVVe2qqgPcWB%2F5eHrhAsZwetggvmA6mJtIV%2Flt%2B9fDUVYxGnb%2FVbHb3s3%2BLewQcsFsw3%2BN2kf%2BjAK9jifDD0%2FqzVBjqlAXLDJPUde0G9i78y9i1tnmEQ7IdPXKx1h2B3diqKCGnTBlp8mUqueaLuOBU9VO3V8u7B%2BhS5HtXHjmI%2FaJC%2BMcUKDCQAnMopxW0nQ0Qa79X4fdp77SaCfZQxeFg6oWyWH120Xbbz3dYZaDiG7myXkvWYMpvcKZLRNOQrbQbfvnQSyrGur0oRQU4sT6trNRDw5ap8xV0nnyUCqTKQNF%2BzBfH%2FaW2nTg%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260917T051201Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7DFNWSWBK%2F20260917%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=6aa03182bcad40378f3e7a247d96407f3bb7e19a5eb640df27bd881438d42462";
+        log.info("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
+        String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
         ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
 
         internalObjectQueryRepository.update(
@@ -152,10 +145,7 @@ public class CsvImportService {
                 DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATING.name()).getValues()
         );
 
-//        final Map<Integer, String>[] cachedHeaderMap = new Map[]{null};
-//        GenericObjectConfigProperties.Header header = config.getImportFile().header(actionContext.getResource());
-
-        int batchSize = config.getImportFile().batchSize(actionContext.getResource());
+        int batchSize = importConfigService.getProcessingConfig(actionContext.getResource()).getBatchSize();
         List<ImportRow> batchBuffer = new ArrayList<>();
         Consumer<RawRow<CSVRecord>> rowConsumer = importRow -> {
             Map<String, Object> rowData = rowMapping(importId, importRow);
@@ -190,14 +180,14 @@ public class CsvImportService {
 
     private Map<String, Object> rowMapping(UUID importId, RawRow<CSVRecord> row) {
 
-        RowMapperContext<CSVRecord> mapperContext = RowMapperContext.of(
+        RowMappingContext<CSVRecord> mapperContext = RowMappingContext.of(
                 importId,
                 row.rowNumber(),
                 row.objectName(),
                 row.data()
         );
-        ActionContext<RowMapperContext<CSVRecord>> actionContext = ActionContext
-                .<RowMapperContext<CSVRecord>>builder()
+        ActionContext<RowMappingContext<CSVRecord>> actionContext = ActionContext
+                .<RowMappingContext<CSVRecord>>builder()
                 .resource(row.objectName())
                 .action(ObjectActionNamed.Csv.ROW_MAPPING)
                 .payload(mapperContext)
@@ -214,12 +204,12 @@ public class CsvImportService {
             if (rowData.containsKey(attribute.getFieldName())
                     && !IGNORE_ATTRIBUTE.contains(attribute.getFieldName())) {
                 String objectCellResource = Utils.STR.format("{0}.{1}",  objectName, attribute.getFieldName());
-                CellMapperContext cellMapperContext = CellMapperContext.of(importId, objectName, attribute, rowData);
-                ActionContext<CellMapperContext> actionContext = ActionContext
-                        .<CellMapperContext>builder()
+                CellMappingContext cellMappingContext = CellMappingContext.of(importId, objectName, attribute, rowData);
+                ActionContext<CellMappingContext> actionContext = ActionContext
+                        .<CellMappingContext>builder()
                         .resource(objectCellResource)
                         .action(ObjectActionNamed.Csv.CELL_MAPPING)
-                        .payload(cellMapperContext)
+                        .payload(cellMappingContext)
                         .build();
 
                 Object columnDataValue = actionExecutor.execute(actionContext);;
@@ -289,13 +279,13 @@ public class CsvImportService {
 
 
 
-    public static QueryTemplate createQueryAttachmentInfo(Object attachmentId) {
-        Map<String, Object> parameters = Utils.CL.newHashMap("id", attachmentId);
-        return QueryTemplate.builder()
-                .query("attachment-download-info")
-                .parameters(parameters)
-                .build();
-    }
+//    public static QueryTemplate createQueryAttachmentInfo(Object attachmentId) {
+//        Map<String, Object> parameters = Utils.CL.newHashMap("id", attachmentId);
+//        return QueryTemplate.builder()
+//                .query("attachment-download-info")
+//                .parameters(parameters)
+//                .build();
+//    }
 
     private void trackingRowProcessing(UUID importId, long rowCount) {
         internalObjectQueryRepository.updateWithExpressions(

@@ -1,5 +1,6 @@
 package com.msm.core.objects.repository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
@@ -8,6 +9,8 @@ import org.jooq.Condition;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public interface ObjectQueryRepository {
     PageResponse<Map<String, Object>> lookup(ActionContext<ObjectFilterRequest> request);
@@ -15,6 +18,14 @@ public interface ObjectQueryRepository {
     PageResponse<Map<String, Object>> lookup(String objectName, ObjectFilterRequest request);
 
     PageResponse<Map<String, Object>> filter(ActionContext<ObjectFilterRequest> request);
+
+    Stream<Map<String, Object>> filterStream(String objectName, ObjectFilterRequest request, int fetchSize);
+
+    <T> void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, Class<T> targetClass, Consumer<T> consumer);
+
+    <T> void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, TypeReference<T> targetType, Consumer<T> consumer);
+
+    void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, Consumer<Map<String, Object>> consumer);
 
     List<Map<String, Object>> findObject(ActionContext<ObjectFilterRequest> request);
 

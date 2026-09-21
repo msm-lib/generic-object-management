@@ -4,7 +4,6 @@ import com.github.pjfanning.xlsx.StreamingReader;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.objects.ObjectActionNamed;
-import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.imports.csv.CsvDelimiterDetector;
 import com.msm.core.objects.imports.model.FileProcessStatus;
 import com.msm.core.objects.imports.model.FileProcessedEventContext;
@@ -42,20 +41,16 @@ import java.util.function.Consumer;
 @Slf4j
 @RequiredArgsConstructor
 public class FileReaderService {
-
-
     private final ActionExecutor actionExecutor;
-    private final GenericObjectConfigProperties config;
 
-    public void readCsv(String importObjectName, UUID importId, String fileUrl, Consumer<RawRow<CSVRecord>> consumer) {
+
+    public void readCsv(String importObjectName, UUID importId, String fileUrl, int bufferSize, Consumer<RawRow<CSVRecord>> consumer) {
 
         FileProcessStatus status = FileProcessStatus.PROCESSING;
         CharsetDecoder decoder = StandardCharsets.UTF_8
                 .newDecoder()
                 .onMalformedInput(CodingErrorAction.IGNORE)
                 .onUnmappableCharacter(CodingErrorAction.IGNORE);
-
-        int bufferSize = config.getImportFile().bufferSize(importObjectName);
 
         try (BOMInputStream bomInputStream = BOMInputStream.builder().setURI(URI.create(fileUrl)).get();
              InputStreamReader isr = new InputStreamReader(bomInputStream, decoder);
@@ -116,7 +111,6 @@ public class FileReaderService {
             status = FileProcessStatus.SUCCESS;
             throw Lombok.sneakyThrow(e);
         } finally {
-
             finishFileProcess(importObjectName, importId, FileType.EXCEL, status);
         }
     }

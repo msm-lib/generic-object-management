@@ -1,5 +1,6 @@
 package com.msm.core.objects.repository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.commons.Constants;
@@ -21,7 +22,9 @@ import org.jooq.Condition;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 public class InternalObjectQueryRepository implements ObjectQueryRepository {
@@ -49,6 +52,41 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         PageResponse<Map<String, Object>> pageResponse = internalQueryService.filter(objectMetadata, request.getPayload());
         Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> mapFrom(objectMetadata, object));
         return pageResponse;
+    }
+
+    @Override
+    public Stream<Map<String, Object>> filterStream(String objectName, ObjectFilterRequest request, int fetchSize) {
+        return internalQueryService.filterStream(
+                getObjectMetadata(objectName),
+                request,
+                fetchSize
+        );
+    }
+
+    @Override
+    public <T> void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, Class<T> targetClass, Consumer<T> consumer) {
+        internalQueryService.filterStream(getObjectMetadata(objectName), request, fetchSize, targetClass, consumer);
+    }
+
+    @Override
+    public <T> void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, TypeReference<T> targetType, Consumer<T> consumer) {
+        internalQueryService.filterStream(getObjectMetadata(objectName), request, fetchSize, targetType, consumer);
+    }
+
+    @Override
+    public void filterStream(String objectName, ObjectFilterRequest request, int fetchSize, Consumer<Map<String, Object>> consumer) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        Consumer<Map<String, Object>> mappedConsumer = row -> {
+            mapFrom(objectMetadata, row);
+            consumer.accept(row);
+        };
+
+        internalQueryService.filterStream(
+                objectMetadata,
+                request,
+                fetchSize,
+                mappedConsumer
+        );
     }
 
     public List<Map<String, Object>> findObject(ActionContext<ObjectFilterRequest> request) {

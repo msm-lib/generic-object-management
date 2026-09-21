@@ -1,7 +1,8 @@
-package com.msm.core.objects.entity.metadata;
+package com.msm.core.objects.imports.dtometda;
 
 import com.msm.core.metadata.typesafe.TypedAttribute;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static com.msm.core.metadata.typesafe.MetaFieldBuilder.attr;
@@ -31,4 +32,10 @@ public final class AttachmentInfoMeta {
 
     public static final TypedAttribute<String> FILE_NAME =
             attr("fileName", String.class);
+
+    public static final TypedAttribute<Instant> EXPIRES_AT =
+            attr("expiresAt", Instant.class);
+
+    public static final TypedAttribute<Long> EXPIRES_IN_MINUTES =
+            attr("expiresInMinutes", Long.class);
 }

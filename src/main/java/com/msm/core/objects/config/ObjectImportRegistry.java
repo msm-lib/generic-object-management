@@ -15,7 +15,6 @@ import java.util.Set;
 @ConfigurationProperties(prefix = "imports")
 public class ObjectImportRegistry {
 
-    private String basePathUrl;
     private HeaderConfig header;
     private ProcessingConfig processing;
     private ConversionConfig conversion;
@@ -38,7 +37,8 @@ public class ObjectImportRegistry {
 
     @Data
     public static class ObjectConfig {
-        private ProcessingConfig processing = new ProcessingConfig();
+        private HeaderConfig header;
+        private ProcessingConfig processing;
         private IdentityConfig identity = new IdentityConfig();
         private Map<String, ReferenceDetailConfig> references = new HashMap<>();
     }
@@ -55,14 +55,14 @@ public class ObjectImportRegistry {
     public static class ReferenceDetailConfig {
         private List<LookupValuesConfig> lookups = Utils.CL.newArrayList(new LookupValuesConfig());
         private List<String> fields = Utils.CL.newArrayList("id", "code", "name");
-        private Map<String, String> mappingKeys = new HashMap<>();
+        private Map<String, String> mappingValues = new HashMap<>();
     }
 
     @Data
     public static class LookupValuesConfig {
         private String attributeName = "code";
         private Set<String> defaultValues = null;
-        private boolean primary = false;
+        private boolean primary = true;
     }
 
     @Data

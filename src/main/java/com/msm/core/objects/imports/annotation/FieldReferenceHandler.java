@@ -4,7 +4,6 @@ import com.msm.core.action.annotations.ExtendContextKey;
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.condition.AlwaysTrueCondition;
 import com.msm.core.commons.Condition;
-import com.msm.core.commons.Constants;
 import com.msm.core.objects.ObjectActionNamed;
 
 import java.lang.annotation.Documented;
@@ -16,9 +15,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Documented
-@Handler(action = ObjectActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
-public @interface ExcelDetectColumnHeaderHandler {
-    String resource() default Constants.GENERIC_RESOURCE_NAME;
+@Handler(action = ObjectActionNamed.Excel.FIELD_REFERENCE_RESOLVE)
+public @interface FieldReferenceHandler {
+    String resource();
     ExtendContextKey[] keyContexts() default {};
     Class<? extends Condition> condition() default AlwaysTrueCondition.class;
 }

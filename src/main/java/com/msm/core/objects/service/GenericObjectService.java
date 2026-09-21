@@ -71,7 +71,7 @@ public class GenericObjectService {
                 .action(Constants.FilterAction.FILTER_OBJECT_BY_ID)
                 .payload(objectFilter)
                 .build();
-
+        actionRequest.setObjectId(id);
         return actionExecutor.execute(actionRequest);
     }
 

@@ -4,7 +4,6 @@ import com.msm.core.action.annotations.ExtendContextKey;
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.condition.AlwaysTrueCondition;
 import com.msm.core.commons.Condition;
-import com.msm.core.commons.Constants;
 import com.msm.core.objects.ObjectActionNamed;
 
 import java.lang.annotation.Documented;
@@ -17,8 +16,8 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Documented
 @Handler(action = ObjectActionNamed.Excel.ROW_MAPPING)
-public @interface ExcelCellMappingHandler {
-    String resource() default Constants.GENERIC_RESOURCE_NAME;
+public @interface RowMappingHandler {
+    String resource();
     ExtendContextKey[] keyContexts() default {};
     Class<? extends Condition> condition() default AlwaysTrueCondition.class;
 }

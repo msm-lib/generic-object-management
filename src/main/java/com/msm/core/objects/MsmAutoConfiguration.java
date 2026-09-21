@@ -34,6 +34,7 @@ import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
 import com.msm.core.objects.config.ObjectImportRegistry;
+import com.msm.core.objects.config.S3PropConfig;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.connector.MasterDataApiService;
@@ -47,6 +48,7 @@ import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
 import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.BatchValidationService;
+import com.msm.core.objects.imports.ExportJobService;
 import com.msm.core.objects.imports.FileReaderService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ImportErrorService;
@@ -55,13 +57,16 @@ import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.config.ImportConfigLoader;
 import com.msm.core.objects.imports.csv.CsvImportService;
 import com.msm.core.objects.imports.csv.handler.CsvImportHandlerService;
-import com.msm.core.objects.imports.excel.ExcelImportService;
+import com.msm.core.objects.imports.excel.ImportExcelService;
+import com.msm.core.objects.imports.excel.ExportExcelTemplateService;
+import com.msm.core.objects.imports.excel.ExportExcelService;
+import com.msm.core.objects.imports.excel.ExportJobTransactionService;
 import com.msm.core.objects.imports.excel.handler.ExcelImportHandlerService;
+import com.msm.core.objects.imports.excel.handler.ExportExcelHandlerService;
 import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
-import com.msm.core.objects.imports.reference.CsvAttributeReferenceService;
-import com.msm.core.objects.imports.reference.ExcelAttributeReferenceService;
-import com.msm.core.objects.imports.reference.TypeAndCodeReferenceResolver;
+import com.msm.core.objects.imports.reference.AttributeReferenceResolver;
 import com.msm.core.objects.imports.s3.ExcelOriginalMultipartAsyncService;
+import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
@@ -156,6 +161,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -166,7 +172,8 @@ import java.util.concurrent.Executor;
 @EnableConfigurationProperties({
         GenericObjectConfigProperties.class,
         IntegrationProperties.class,
-        ObjectImportRegistry.class
+        ObjectImportRegistry.class,
+        S3PropConfig.class
 })
 public class MsmAutoConfiguration {
 
@@ -785,44 +792,42 @@ public class MsmAutoConfiguration {
             BatchImportService batchImportService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
-            GenericObjectConfigProperties config,
-            GenericObjectInternalService genericObjectInternalService,
-            ReferenceProcessService referenceProcessService
+            ReferenceProcessService referenceProcessService,
+            S3FileUtils s3FileUtils,
+            ImportConfigService importConfigService
     ) {
         return new CsvImportService(
                 batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
-                config,
-                genericObjectInternalService,
-                referenceProcessService
+                referenceProcessService,
+                s3FileUtils,
+                importConfigService
         );
     }
 
 
     @Bean("fileReaderService")
     public FileReaderService fileReaderService(
-            ActionExecutor actionExecutor,
-            GenericObjectConfigProperties config
+            ActionExecutor actionExecutor
     ) {
         return new FileReaderService(
-                actionExecutor,
-                config
+                actionExecutor
         );
     }
 
     @Bean("csvImportHandlerService")
     public CsvImportHandlerService csvImportHandlerService(
             BatchValidationService processValidationBatch,
-            ActionExecutor actionExecutor,
-            GenericObjectConfigProperties config,
-            FileReaderService fileReaderService
+            FileReaderService fileReaderService,
+            AttributeReferenceResolver attributeReferenceResolver,
+            ImportConfigService importConfigService
     ) {
         return new CsvImportHandlerService(
                 processValidationBatch,
-                actionExecutor,
-                config,
-                fileReaderService
+                fileReaderService,
+                attributeReferenceResolver,
+                importConfigService
         );
     }
 
@@ -841,39 +846,18 @@ public class MsmAutoConfiguration {
 
 
     @Bean("typeAndCodeReferenceResolver")
-    public TypeAndCodeReferenceResolver typeAndCodeReferenceResolver(
+    public AttributeReferenceResolver typeAndCodeReferenceResolver(
             GenericObjectInternalService genericObjectInternalService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportConfigService importConfigService
     ) {
-        return new TypeAndCodeReferenceResolver(
+        return new AttributeReferenceResolver(
                 genericObjectInternalService,
                 internalObjectQueryRepository,
                 importConfigService
         );
     }
 
-    @Bean("attributeReferenceService")
-    public CsvAttributeReferenceService attributeReferenceService(
-            AttributeCodeReferenceResolver attributeCodeReferenceResolver,
-            TypeAndCodeReferenceResolver typeAndCodeReferenceResolver
-    ) {
-        return new CsvAttributeReferenceService(
-                attributeCodeReferenceResolver,
-                typeAndCodeReferenceResolver
-        );
-    }
-
-    @Bean("excelAttributeReferenceService")
-    public ExcelAttributeReferenceService excelAttributeReferenceService(
-            AttributeCodeReferenceResolver attributeCodeReferenceResolver,
-            TypeAndCodeReferenceResolver typeAndCodeReferenceResolver
-    ) {
-        return new ExcelAttributeReferenceService(
-                attributeCodeReferenceResolver,
-                typeAndCodeReferenceResolver
-        );
-    }
 
     @Bean("importConfigService")
     public ImportConfigService importConfigService(
@@ -897,61 +881,137 @@ public class MsmAutoConfiguration {
     public ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService(
             GenericObjectInternalService genericObjectInternalService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            S3Client s3Client
+            S3Client s3Client,
+            S3FileUtils s3FileUtils
     ) {
         return new ExcelOriginalMultipartAsyncService(
                 genericObjectInternalService,
                 internalObjectQueryRepository,
-                s3Client
+                s3Client,
+                s3FileUtils
         );
     }
 
     //Excel
     @Bean("excelImportService")
-    public ExcelImportService excelImportService(
+    public ImportExcelService excelImportService(
             BatchImportService batchImportService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config,
-            GenericObjectInternalService genericObjectInternalService,
             ReferenceProcessService referenceProcessService,
-            ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService
+            ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService,
+            S3FileUtils s3FileUtils,
+            ImportConfigService importConfigService
     ) {
-        return new ExcelImportService(
+        return new ImportExcelService(
                 batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
-                config,
-                genericObjectInternalService,
                 referenceProcessService,
-                excelOriginalMultipartAsyncService
+                excelOriginalMultipartAsyncService,
+                s3FileUtils,
+                importConfigService
         );
     }
 
     @Bean("excelImportHandlerService")
     public ExcelImportHandlerService excelImportHandlerService(
             BatchValidationService processValidationBatch,
-            ActionExecutor actionExecutor,
-            GenericObjectConfigProperties config,
-            FileReaderService fileReaderService
+            FileReaderService fileReaderService,
+            AttributeReferenceResolver attributeReferenceResolver,
+            ImportConfigService importConfigService
     ) {
         return new ExcelImportHandlerService(
                 processValidationBatch,
+                fileReaderService,
+                attributeReferenceResolver,
+                importConfigService
+        );
+    }
+
+    @Bean("exportExcelHandlerService")
+    public ExportExcelHandlerService exportExcelHandlerService(
+    ) {
+        return new ExportExcelHandlerService();
+    }
+
+    @Bean("excelTemplateService")
+    public ExportExcelTemplateService excelTemplateService(
+            S3Client s3Client,
+            ActionExecutor actionExecutor
+    ) {
+        return new ExportExcelTemplateService(
+                s3Client,
+                actionExecutor
+        );
+    }
+
+    @Bean("exportJobTransactionService")
+    public ExportJobTransactionService exportJobTransactionService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+    ) {
+        return new ExportJobTransactionService(
+                internalObjectQueryRepository
+        );
+    }
+
+    @Bean("exportExcelService")
+    public ExportExcelService exportExcelService(
+            ExportExcelTemplateService exportExcelTemplateService,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            S3Client s3Client,
+            S3FileUtils s3FileUtils,
+            ActionExecutor actionExecutor,
+            ExportJobTransactionService exportJobTransactionService
+    ) {
+        return new ExportExcelService(
+                exportExcelTemplateService,
+                internalObjectQueryRepository,
+                s3Client,
+                s3FileUtils,
                 actionExecutor,
-                config,
-                fileReaderService
+                exportJobTransactionService
         );
     }
 
 
+    @Bean("s3FileUtils")
+    public S3FileUtils s3FileUtils(
+            S3Client s3Client,
+            S3Presigner s3Presigner,
+            S3PropConfig s3PropConfig
+    ) {
+        return new S3FileUtils(
+                s3Client,
+                s3Presigner,
+                s3PropConfig
+        );
+    }
+
     @Bean("importJobService")
     public ImportJobService importJobService(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService
+            GenericObjectInternalService genericObjectInternalService,
+            S3FileUtils s3FileUtils
     ) {
         return new ImportJobService(
                 genericObjectInternalService,
-                internalObjectQueryRepository
+                internalObjectQueryRepository,
+                s3FileUtils
+        );
+    }
+
+    @Bean("exportJobService")
+    public ExportJobService exportJobService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ExportExcelService exportExcelService,
+            S3FileUtils s3FileUtils
+    ) {
+        return new ExportJobService(
+                internalObjectQueryRepository,
+                exportExcelService,
+                s3FileUtils
         );
     }
 

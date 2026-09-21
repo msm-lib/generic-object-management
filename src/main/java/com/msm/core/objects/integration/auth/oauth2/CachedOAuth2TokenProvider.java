@@ -4,9 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.msm.core.commons.Utils;
 import com.msm.core.objects.cache.RedisCacheOperator;
 import com.msm.core.objects.config.IntegrationProperties;
-import com.msm.core.objects.integration.IntegrationJsonUtil;
 import com.msm.core.objects.integration.RequestClient;
-import com.msm.core.objects.utils.JwtUtils;
 import com.msm.core.objects.integration.auth.RedisKeyGeneratorOptimized;
 import com.msm.core.objects.integration.auth.common.TokenProvider;
 import com.msm.core.objects.integration.context.HttpRequestContext;
@@ -15,6 +13,8 @@ import com.msm.core.objects.integration.data.outh2.OAuth2Properties;
 import com.msm.core.objects.integration.data.outh2.OAuth2Token;
 import com.msm.core.objects.integration.data.retry.RetryRequestConfig;
 import com.msm.core.objects.integration.retry.RetryExecutor;
+import com.msm.core.objects.utils.JsonPathUtil;
+import com.msm.core.objects.utils.JwtUtils;
 import com.msm.core.security.RequestContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -88,7 +88,7 @@ public class CachedOAuth2TokenProvider implements TokenProvider {
     private String parseToken(Object response, OAuth2Properties oAuth2Context) {
         Map<String, Object> objectMap = Utils.O.toMap(response);
         String accessTokenName = Utils.STR.defaultIfBlank(oAuth2Context.getAccessTokenPath(), () -> "token");
-        return IntegrationJsonUtil.extractValue(objectMap, accessTokenName);
+        return JsonPathUtil.extractValue(objectMap, accessTokenName);
     }
 
     private Map<String, String> buildBody(OAuth2Properties properties) {

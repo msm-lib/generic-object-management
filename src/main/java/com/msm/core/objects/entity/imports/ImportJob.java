@@ -16,8 +16,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @IgnorePermission
@@ -39,15 +42,6 @@ public class ImportJob extends AuditingEntity {
 
     @Column(name = "object_name")
     private String objectName;
-
-    @Column(name = "attachment_id")
-    private UUID attachmentId;
-
-    @Column(name = "file_name")
-    private String fileName;
-
-    @Column(name = "file_path")
-    private String filePath;
 
     @Column(name = "status")
     private String status;
@@ -79,4 +73,8 @@ public class ImportJob extends AuditingEntity {
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "file_info")
+    private Map<String, Object> fileInfo;
 }

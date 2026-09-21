@@ -29,10 +29,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-public class TypeAndCodeReferenceResolver {
+public class AttributeReferenceResolver {
     private static final String CODE = "code";
-    private static final String GEOGRAPHY_TYPE_ID = "geographyTypeId";
-
     protected final GenericObjectInternalService genericObjectInternalService;
     protected final ObjectQueryRepository internalObjectQueryRepository;
     protected final ImportConfigService importConfigService;

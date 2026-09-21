@@ -1,25 +1,24 @@
 package com.msm.core.objects.imports.reference;
 
-import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
-import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
+@Deprecated
 @RequiredArgsConstructor
 public class CsvAttributeReferenceService {
     private final AttributeCodeReferenceResolver attributeCodeReferenceResolver;
-    private final TypeAndCodeReferenceResolver typeAndCodeReferenceResolver;
+    private final AttributeReferenceResolver attributeReferenceResolver;
 
 
 
     //Default ref by code
-    @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
+//    @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
-        return typeAndCodeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
+        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
     }
 
 
