@@ -113,13 +113,13 @@ public class ImportDataExecutor {
     }
 
 
-    public List<Map<String, Object>> updateObject(String objectName, Object id, Map<String, Object> row) {
-        ActionContext<List<Map<String, Object>>> actionContext = ActionContext
-                .<List<Map<String, Object>>>builder()
+    public Map<String, Object> updateObject(String objectName, Object id, Map<String, Object> row) {
+        ActionContext<Map<String, Object>> actionContext = ActionContext
+                .<Map<String, Object>>builder()
                 .resource(objectName)
                 .objectId(id)
                 .action(Constants.Action.UPDATE)
-                .payload(Utils.CL.newArrayList(row))
+                .payload(row)
                 .build();
 
         return actionExecutor.execute(actionContext);
