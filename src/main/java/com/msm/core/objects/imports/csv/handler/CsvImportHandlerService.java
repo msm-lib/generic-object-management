@@ -95,7 +95,7 @@ public class CsvImportHandlerService {
     }
 
 
-    @Handler(action = ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
+    @Handler(action = ObjectActionNamed.Csv.DATA_VALIDATE_PROCESSING)
     public void batchRowDataProcessing(ActionContext<BatchRowData> actionContext) {
         BatchRowData batchRowData = actionContext.getPayload();
         ObjectMetadata metadata = ObjectMetadataFactory.getObjectMetadataByName(batchRowData.importObjectName());

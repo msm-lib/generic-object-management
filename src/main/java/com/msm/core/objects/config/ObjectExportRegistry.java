@@ -1,6 +1,5 @@
 package com.msm.core.objects.config;
 
-import com.msm.core.commons.Utils;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -12,9 +11,10 @@ import java.util.Map;
 import java.util.Set;
 
 @Data
-@ConfigurationProperties(prefix = "imports")
-public class ObjectImportRegistry {
+@ConfigurationProperties(prefix = "exports")
+public class ObjectExportRegistry {
 
+    private String template;
     private HeaderConfig header;
     private ProcessingConfig processing;
     private ConversionConfig conversion;
@@ -37,38 +37,34 @@ public class ObjectImportRegistry {
 
     @Data
     public static class ObjectConfig {
+        private String template;
         private HeaderConfig header;
         private ProcessingConfig processing;
-        private IdentityConfig identity = new IdentityConfig();
-        private Map<String, ReferenceDetailConfig> references = new HashMap<>();
+//        private IdentityConfig identity = new IdentityConfig();
+//        private Map<String, ReferenceDetailConfig> references = new HashMap<>();
     }
 
-    @Data
-    public static class IdentityConfig {
-        private List<String> fields = Utils.CL.newArrayList("code");
-        private StrategyMode strategy = StrategyMode.UPSERT;
-        //condition: "is_deleted IS NOT TRUE"
-        private String condition;
-    }
+//    @Data
+//    public static class IdentityConfig {
+//        private List<String> fields = Utils.CL.newArrayList("code");
+//        private StrategyMode strategy = StrategyMode.UPSERT;
+//        //condition: "is_deleted IS NOT TRUE"
+//        private String condition;
+//    }
 
-    @Data
-    public static class ReferenceDetailConfig {
-        private List<LookupValuesConfig> lookups = Utils.CL.newArrayList(new LookupValuesConfig());
-        private List<String> fields = Utils.CL.newArrayList("id", "code", "name");
-        private Map<String, String> mappingValues = new HashMap<>();
-    }
+//    @Data
+//    public static class ReferenceDetailConfig {
+//        private List<LookupValuesConfig> lookups = Utils.CL.newArrayList(new LookupValuesConfig());
+//        private List<String> fields = Utils.CL.newArrayList("id", "code", "name");
+//        private Map<String, String> mappingValues = new HashMap<>();
+//    }
 
-    @Data
-    public static class LookupValuesConfig {
-        private String attributeName = "code";
-        private String filterAttribute;
-        private Set<String> defaultValues = null;
-        private boolean primary = true;
-
-        public String getFilterAttribute() {
-            return Utils.STR.defaultIfBlank(filterAttribute, attributeName);
-        }
-    }
+//    @Data
+//    public static class LookupValuesConfig {
+//        private String attributeName = "code";
+//        private Set<String> defaultValues = null;
+//        private boolean primary = true;
+//    }
 
     @Data
     public static class ConversionConfig {

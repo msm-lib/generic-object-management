@@ -12,7 +12,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import java.io.IOException;
 
 @Slf4j
-public class ImportConfigLoader implements EnvironmentPostProcessor {
+public class ExportConfigLoader implements EnvironmentPostProcessor {
 
     private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
 
@@ -20,7 +20,7 @@ public class ImportConfigLoader implements EnvironmentPostProcessor {
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-            Resource[] resources = resolver.getResources("classpath:imports/*.yml");
+            Resource[] resources = resolver.getResources("classpath:exports/*.yml");
             for (Resource resource : resources) {
 //                if (resource.exists()) {
 //                    java.util.List<PropertySource<?>> propertySources = loader.load(resource.getFilename(), resource);
@@ -30,17 +30,15 @@ public class ImportConfigLoader implements EnvironmentPostProcessor {
 //                }
 
                 if (resource.exists()) {
-                    String sourceName = "import-" + resource.getFilename();
+                    String sourceName = "export-" + resource.getFilename();
                     java.util.List<PropertySource<?>> propertySources = loader.load(sourceName, resource);
                     for (PropertySource<?> source : propertySources) {
                         environment.getPropertySources().addFirst(source);
                     }
                 }
-
-
             }
         } catch (IOException e) {
-            log.error("Error while loading config import object from imports/", e);
+            log.error("Error while loading config import object from exports/", e);
         }
     }
 }

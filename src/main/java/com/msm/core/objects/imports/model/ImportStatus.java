@@ -2,7 +2,7 @@ package com.msm.core.objects.imports.model;
 
 public enum ImportStatus {
 
-    UPLOADED,
+    UPLOADING,
 
     VALIDATING,
 

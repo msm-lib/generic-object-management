@@ -16,7 +16,7 @@ import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.dtometda.AttachmentInfoMeta;
-import com.msm.core.objects.imports.model.BatchImportResult;
+import com.msm.core.objects.imports.model.BatchInsertDataResult;
 import com.msm.core.objects.imports.model.BatchRowData;
 import com.msm.core.objects.imports.model.CellMappingContext;
 import com.msm.core.objects.imports.model.ImportRow;
@@ -67,7 +67,7 @@ public class CsvImportService {
 
             List<Map<String, Object>> rows = internalObjectQueryRepository.findByCondition(
                     ImportStagingMeta.OBJECT_NAME,
-                    ImportStagingMeta.IMPORT_ID.getField().eq(objectImportContext.importJob())
+                    ImportStagingMeta.IMPORT_ID.getField().eq(objectImportContext.jobId())
                             .and(ImportStagingMeta.ROW_NUMBER.getField().gt(
                                     lastRowNumber
                             )),
@@ -80,15 +80,15 @@ public class CsvImportService {
                 break;
             }
 
-            BatchImportResult result = batchImportService.importBatch(
-                    objectImportContext.importJob(),
+            BatchInsertDataResult result = batchImportService.batchInsertDataProcessing(
+                    objectImportContext.jobId(),
                     objectImportContext.importObjectName(),
                     rows
             );
 
             internalObjectQueryRepository.updateWithExpressions(
                     ImportJobMeta.OBJECT_NAME,
-                    ImportJobMeta.ID.getField().eq(objectImportContext.importJob()),
+                    ImportJobMeta.ID.getField().eq(objectImportContext.jobId()),
                     Map.of(
                             ImportJobMeta.SUCCESS_ROWS.getFieldName(),
                             ImportJobMeta.SUCCESS_ROWS.getField().add(result.successCount()),
@@ -101,7 +101,7 @@ public class CsvImportService {
             lastRowNumber = DataRecord.of(rows.getLast()).get(ImportStagingMeta.ROW_NUMBER);
         }
 
-        return finish(objectImportContext.importJob());
+        return finish(objectImportContext.jobId());
     }
 
     private Map<String, Object> finish(UUID importId) {
@@ -222,14 +222,14 @@ public class CsvImportService {
     private void executeBatchProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
         trackingRowProcessing(importId, rows.size());
         referenceProcessService.batchRefProcessing(importId, importObjectName, rows);
-        batchDataProcessAction(importId, importObjectName, rows);
+        batchDataValidateAction(importId, importObjectName, rows);
     }
 
-    private void batchDataProcessAction(UUID importId, String importObjectName, List<ImportRow> rows) {
+    private void batchDataValidateAction(UUID importId, String importObjectName, List<ImportRow> rows) {
         ActionContext<BatchRowData> actionContext = ActionContext
                 .<BatchRowData>builder()
                 .resource(importObjectName)
-                .action(ObjectActionNamed.Csv.BATCH_ROW_DATA_PROCESSING)
+                .action(ObjectActionNamed.Csv.DATA_VALIDATE_PROCESSING)
                 .payload(BatchRowData.of(importId, importObjectName, rows))
                 .build();
         actionExecutor.execute(actionContext);

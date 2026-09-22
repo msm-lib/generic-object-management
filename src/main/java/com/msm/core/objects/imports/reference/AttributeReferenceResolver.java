@@ -16,12 +16,14 @@ import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.repository.ObjectQueryRepository;
+import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.impl.DSL;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,7 +55,7 @@ public class AttributeReferenceResolver {
 
     private List<FilterObject> buildFilterCondition(List<ObjectImportRegistry.LookupValuesConfig> attributeLookups, Map<String, Set<String>> lookupValues) {
         return attributeLookups.stream()
-                .map(e -> FilterCondition.create(e.getAttributeName(), FilterOperator.IN, lookupValues.get(e.getAttributeName())))
+                .map(e -> FilterCondition.create(e.getFilterAttribute(), FilterOperator.IN, lookupValues.get(e.getAttributeName())))
                 .collect(Collectors.toList());
     }
 
@@ -105,7 +107,13 @@ public class AttributeReferenceResolver {
             objectList = result.getContents();
         }
 
-        AttributeRefHelper.retainAllRefData(referenceDetailConfig.getFields(), objectList);
+        objectList = objectList.stream().map(objectMap -> getRefMappedData(
+                sourceObjectName,
+                sourceAttribute.getAttributeRef().getFieldName(),
+                objectMap
+        )).collect(Collectors.toList());
+
+        AttributeRefHelper.retainAllRefData(getMappingFieldValues(referenceDetailConfig), objectList);
         Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
                 Utils.CL.emptyIfNull(objectList),
                 objectKey -> String.valueOf(objectKey.get(getDefaultKey(attributeLookups))),
@@ -127,4 +135,29 @@ public class AttributeReferenceResolver {
         return CODE;
     }
 
+    private Set<String> getMappingFieldValues(ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig) {
+        if (Utils.CL.isNotEmpty(referenceDetailConfig.getMappingValues())) {
+            return referenceDetailConfig.getMappingValues().keySet();
+        }
+        return new HashSet<>(referenceDetailConfig.getFields());
+    }
+
+
+    private Map<String, Object> getRefMappedData(String importObjectName, String attrRefName, Map<String, Object> redData) {
+        Map<String, String> refMappingConfig = importConfigService.getReferenceConfig(importObjectName, attrRefName).getMappingValues();
+
+        if (Utils.CL.isEmpty(refMappingConfig)) {
+            return redData;
+        }
+
+        return refMappingConfig
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> JsonPathUtil.extractValue(redData, entry.getValue()),
+                        (existingValue, newValue) -> newValue,
+                        HashMap::new
+                ));
+    }
 }

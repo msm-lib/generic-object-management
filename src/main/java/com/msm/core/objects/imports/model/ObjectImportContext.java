@@ -5,10 +5,10 @@ import java.util.UUID;
 
 public record ObjectImportContext(
         String importObjectName,
-        UUID importJob,
+        UUID jobId,
         Map<String, Object> param
 ) {
-    public static ObjectImportContext of(String importObjectName, UUID importJob, Map<String, Object> param) {
-        return new ObjectImportContext(importObjectName, importJob, param);
+    public static ObjectImportContext of(String importObjectName, UUID jobId, Map<String, Object> param) {
+        return new ObjectImportContext(importObjectName, jobId, param);
     }
 }

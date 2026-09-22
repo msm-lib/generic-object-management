@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-
 @RequiredArgsConstructor
 public class ExportJobTransactionService {
     private final ObjectQueryRepository internalObjectQueryRepository;

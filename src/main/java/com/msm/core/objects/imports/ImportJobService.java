@@ -65,8 +65,11 @@ public class ImportJobService {
         DataRecord importJobRecord = DataRecord.of()
                 .with(ImportJobMeta.ID, importJobId)
                 .with(ImportJobMeta.OBJECT_NAME_FIELD, payloadRecord.get(ImportJobMeta.OBJECT_NAME_FIELD))
+                .with(ImportJobMeta.ORIGINAL_FILE_NAME, payloadRecord.get(ImportJobDtoMeta.ORIGINAL_FILE_NAME))
+                .with(ImportJobMeta.FILE_NAME, s3FileName)
+                .with(ImportJobMeta.STATUS, ImportStatus.UPLOADING.name())
                 .with(ImportJobMeta.FILE_INFO, s3FileInfoRecord.getValues())
-                .with(ImportJobMeta.STATUS, ImportStatus.UPLOADED.name())
+                .with(ImportJobMeta.STATUS, ImportStatus.UPLOADING.name())
                 .with(ImportJobMeta.STARTED_AT, Instant.now());
 
         DataRecord dataJobImport = DataRecord.of(internalObjectQueryRepository.save(ImportJobMeta.OBJECT_NAME, importJobRecord.getValues()));

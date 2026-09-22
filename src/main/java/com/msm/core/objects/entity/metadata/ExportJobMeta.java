@@ -34,11 +34,14 @@ public final class ExportJobMeta {
     public static final TypedAttribute<String> OBJECT_NAME_FIELD =
             attr(TABLE, "objectName", "object_name", String.class);
 
+    public static final TypedAttribute<String> FILE_NAME =
+            attr(TABLE, "fileName", "file_name", String.class);
+
+    public static final TypedAttribute<String> ORIGINAL_FILE_NAME =
+            attr(TABLE, "originalFileName", "original_file_name", String.class);
+
     public static final TypedAttribute<String> SERVICE =
             attr(TABLE, "service", "service", String.class);
-
-    public static final TypedAttribute<UUID> ATTACHMENT_ID =
-            attr(TABLE, "attachmentId", "attachment_id", UUID.class);
 
     public static final TypedAttribute<String> STATUS =
             attr(TABLE, "status", "status", String.class);

@@ -37,14 +37,19 @@ public final class ImportJobMeta {
 //    public static final TypedAttribute<UUID> ATTACHMENT_ID =
 //            attr(TABLE, "attachmentId", "attachment_id", UUID.class);
 //
-//    public static final TypedAttribute<String> FILE_NAME =
-//            attr(TABLE, "fileName", "file_name", String.class);
+    public static final TypedAttribute<String> FILE_NAME =
+            attr(TABLE, "fileName", "file_name", String.class);
+
+    public static final TypedAttribute<String> ORIGINAL_FILE_NAME =
+            attr(TABLE, "originalFileName", "original_file_name", String.class);
+
 //
 //    public static final TypedAttribute<String> FILE_PATH =
 //            attr(TABLE, "filePath", "file_path", String.class);
 
     public static final TypedAttribute<String> STATUS =
             attr(TABLE, "status", "status", String.class);
+
 
     // =========================================================
     // Metrics

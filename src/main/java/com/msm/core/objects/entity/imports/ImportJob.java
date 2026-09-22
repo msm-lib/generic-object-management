@@ -43,6 +43,12 @@ public class ImportJob extends AuditingEntity {
     @Column(name = "object_name")
     private String objectName;
 
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "original_file_name")
+    private String originalFileName;
+
     @Column(name = "status")
     private String status;
 

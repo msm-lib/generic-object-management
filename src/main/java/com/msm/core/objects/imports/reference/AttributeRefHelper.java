@@ -72,7 +72,7 @@ public class AttributeRefHelper {
         return Objects.nonNull(attribute.getAttributeRef()) && Utils.STR.isNotBlank(attribute.getAttributeRef().getFieldName());
     }
 
-    public static void retainAllRefData(List<String> refNames, List<Map<String, Object>> objectList) {
+    public static void retainAllRefData(Set<String> refNames, List<Map<String, Object>> objectList) {
         objectList.forEach(objectValue -> {
             objectValue.keySet().retainAll(refNames);
         });

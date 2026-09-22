@@ -15,10 +15,8 @@ import com.msm.core.objects.imports.excel.ExportExcelService;
 import com.msm.core.objects.imports.model.ExportStatus;
 import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.repository.ObjectQueryRepository;
-import com.msm.core.security.RequestContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 
 import java.time.Instant;
 import java.util.Map;
@@ -51,6 +49,24 @@ public class ExportJobService {
 
         return exportJobRecord.asMap();
     }
+
+//    @HookAfter(resource = ExportJobMeta.OBJECT_NAME, action = Constants.FilterAction.FILTER_OBJECT)
+//    public Map<String, Object> afterFilterExportJob(ActionContext<ObjectFilterRequest> actionContext) {
+//        UUID objectId = actionContext.getObjectIdAs(UUID.class);
+//        Map<String, Object> objectMap = internalObjectQueryRepository.findById(ExportJobMeta.OBJECT_NAME,  objectId);
+//        DataRecord exportJobRecord = DataRecord.of(objectMap);
+//        DataRecord s3FileInfoRecord = DataRecord.of(exportJobRecord.get(ExportJobMeta.FILE_INFO));
+//
+//        String s3Key = s3FileInfoRecord.get(S3FileInfoMeta.S3_KEY);
+//        if(Objects.nonNull(s3Key)) {
+//            DataRecord attachmentRecord = DataRecord.of(s3FileUtils.getDownloadInfo(exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD), s3FileInfoRecord));
+//            String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
+//            exportJobRecord.with(AttachmentInfoMeta.DOWNLOAD_URL, fileUrl);
+//            exportJobRecord.remove(ExportJobMeta.FILE_INFO);
+//        }
+//
+//        return exportJobRecord.asMap();
+//    }
 
     @CreateHandler(resource = ExportJobMeta.OBJECT_NAME)
     public Map<String, Object> exportJob(ActionContext<Map<String, Object>> actionContext) {

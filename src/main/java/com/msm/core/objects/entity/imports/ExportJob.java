@@ -40,9 +40,11 @@ public class ExportJob extends AuditingEntity {
     @Column(name = "object_name")
     private String objectName;
 
-//    @Size(max = 60)
-//    @Column(name = "service")
-//    private String service;
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "original_file_name")
+    private String originalFileName;
 
     @Size(max = 60)
     @Column(name = "status")

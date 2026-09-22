@@ -2,9 +2,9 @@ package com.msm.core.objects.imports.model;
 
 import java.util.List;
 
-public record BatchImportResult(
+public record BatchInsertDataResult(
         long successCount,
         long failedCount,
-        List<ImportRowResult> results
+        List<InsertDataResult> results
 ) {
 }

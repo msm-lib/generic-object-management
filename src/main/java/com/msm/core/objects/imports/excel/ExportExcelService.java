@@ -3,13 +3,17 @@ package com.msm.core.objects.imports.excel;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Utils;
+import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.filter.domain.ObjectFilterRequest;
+import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
+import com.msm.core.objects.config.ObjectExportRegistry;
 import com.msm.core.objects.entity.metadata.ExportJobMeta;
+import com.msm.core.objects.imports.ExportConfigService;
 import com.msm.core.objects.imports.dtometda.S3FileInfoMeta;
+import com.msm.core.objects.imports.model.CellMappingContext;
 import com.msm.core.objects.imports.model.ExportStatus;
-import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.RowMappingContext;
 import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.imports.s3.S3MultipartOutputStream0;
@@ -22,8 +26,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -32,15 +34,13 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,13 +48,14 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @RequiredArgsConstructor
 public class ExportExcelService {
+    private static final Set<String> IGNORE_ATTRIBUTE = Set.of("customValues");
     private final ExportExcelTemplateService exportExcelTemplateService;
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3Client s3Client;
     private final S3FileUtils s3FileUtils;
     private final ActionExecutor actionExecutor;
     private final ExportJobTransactionService exportJobTransactionService;
-    private static final String TEMPLATE_KEY = "bhc/customer/profile/profile_template.xlsx";
+    private final ExportConfigService exportConfigService;
     private static final String FILE_EXTENSION = "xlsx";
     private static final String MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -63,21 +64,22 @@ public class ExportExcelService {
     public void exportExcelData(String schemaFolder, Map<String, Object> exportJobMap) {
         DataRecord exportJobRecord = DataRecord.ofNullable(exportJobMap);
         exportJobTransactionService.markExporting(exportJobRecord);
-
+        String objectName = exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD);
         Map<String, Object> filter = exportJobRecord.get(ExportJobMeta.FILTER_CRITERIA);
         ObjectFilterRequest request = Utils.O.toObject(filter, ObjectFilterRequest.class);
-        request.setObjectInfo(ObjectFilterRequest.ObjectInfo.of(exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD)));
+        request.setObjectInfo(ObjectFilterRequest.ObjectInfo.of(objectName));
 
+        String template = exportConfigService.getExportTemplate(objectName);
 
-        byte[] templateBytes = exportExcelTemplateService.getTemplateBytes(s3FileUtils.getBucketName(), TEMPLATE_KEY);
+        byte[] templateBytes = exportExcelTemplateService.getTemplateBytes(s3FileUtils.getBucketName(), template);
         Map<Integer, String> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
                 templateBytes,
                 exportJobRecord.get(ExportJobMeta.ID),
-                exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD)
+                objectName
         );
 
+
         UUID exportId = exportJobRecord.get(ExportJobMeta.ID);
-        String objectName = exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD);
         String s3FileName = s3FileUtils.generateFileName(exportId, FILE_EXTENSION);
 
 
@@ -115,7 +117,8 @@ public class ExportExcelService {
             int startRowIndex = originalSheet.getLastRowNum() + 1;
             AtomicInteger rowIndex = new AtomicInteger(startRowIndex);
 
-            int batchSize = 100;
+            ObjectExportRegistry.ProcessingConfig processingConfig = exportConfigService.getProcessingConfig(objectName);
+            int batchSize = processingConfig.getBatchSize();
             internalObjectQueryRepository.filterStream(
                     objectName,
                     request,
@@ -123,8 +126,13 @@ public class ExportExcelService {
                     dataMap -> {
 
                         Row row = originalSheet.createRow(rowIndex.getAndIncrement());
-                        Map<String, Object> rowMappingData = rowMapping(exportId, row.getRowNum(),objectName, attributeColumnMapping, dataMap);
-
+                        Map<String, Object> rowMappingData = rowMapping(exportId, row.getRowNum(), objectName, attributeColumnMapping, dataMap);
+                        cellDataMapping(
+                                exportId,
+                                objectName,
+                                attributeColumnMapping,
+                                rowMappingData
+                        );
                         totalRow.incrementAndGet();
                         attributeColumnMapping.forEach((columnIndex, fieldName) -> {
                             Object value = rowMappingData.get(fieldName);
@@ -159,6 +167,8 @@ public class ExportExcelService {
                     .with(S3FileInfoMeta.FILE_TYPE, FILE_EXTENSION)
                     .with(S3FileInfoMeta.MIME_TYPE, MIME_TYPE);
             exportJobRecord
+                    .with(ExportJobMeta.FILE_NAME, s3FileName)
+                    .with(ExportJobMeta.ORIGINAL_FILE_NAME, s3FileName)
                     .with(ExportJobMeta.TOTAL_ROWS, totalRow.get())
                     .with(ExportJobMeta.COMPLETED_AT, Instant.now())
                     .with(ExportJobMeta.FILE_INFO, s3FileInfoRecord.getValues())
@@ -203,4 +213,54 @@ public class ExportExcelService {
 
         return actionExecutor.execute(actionContext);
     }
+
+
+    private void cellDataMapping(UUID jobId, String objectName, Map<Integer, String> headerColumn, Map<String, Object> rowData) {
+
+        ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
+        objectMetadata.getAttributes().forEach(attribute -> {
+            if (rowData.containsKey(attribute.getFieldName())
+                    && !IGNORE_ATTRIBUTE.contains(attribute.getFieldName())) {
+                String objectCellResource = Utils.STR.format("{0}.{1}",  objectName, attribute.getFieldName());
+                CellMappingContext cellMappingContext = CellMappingContext.of(jobId, objectName, attribute, headerColumn, rowData);
+                ActionContext<CellMappingContext> actionContext = ActionContext
+                        .<CellMappingContext>builder()
+                        .resource(objectCellResource)
+                        .action(ObjectActionNamed.Excel.Export.CELL_MAPPING)
+                        .payload(cellMappingContext)
+                        .build();
+
+                Object columnDataValue = actionExecutor.execute(actionContext);;
+                rowData.put(attribute.getFieldName(), columnDataValue);
+            }
+        });
+    }
+
+//    private Cell customExcelCell(
+//            UUID jobId,
+//            String objectName,
+//            Map<Integer, String> headerColumn,
+//            Row row,
+//            Object attributeValue
+//    ) {
+
+//        ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
+//        objectMetadata.getAttributes().forEach(attribute -> {
+//            if (rowData.containsKey(attribute.getFieldName())
+//                    && !IGNORE_ATTRIBUTE.contains(attribute.getFieldName())) {
+//                String objectCellResource = Utils.STR.format("{0}.{1}",  objectName, attribute.getFieldName());
+//                CellMappingContext cellMappingContext = CellMappingContext.of(jobId, objectName, attribute, headerColumn, rowData);
+//                ActionContext<CellMappingContext> actionContext = ActionContext
+//                        .<CellMappingContext>builder()
+//                        .resource(objectCellResource)
+//                        .action(ObjectActionNamed.Excel.Export.CELL_MAPPING)
+//                        .payload(cellMappingContext)
+//                        .build();
+//
+//
+//            }
+//        });
+
+//        actionExecutor.execute(actionContext);
+//    }
 }

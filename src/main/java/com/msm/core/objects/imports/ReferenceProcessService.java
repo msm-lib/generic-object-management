@@ -11,11 +11,9 @@ import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.imports.model.AttributeReferenceContext;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.reference.AttributeRefHelper;
-import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,10 +40,12 @@ public class ReferenceProcessService {
                         if(objectRef != null) {
                             Object idObj = objectRef.get(Constants.OBJECT_PK);
                             itemMap.put(attrName, idObj);
-                            itemMap.put(
-                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
-                                    getRefMappedData(importObjectName, attrName, objectRef)
-                            );
+                            itemMap.put(attr.getAttributeRef().getFieldName(), objectRef);
+//                            itemMap.put(
+//                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
+//                                    getRefMappedData(importObjectName, attrName, objectRef)
+//                            );
+
 //                            itemMap.put(
 //                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
 //                                    Utils.O.reMappingKeys(objectRef, importConfigService.getReferenceConfig(importObjectName, attrName).getMappingKeys())
@@ -58,23 +58,23 @@ public class ReferenceProcessService {
     }
 
 
-    private Map<String, Object> getRefMappedData(String importObjectName, String attrName, Map<String, Object> redData) {
-        Map<String, String> refMappingConfig = importConfigService.getReferenceConfig(importObjectName, attrName).getMappingValues();
-
-        if (Utils.CL.isEmpty(refMappingConfig)) {
-            return redData;
-        }
-
-        return refMappingConfig
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> JsonPathUtil.extractValue(redData, entry.getValue()),
-                        (existingValue, newValue) -> newValue,
-                        HashMap::new
-                ));
-    }
+//    private Map<String, Object> getRefMappedData(String importObjectName, String attrName, Map<String, Object> redData) {
+//        Map<String, String> refMappingConfig = importConfigService.getReferenceConfig(importObjectName, attrName).getMappingValues();
+//
+//        if (Utils.CL.isEmpty(refMappingConfig)) {
+//            return redData;
+//        }
+//
+//        return refMappingConfig
+//                .entrySet()
+//                .stream()
+//                .collect(Collectors.toMap(
+//                        Map.Entry::getKey,
+//                        entry -> JsonPathUtil.extractValue(redData, entry.getValue()),
+//                        (existingValue, newValue) -> newValue,
+//                        HashMap::new
+//                ));
+//    }
 
 
 

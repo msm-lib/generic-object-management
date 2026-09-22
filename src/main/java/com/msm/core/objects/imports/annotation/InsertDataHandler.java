@@ -15,8 +15,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Documented
-@Handler(action = ObjectActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
-public @interface RowDataProcessHandler {
+@Handler(action = ObjectActionNamed.Excel.BATCH_INSERT_DATA_PROCESSING)
+public @interface InsertDataHandler {
     String resource();
     ExtendContextKey[] keyContexts() default {};
     Class<? extends Condition> condition() default AlwaysTrueCondition.class;

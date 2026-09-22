@@ -33,6 +33,7 @@ import com.msm.core.objects.config.DynamicRulesFactory;
 import com.msm.core.objects.config.GenericObjectConfigProperties;
 import com.msm.core.objects.config.IntegrationProperties;
 import com.msm.core.objects.config.ObjectBeanConfigInitializing;
+import com.msm.core.objects.config.ObjectExportRegistry;
 import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.config.S3PropConfig;
 import com.msm.core.objects.config.provider.ObjectMetadataProvider;
@@ -48,6 +49,7 @@ import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
 import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.BatchValidationService;
+import com.msm.core.objects.imports.ExportConfigService;
 import com.msm.core.objects.imports.ExportJobService;
 import com.msm.core.objects.imports.FileReaderService;
 import com.msm.core.objects.imports.ImportConfigService;
@@ -57,10 +59,11 @@ import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.config.ImportConfigLoader;
 import com.msm.core.objects.imports.csv.CsvImportService;
 import com.msm.core.objects.imports.csv.handler.CsvImportHandlerService;
-import com.msm.core.objects.imports.excel.ImportExcelService;
-import com.msm.core.objects.imports.excel.ExportExcelTemplateService;
 import com.msm.core.objects.imports.excel.ExportExcelService;
+import com.msm.core.objects.imports.excel.ExportExcelTemplateService;
 import com.msm.core.objects.imports.excel.ExportJobTransactionService;
+import com.msm.core.objects.imports.excel.ImportDataExecutor;
+import com.msm.core.objects.imports.excel.ImportExcelService;
 import com.msm.core.objects.imports.excel.handler.ExcelImportHandlerService;
 import com.msm.core.objects.imports.excel.handler.ExportExcelHandlerService;
 import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
@@ -173,6 +176,7 @@ import java.util.concurrent.Executor;
         GenericObjectConfigProperties.class,
         IntegrationProperties.class,
         ObjectImportRegistry.class,
+        ObjectExportRegistry.class,
         S3PropConfig.class
 })
 public class MsmAutoConfiguration {
@@ -868,6 +872,15 @@ public class MsmAutoConfiguration {
         );
     }
 
+    @Bean("exportConfigService")
+    public ExportConfigService exportConfigService(
+            ObjectExportRegistry objectExportRegistry
+    ) {
+        return new ExportConfigService(
+                objectExportRegistry
+        );
+    }
+
 
     @Bean("s3Client")
     @ConditionalOnMissingBean
@@ -892,6 +905,13 @@ public class MsmAutoConfiguration {
         );
     }
 
+    @Bean("importDataExecutor")
+    public ImportDataExecutor importDataExecutor(
+            ActionExecutor actionExecutor
+    ) {
+        return new ImportDataExecutor(actionExecutor);
+    }
+
     //Excel
     @Bean("excelImportService")
     public ImportExcelService excelImportService(
@@ -902,7 +922,8 @@ public class MsmAutoConfiguration {
             ReferenceProcessService referenceProcessService,
             ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService,
             S3FileUtils s3FileUtils,
-            ImportConfigService importConfigService
+            ImportConfigService importConfigService,
+            ImportDataExecutor importDataExecutor
     ) {
         return new ImportExcelService(
                 batchImportService,
@@ -911,7 +932,8 @@ public class MsmAutoConfiguration {
                 referenceProcessService,
                 excelOriginalMultipartAsyncService,
                 s3FileUtils,
-                importConfigService
+                importConfigService,
+                importDataExecutor
         );
     }
 
@@ -920,13 +942,15 @@ public class MsmAutoConfiguration {
             BatchValidationService processValidationBatch,
             FileReaderService fileReaderService,
             AttributeReferenceResolver attributeReferenceResolver,
-            ImportConfigService importConfigService
+            ImportConfigService importConfigService,
+            BatchImportService batchImportService
     ) {
         return new ExcelImportHandlerService(
                 processValidationBatch,
                 fileReaderService,
                 attributeReferenceResolver,
-                importConfigService
+                importConfigService,
+                batchImportService
         );
     }
 
@@ -963,7 +987,8 @@ public class MsmAutoConfiguration {
             S3Client s3Client,
             S3FileUtils s3FileUtils,
             ActionExecutor actionExecutor,
-            ExportJobTransactionService exportJobTransactionService
+            ExportJobTransactionService exportJobTransactionService,
+            ExportConfigService exportConfigService
     ) {
         return new ExportExcelService(
                 exportExcelTemplateService,
@@ -971,7 +996,8 @@ public class MsmAutoConfiguration {
                 s3Client,
                 s3FileUtils,
                 actionExecutor,
-                exportJobTransactionService
+                exportJobTransactionService,
+                exportConfigService
         );
     }
 
@@ -1026,12 +1052,14 @@ public class MsmAutoConfiguration {
     public BatchImportService batchImportService(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportErrorService importErrorService,
-            ImportConfigService importConfigService
+            ImportConfigService importConfigService,
+            ImportDataExecutor importDataExecutor
     ) {
         return new BatchImportService(
                 importErrorService,
                 internalObjectQueryRepository,
-                importConfigService
+                importConfigService,
+                importDataExecutor
         );
     }
 

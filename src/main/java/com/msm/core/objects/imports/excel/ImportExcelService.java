@@ -4,10 +4,8 @@ import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Utils;
-import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.filter.domain.pageable.Sort;
 import com.msm.core.filter.domain.pageable.SortDirection;
-import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.ObjectImportRegistry;
@@ -18,10 +16,7 @@ import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.dtometda.AttachmentInfoMeta;
-import com.msm.core.objects.imports.model.BatchImportResult;
-import com.msm.core.objects.imports.model.BatchRowData;
-import com.msm.core.objects.imports.model.CellMappingContext;
-import com.msm.core.objects.imports.model.ColumnToAttributeMappingContext;
+import com.msm.core.objects.imports.model.BatchInsertDataResult;
 import com.msm.core.objects.imports.model.DownloadErrorContext;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.model.ImportStatus;
@@ -29,7 +24,6 @@ import com.msm.core.objects.imports.model.ImportValidation;
 import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.imports.model.RawRow;
 import com.msm.core.objects.imports.model.ReadActionContext;
-import com.msm.core.objects.imports.model.RowMappingContext;
 import com.msm.core.objects.imports.s3.ExcelOriginalMultipartAsyncService;
 import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.repository.ObjectQueryRepository;
@@ -43,7 +37,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -72,9 +65,9 @@ import java.util.function.Consumer;
  *<pre>
  * Import
  *    |
- * Import batch(by config)
+ * Import batch read from import stating(by config)
  *    |
- * Check import mode duplicate
+ * Check import mode duplicate(upsert, lookup)
  *    |
  * Execute batch insert(by object)
  *    |
@@ -86,7 +79,7 @@ import java.util.function.Consumer;
 @Slf4j
 @RequiredArgsConstructor
 public class ImportExcelService {
-    private static final Set<String> IGNORE_ATTRIBUTE = Set.of("customValues");
+
     private static final String IMPORT_JOB_ID_NAME = "importJobId";
     private final BatchImportService batchImportService;
     private final ObjectQueryRepository internalObjectQueryRepository;
@@ -95,6 +88,7 @@ public class ImportExcelService {
     private final ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService;
     private final S3FileUtils s3FileUtils;
     private final ImportConfigService importConfigService;
+    private final ImportDataExecutor importDataExecutor;
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_FILE)
@@ -109,7 +103,7 @@ public class ImportExcelService {
 
                 List<Map<String, Object>> rows = internalObjectQueryRepository.findByCondition(
                         ImportStagingMeta.OBJECT_NAME,
-                        ImportStagingMeta.IMPORT_ID.getField().eq(objectImportContext.importJob())
+                        ImportStagingMeta.IMPORT_ID.getField().eq(objectImportContext.jobId())
                                 .and(ImportStagingMeta.ROW_NUMBER.getField().gt(
                                         lastRowNumber
                                 )),
@@ -122,15 +116,15 @@ public class ImportExcelService {
                     break;
                 }
 
-                BatchImportResult result = batchImportService.importBatch(
-                        objectImportContext.importJob(),
+                BatchInsertDataResult result = importDataExecutor.batchInsertDataAction(
+                        objectImportContext.jobId(),
                         objectImportContext.importObjectName(),
                         rows
                 );
 
                 internalObjectQueryRepository.updateWithExpressions(
                         ImportJobMeta.OBJECT_NAME,
-                        ImportJobMeta.ID.getField().eq(objectImportContext.importJob()),
+                        ImportJobMeta.ID.getField().eq(objectImportContext.jobId()),
                         Map.of(
                                 ImportJobMeta.SUCCESS_ROWS.getFieldName(),
                                 ImportJobMeta.SUCCESS_ROWS.getField().add(result.successCount()),
@@ -143,12 +137,12 @@ public class ImportExcelService {
                 lastRowNumber = DataRecord.of(rows.getLast()).get(ImportStagingMeta.ROW_NUMBER);
             }
 
-            return finishImport(objectImportContext.importJob());
+            return finishImport(objectImportContext.jobId());
         } catch (Exception e) {
             log.error("Import failed", e);
             throw Lombok.sneakyThrow(e);
         } finally {
-            finishImport(objectImportContext.importJob());
+            finishImport(objectImportContext.jobId());
         }
     }
 
@@ -203,7 +197,7 @@ public class ImportExcelService {
             Consumer<RawRow<Row>> rowConsumer = rowRawRow -> {
                 if(header.isAutoDetectHeader()) {
                     if (cachedHeaderMap[0] == null) {
-                        Map<Integer, String> detectedColumnHeaderMap = detectColumnHeaderMapping(importId, rowRawRow);
+                        Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
                         if (Utils.CL.isEmpty(detectedColumnHeaderMap)) {
                             return;
                         }
@@ -215,7 +209,7 @@ public class ImportExcelService {
                         if(rowRawRow.rowNumber() < header.getRow()) {
                             return;
                         }
-                        Map<Integer, String> detectedColumnHeaderMap = detectColumnHeaderMapping(importId, rowRawRow);
+                        Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
                         if (Utils.CL.isEmpty(detectedColumnHeaderMap)) {
                             throw new IllegalArgumentException("Not found column header mapping to object attribute at row: " + header.getRow());
                         }
@@ -225,9 +219,9 @@ public class ImportExcelService {
                 }
 
 
-                Map<String, Object> rowData = rowMapping(importId, cachedHeaderMap[0], rowRawRow);
+                Map<String, Object> rowData = importDataExecutor.rowMapping(importId, cachedHeaderMap[0], rowRawRow);
                 if(Utils.CL.isNotEmpty(rowData)) {
-                    cellMapping(importId, rowRawRow.objectName(), cachedHeaderMap[0], rowData);
+                    importDataExecutor.cellMapping(importId, rowRawRow.objectName(), cachedHeaderMap[0], rowData);
                     batchBuffer.add(ImportRow.of(rowRawRow.rowNumber(), rowData));
                     if (batchBuffer.size() >= batchSize) {
                         executeBatchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
@@ -260,84 +254,11 @@ public class ImportExcelService {
         }
     }
 
-    private Map<Integer, String> detectColumnHeaderMapping(UUID importId, RawRow<Row> row) {
-
-        ColumnToAttributeMappingContext<Row> mapperContext = ColumnToAttributeMappingContext.of(
-                importId,
-                row.rowNumber(),
-                row.objectName(),
-                row.data()
-        );
-        ActionContext<ColumnToAttributeMappingContext<Row>> actionContext = ActionContext
-                .<ColumnToAttributeMappingContext<Row>>builder()
-                .resource(row.objectName())
-                .action(ObjectActionNamed.Excel.DETECT_COLUMN_HEADER_MAPPING)
-                .payload(mapperContext)
-                .build();
-
-        Map<Integer, String> columnHeaderMap = actionExecutor.execute(actionContext);
-        if(Utils.CL.isEmpty(columnHeaderMap)) {
-            return null;
-        }
-        return columnHeaderMap;
-    }
-
-    private Map<String, Object> rowMapping(UUID importId, Map<Integer, String> headerColumn, RawRow<Row> row) {
-
-        RowMappingContext<Row> mapperContext = RowMappingContext.of(
-                importId,
-                row.rowNumber(),
-                row.objectName(),
-                headerColumn,
-                row.data()
-        );
-        ActionContext<RowMappingContext<Row>> actionContext = ActionContext
-                .<RowMappingContext<Row>>builder()
-                .resource(row.objectName())
-                .action(ObjectActionNamed.Excel.ROW_MAPPING)
-                .payload(mapperContext)
-                .build();
-
-        return actionExecutor.execute(actionContext);
-    }
-
-
-    private void cellMapping(UUID importId, String objectName, Map<Integer, String> headerColumn, Map<String, Object> rowData) {
-
-        ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
-        objectMetadata.getAttributes().forEach(attribute -> {
-            if (rowData.containsKey(attribute.getFieldName())
-                    && !IGNORE_ATTRIBUTE.contains(attribute.getFieldName())) {
-                String objectCellResource = Utils.STR.format("{0}.{1}",  objectName, attribute.getFieldName());
-                CellMappingContext cellMappingContext = CellMappingContext.of(importId, objectName, attribute, headerColumn, rowData);
-                ActionContext<CellMappingContext> actionContext = ActionContext
-                        .<CellMappingContext>builder()
-                        .resource(objectCellResource)
-                        .action(ObjectActionNamed.Excel.CELL_MAPPING)
-                        .payload(cellMappingContext)
-                        .build();
-
-                Object columnDataValue = actionExecutor.execute(actionContext);;
-                rowData.put(attribute.getFieldName(), columnDataValue);
-            }
-        });
-    }
-
 
     private void executeBatchProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
         trackingRowProcessing(importId, rows.size());
         referenceProcessService.batchRefProcessing(importId, importObjectName, rows);
-        batchDataProcessAction(importId, importObjectName, rows);
-    }
-
-    private void batchDataProcessAction(UUID importId, String importObjectName, List<ImportRow> rows) {
-        ActionContext<BatchRowData> actionContext = ActionContext
-                .<BatchRowData>builder()
-                .resource(importObjectName)
-                .action(ObjectActionNamed.Excel.BATCH_ROW_DATA_PROCESSING)
-                .payload(BatchRowData.of(importId, importObjectName, rows))
-                .build();
-        actionExecutor.execute(actionContext);
+        importDataExecutor.batchDataValidateAction(importId, importObjectName, rows);
     }
 
     private Map<String, Object> finishValidation(UUID importId) {
@@ -401,15 +322,11 @@ public class ImportExcelService {
     }
 
 
-
-
     @Handler(action = ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
     public Map<String, Object> downloadErrors(ActionContext<DownloadErrorContext> actionContext) {
         DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().importId()));
         excelOriginalMultipartAsyncService.writeErrorsToOriginalSheetMultipartAsync(dataRecord);
         return s3FileUtils.getDownloadInfo(dataRecord.asMap());
     }
-
-
 }
 
