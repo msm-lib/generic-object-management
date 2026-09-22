@@ -24,7 +24,7 @@ public class DefaultAuditStrategy implements AuditStrategy {
                 put(meta, payload, Constants.CREATED_BY_ID, ctx.getUserId());
                 put(meta, payload, Constants.IS_DELETED, Boolean.FALSE);
                 put(meta, payload, Constants.TEAM_ID, getTeamId(ctx));
-                put(meta, payload, Constants.TEAM_ID_REF, ctx.getTeam());
+                putTeamRef(payload, ctx.getTeam());
             }
             case UPDATE -> {
                 put(meta, payload, Constants.UPDATED_AT, now);
@@ -47,6 +47,11 @@ public class DefaultAuditStrategy implements AuditStrategy {
             payload.put(attr.getFieldName(), value);
         }
     }
+
+    private void putTeamRef(Map<String, Object> payload, Object value) {
+        payload.put(Constants.TEAM_ID_REF, value);
+    }
+
 
     @Override
     public String support() {
