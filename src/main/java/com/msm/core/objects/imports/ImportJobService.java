@@ -12,6 +12,8 @@ import com.msm.core.objects.imports.model.ImportStatus;
 import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Map;
@@ -87,4 +89,23 @@ public class ImportJobService {
 
         return dataJobImport.getValues();
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void makeJobValidating(UUID importId) {
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                importId,
+                DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATING.name()).getValues()
+        );
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void makeJobImporting(UUID importId) {
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                importId,
+                DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.IMPORTING.name()).getValues()
+        );
+    }
+
 }

@@ -130,7 +130,7 @@ public class S3FileUtils {
 
         return DataRecord.of()
                 .with(AttachmentInfoMeta.DOWNLOAD_URL, downloadUrl)
-                .with(AttachmentInfoMeta.FILE_NAME, fileInfo.get(S3FileInfoMeta.ORIGINAL_FILE_NAME))
+                .with(AttachmentInfoMeta.ORIGINAL_FILE_NAME, fileInfo.get(S3FileInfoMeta.ORIGINAL_FILE_NAME))
                 .with(AttachmentInfoMeta.EXPIRES_AT, expiresAt)
                 .with(AttachmentInfoMeta.EXPIRES_IN_MINUTES, s3PropConfig.getPresignedUrlExpiration())
                 .getValues();

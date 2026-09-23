@@ -10,9 +10,11 @@ import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.imports.ImportHelper;
-import com.msm.core.objects.imports.model.CellMappingContext;
+import com.msm.core.objects.imports.excel.ExcelHeaderPathParser;
+import com.msm.core.objects.imports.model.ColumnHeaderDefinitionPath;
 import com.msm.core.objects.imports.model.ColumnToAttributeMappingContext;
-import com.msm.core.objects.imports.model.RowMappingContext;
+import com.msm.core.objects.imports.model.ExportCellMappingContext;
+import com.msm.core.objects.imports.model.ExportRowMappingContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -20,6 +22,8 @@ import org.apache.poi.ss.usermodel.Row;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,25 +34,54 @@ public class ExportExcelHandlerService {
 
 
 
+//    @Handler(action = ObjectActionNamed.Excel.Export.DETECT_COLUMN_HEADER_MAPPING)
+//    public Map<Integer, String> attributeColumnHeaderMapping(ActionContext<ColumnToAttributeMappingContext<Row>> actionContext) {
+//        ColumnToAttributeMappingContext<Row> context = actionContext.getPayload();
+//        Map<Integer, String> dataHeaderMap = new LinkedHashMap<>();
+//        ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(context.objectName());
+//        context.rowData().forEach(cellData -> {
+//            Object value = ImportHelper.getCellValue(cellData);
+//            String columnName = Utils.STR.trim(Utils.STR.valueOf(value));
+//            String fieldName = Utils.STR.toCamelCaseUnderscore(columnName);
+//            if (objectMetadata.containsAttribute(fieldName)) {
+//                dataHeaderMap.put(cellData.getColumnIndex(), fieldName);
+//            }
+//        });
+//        return dataHeaderMap;
+//    }
+
+
+
     @Handler(action = ObjectActionNamed.Excel.Export.DETECT_COLUMN_HEADER_MAPPING)
-    public Map<Integer, String> attributeColumnHeaderMapping(ActionContext<ColumnToAttributeMappingContext<Row>> actionContext) {
+    public Map<Integer, ColumnHeaderDefinitionPath> attributeColumnHeaderMapping(ActionContext<ColumnToAttributeMappingContext<Row>> actionContext) {
         ColumnToAttributeMappingContext<Row> context = actionContext.getPayload();
-        Map<Integer, String> dataHeaderMap = new LinkedHashMap<>();
+        Map<Integer, ColumnHeaderDefinitionPath> dataHeaderMap = new LinkedHashMap<>();
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(context.objectName());
+        Set<String> attrReferenceNames = objectMetadata
+                .getAttributes()
+                .stream()
+                .map(attribute -> {
+                    if(attribute.hasRef()) return attribute.getAttributeRef().getFieldName();
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
         context.rowData().forEach(cellData -> {
             Object value = ImportHelper.getCellValue(cellData);
             String columnName = Utils.STR.trim(Utils.STR.valueOf(value));
-            String fieldName = Utils.STR.toCamelCaseUnderscore(columnName);
-            if (objectMetadata.containsAttribute(fieldName)) {
-                dataHeaderMap.put(cellData.getColumnIndex(), fieldName);
+            ColumnHeaderDefinitionPath columnHeaderDefinitionPath = ExcelHeaderPathParser.parse(columnName);
+            if (objectMetadata.containsAttribute(columnHeaderDefinitionPath.originalPath())
+                    || attrReferenceNames.contains(columnHeaderDefinitionPath.referenceFieldName())) {
+                dataHeaderMap.put(cellData.getColumnIndex(), columnHeaderDefinitionPath);
             }
         });
         return dataHeaderMap;
     }
 
     @Handler(action = ObjectActionNamed.Excel.Export.ROW_MAPPING)
-    public Map<String, Object> rowMapping(ActionContext<RowMappingContext<Map<String, Object>>> actionContext) {
-        RowMappingContext<Map<String, Object>> context = actionContext.getPayload();
+    public Map<String, Object> rowMapping(ActionContext<ExportRowMappingContext<Map<String, Object>>> actionContext) {
+        ExportRowMappingContext<Map<String, Object>> context = actionContext.getPayload();
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(context.objectName());
         context.rowData().keySet().forEach(dataKey -> {
             Attribute attribute = objectMetadata.getAttributeByName(dataKey);
@@ -69,8 +102,8 @@ public class ExportExcelHandlerService {
     }
 
     @Handler(action = ObjectActionNamed.Excel.Export.CELL_MAPPING)
-    public Object cellProcessMap(ActionContext<CellMappingContext> actionContext) {
-        CellMappingContext mapperContext =  actionContext.getPayload();
+    public Object cellProcessMap(ActionContext<ExportCellMappingContext> actionContext) {
+        ExportCellMappingContext mapperContext =  actionContext.getPayload();
         Map<String, Object> rowData = mapperContext.rowData();
         return rowData.get(mapperContext.attribute().getFieldName());
     }

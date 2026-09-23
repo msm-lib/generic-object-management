@@ -923,7 +923,8 @@ public class MsmAutoConfiguration {
             ExcelOriginalMultipartAsyncService excelOriginalMultipartAsyncService,
             S3FileUtils s3FileUtils,
             ImportConfigService importConfigService,
-            ImportDataExecutor importDataExecutor
+            ImportDataExecutor importDataExecutor,
+            ImportJobService importJobService
     ) {
         return new ImportExcelService(
                 batchImportService,
@@ -933,7 +934,8 @@ public class MsmAutoConfiguration {
                 excelOriginalMultipartAsyncService,
                 s3FileUtils,
                 importConfigService,
-                importDataExecutor
+                importDataExecutor,
+                importJobService
         );
     }
 

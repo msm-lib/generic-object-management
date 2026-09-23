@@ -14,8 +14,10 @@ import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.ImportConfigService;
+import com.msm.core.objects.imports.ImportJobService;
 import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.dtometda.AttachmentInfoMeta;
+import com.msm.core.objects.imports.dtometda.S3FileInfoMeta;
 import com.msm.core.objects.imports.model.BatchInsertDataResult;
 import com.msm.core.objects.imports.model.DownloadErrorContext;
 import com.msm.core.objects.imports.model.ImportRow;
@@ -89,12 +91,14 @@ public class ImportExcelService {
     private final S3FileUtils s3FileUtils;
     private final ImportConfigService importConfigService;
     private final ImportDataExecutor importDataExecutor;
+    private final ImportJobService importJobService;
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_FILE)
     public Map<String, Object> importData(ActionContext<ObjectImportContext> actionContext) {
         ObjectImportContext objectImportContext = actionContext.getPayload();
         try {
+            importJobService.makeJobImporting(objectImportContext.jobId());
             long lastRowNumber = 0;
 
             int batchSize = importConfigService.getProcessingConfig(objectImportContext.importObjectName()).getBatchSize();
@@ -180,11 +184,13 @@ public class ImportExcelService {
 //        String fileUrl = "https://msm-digiretail-dev-s3-data-001.s3.ap-southeast-1.amazonaws.com/bhc/masterData/v2order/xlsx/2026/09/16/v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789542224338_72b918a5.xlsx?response-content-disposition=attachment%3B%20filename%3D%22v2order_b7e0a559-e6cd-4928-ad4a-ff7c661470dc_1789542224338_72b918a5.xlsx%22%3B%20filename%2A%3DUTF-8%27%27KHGH_SharePoint_Template_Draft.xlsx&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEEwaDmFwLXNvdXRoZWFzdC0xIkgwRgIhAP%2FACqHTGLLN6fUzjjN9YNPkXCzbFenVxtRD3Ua6hBcyAiEAoO9SS%2B%2BYQM3GwhEibovEWdXVhfW3xPNwNU9O2buMdU0qmAQIFRAAGgwwNzE0MTgwMTkwNzAiDD3Vi1QiYKpaBqhYyCr1AwEPY7DAssM53K7hQROs8%2FdVP42YRW0vbGfmt2UPZk2C3b%2BrgB56c8ymzkWlAALvNiT%2Fvk%2BtM4ycDdhgPp7%2BbTH8n4XGOndtxWukYHrVrJDHUjxWCO%2B8Q6I89LFilLvbtRTodaDaDarLIsELa0UA%2BIvxaVFaybwReddLBWAkspIzdI%2BuYztTJIVlXgpAqZulOOhqB69%2FCXDQGYaFEEtblp2R45eMEMKagy9rUrqnTyFkzcUDwSHfDTzEbzQ24h69mHQdxdSGgrcmqwwlNr4k8PHY%2FFhlvt5lH02aqhUYD5eJ73iTtK37Kc44GG7HRXGgvNN8EuSKJWLiQikQNs7cBcVg2f0hn4w5x568WfBtC8%2FEeX4nTxJj8uiLLKeY1ETQ4XUj7Qz9tWkoR43OMT9XU51e1eqoK3LO6ay5W8PZRQMTE5ePPTUESAj%2FjMV6ZA%2FkfuAWoBvxjfWuLAwpfabc6igU%2FAwCXUn7GfQ4glLrSktSBtvYT8ccEOdTN0oahAWMRajY9QT%2F2W5%2BCXI%2FTLe7mWe2hILFWV084itDizn8ohdZk0CbtMO95VLteeApvuNo%2B27bS5TmZIBkJNVFsAUprnc2adQaMABKdsQzUrUeWOvX%2BqIW5FQlTrNCSkj6HVJ1utgbZoZpfl2NKxEKwo%2Fx7j%2B1Q9uzbjDzgarVBjqlAXeAPaAA4Ca%2BMDY1sNWk51T8Wj%2BFoeeYxHWOjhZuHpcv9KjjR6ltIgoXihMniNF%2Bj366LiW4R5EDLAnV7ip8VEgON32zyWjOkiFcpckDk2A6psjO0suNsoWWOePkSjzYIgvFczMxK5yszFLm8yHEu38iLoMa7NSasT6z12z5pb%2FUCsh5S%2F%2FUGLo4EubYeJUd5D7Krxi2otEDtEGoHn0TkwJeiLB8mw%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260916T144424Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIARBIGYPT7EDID2OFG%2F20260916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Expires=3600&X-Amz-Signature=8ee70a363bb1e645b4c78fae688edba4156cbaf64e1a3b4e4fd4f9f5755abcfc";
             ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
 
-            internalObjectQueryRepository.update(
-                    ImportJobMeta.OBJECT_NAME,
-                    importId,
-                    DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATING.name()).getValues()
-            );
+//            internalObjectQueryRepository.update(
+//                    ImportJobMeta.OBJECT_NAME,
+//                    importId,
+//                    DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATING.name()).getValues()
+//            );
+
+            importJobService.makeJobValidating(importId);
 
             final Map<Integer, String>[] cachedHeaderMap = new Map[]{null};
 
@@ -325,7 +331,18 @@ public class ImportExcelService {
     @Handler(action = ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
     public Map<String, Object> downloadErrors(ActionContext<DownloadErrorContext> actionContext) {
         DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().importId()));
+
+        String s3KeyErrorFile = dataRecord.get(ImportJobMeta.ERROR_FILE_PATH);
+        if(s3KeyErrorFile != null) {
+            return s3FileUtils.getDownloadInfo(dataRecord.asMap());
+        }
         excelOriginalMultipartAsyncService.writeErrorsToOriginalSheetMultipartAsync(dataRecord);
+        DataRecord fileInfo = DataRecord.ofNullable(dataRecord.get(ImportJobMeta.FILE_INFO));
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                actionContext.getPayload().importId(),
+                Map.of(ImportJobMeta.ERROR_FILE_PATH.getFieldName(), fileInfo.get(S3FileInfoMeta.S3_KEY))
+        );
         return s3FileUtils.getDownloadInfo(dataRecord.asMap());
     }
 }

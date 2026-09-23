@@ -5,6 +5,7 @@ import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Utils;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.exception.AttributeColumnMappingNotFoundException;
+import com.msm.core.objects.imports.model.ColumnHeaderDefinitionPath;
 import com.msm.core.objects.imports.model.ColumnToAttributeMappingContext;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,46 @@ public class ExportExcelTemplateService {
         return objectBytes.asByteArray();
     }
 
-    public Map<Integer, String> extractColumnHeaderMap(byte[] templateBytes, UUID exportId, String objectName) {
-        Map<Integer, String> columnHeaderMap = null;
+//    public Map<Integer, String> extractColumnHeaderMap(byte[] templateBytes, UUID exportId, String objectName) {
+//        Map<Integer, String> columnHeaderMap = null;
+//
+//        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(templateBytes);
+//             Workbook workbook = new XSSFWorkbook(inputStream)) {
+//
+//            Sheet sheet = workbook.getSheetAt(0);
+//            for (Row row : sheet) {
+//                ColumnToAttributeMappingContext<Row> mapperContext = ColumnToAttributeMappingContext.of(
+//                        exportId,
+//                        row.getRowNum(),
+//                        objectName,
+//                        row
+//                );
+//                ActionContext<ColumnToAttributeMappingContext<Row>> actionContext = ActionContext
+//                        .<ColumnToAttributeMappingContext<Row>>builder()
+//                        .resource(objectName)
+//                        .action(ObjectActionNamed.Excel.Export.DETECT_COLUMN_HEADER_MAPPING)
+//                        .payload(mapperContext)
+//                        .build();
+//
+//                columnHeaderMap = actionExecutor.execute(actionContext);
+//                if (Utils.CL.isNotEmpty(columnHeaderMap)) {
+//                    break;
+//                }
+//            }
+//        } catch (Exception e) {
+//            log.error("Error while mapping column header", e);
+//            throw Lombok.sneakyThrow(e);
+//        }
+//
+//        if (Utils.CL.isEmpty(columnHeaderMap)) {
+//            throw new AttributeColumnMappingNotFoundException("Column header map is empty");
+//        }
+//        return columnHeaderMap;
+//    }
+
+
+    public Map<Integer, ColumnHeaderDefinitionPath> extractColumnHeaderMap(byte[] templateBytes, UUID exportId, String objectName) {
+        Map<Integer, ColumnHeaderDefinitionPath> columnHeaderMap = null;
 
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(templateBytes);
              Workbook workbook = new XSSFWorkbook(inputStream)) {

@@ -12,12 +12,14 @@ import com.msm.core.objects.config.ObjectExportRegistry;
 import com.msm.core.objects.entity.metadata.ExportJobMeta;
 import com.msm.core.objects.imports.ExportConfigService;
 import com.msm.core.objects.imports.dtometda.S3FileInfoMeta;
-import com.msm.core.objects.imports.model.CellMappingContext;
+import com.msm.core.objects.imports.model.ColumnHeaderDefinitionPath;
+import com.msm.core.objects.imports.model.ExportCellMappingContext;
+import com.msm.core.objects.imports.model.ExportRowMappingContext;
 import com.msm.core.objects.imports.model.ExportStatus;
-import com.msm.core.objects.imports.model.RowMappingContext;
 import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.imports.s3.S3MultipartOutputStream0;
 import com.msm.core.objects.repository.ObjectQueryRepository;
+import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,7 +75,13 @@ public class ExportExcelService {
         String template = exportConfigService.getExportTemplate(objectName);
 
         byte[] templateBytes = exportExcelTemplateService.getTemplateBytes(s3FileUtils.getBucketName(), template);
-        Map<Integer, String> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
+//        Map<Integer, String> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
+//                templateBytes,
+//                exportJobRecord.get(ExportJobMeta.ID),
+//                objectName
+//        );
+
+        Map<Integer, ColumnHeaderDefinitionPath> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
                 templateBytes,
                 exportJobRecord.get(ExportJobMeta.ID),
                 objectName
@@ -125,19 +134,27 @@ public class ExportExcelService {
                     batchSize,
                     dataMap -> {
 
-                        Row row = originalSheet.createRow(rowIndex.getAndIncrement());
-                        Map<String, Object> rowMappingData = rowMapping(exportId, row.getRowNum(), objectName, attributeColumnMapping, dataMap);
+                        Map<String, Object> rowMappingData = rowMapping(exportId, rowIndex.get(), objectName, attributeColumnMapping, dataMap);
                         cellDataMapping(
                                 exportId,
                                 objectName,
                                 attributeColumnMapping,
                                 rowMappingData
                         );
-                        totalRow.incrementAndGet();
-                        attributeColumnMapping.forEach((columnIndex, fieldName) -> {
-                            Object value = rowMappingData.get(fieldName);
-                            row.createCell(columnIndex).setCellValue(value != null ? value.toString() : "");
-                        });
+
+                        //Ignore row data null
+                        if(Objects.nonNull(rowMappingData)) {
+                            Row row = originalSheet.createRow(rowIndex.getAndIncrement());
+                            attributeColumnMapping.forEach((columnIndex, columnHeaderPath) -> {
+                                Object value = rowMappingData.get(columnHeaderPath.originalPath());
+                                if (Objects.isNull(value) && columnHeaderPath.isReference()) {
+                                    value = JsonPathUtil.extractValue(rowMappingData, columnHeaderPath.originalPath());
+                                }
+                                row.createCell(columnIndex).setCellValue(value != null ? value.toString() : "");
+                            });
+
+                            totalRow.incrementAndGet();
+                        }
                     }
             );
 
@@ -193,19 +210,19 @@ public class ExportExcelService {
             UUID exportId,
             long rowNumber,
             String objectName,
-            Map<Integer, String> headerColumn,
+            Map<Integer, ColumnHeaderDefinitionPath> headerColumn,
             Map<String, Object> row
     ) {
 
-        RowMappingContext<Map<String, Object>> mapperContext = RowMappingContext.of(
+        ExportRowMappingContext<Map<String, Object>> mapperContext = ExportRowMappingContext.of(
                 exportId,
                 rowNumber,
                 objectName,
                 headerColumn,
                 row
         );
-        ActionContext<RowMappingContext<Map<String, Object>>> actionContext = ActionContext
-                .<RowMappingContext<Map<String, Object>>>builder()
+        ActionContext<ExportRowMappingContext<Map<String, Object>>> actionContext = ActionContext
+                .<ExportRowMappingContext<Map<String, Object>>>builder()
                 .resource(objectName)
                 .action(ObjectActionNamed.Excel.Export.ROW_MAPPING)
                 .payload(mapperContext)
@@ -215,16 +232,21 @@ public class ExportExcelService {
     }
 
 
-    private void cellDataMapping(UUID jobId, String objectName, Map<Integer, String> headerColumn, Map<String, Object> rowData) {
+    private void cellDataMapping(
+            UUID jobId,
+            String objectName,
+            Map<Integer, ColumnHeaderDefinitionPath> headerColumn,
+            Map<String, Object> rowData
+    ) {
 
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(objectName);
         objectMetadata.getAttributes().forEach(attribute -> {
             if (rowData.containsKey(attribute.getFieldName())
                     && !IGNORE_ATTRIBUTE.contains(attribute.getFieldName())) {
                 String objectCellResource = Utils.STR.format("{0}.{1}",  objectName, attribute.getFieldName());
-                CellMappingContext cellMappingContext = CellMappingContext.of(jobId, objectName, attribute, headerColumn, rowData);
-                ActionContext<CellMappingContext> actionContext = ActionContext
-                        .<CellMappingContext>builder()
+                ExportCellMappingContext cellMappingContext = ExportCellMappingContext.of(jobId, objectName, attribute, headerColumn, rowData);
+                ActionContext<ExportCellMappingContext> actionContext = ActionContext
+                        .<ExportCellMappingContext>builder()
                         .resource(objectCellResource)
                         .action(ObjectActionNamed.Excel.Export.CELL_MAPPING)
                         .payload(cellMappingContext)
