@@ -67,7 +67,12 @@ public class ExportExcelService {
     public void exportExcelData(String schemaFolder, Map<String, Object> exportJobMap) {
         DataRecord exportJobRecord = DataRecord.ofNullable(exportJobMap);
         exportJobTransactionService.markExporting(exportJobRecord);
-        log.info("Exporting data record: {}", exportJobRecord.get(ExportJobMeta.ID));
+        log.info(
+                "[EXPORT-ASYNC-1] ENTER exportExcelData, exportId={}, thread={}",
+                exportJobMap.get(ExportJobMeta.ID),
+                Thread.currentThread().getName()
+        );
+
         String objectName = exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD);
         Map<String, Object> filter = exportJobRecord.get(ExportJobMeta.FILTER_CRITERIA);
         ObjectFilterRequest request = Utils.O.toObject(filter, ObjectFilterRequest.class);
@@ -76,12 +81,6 @@ public class ExportExcelService {
         String template = exportConfigService.getExportTemplate(objectName);
 
         byte[] templateBytes = exportExcelTemplateService.getTemplateBytes(s3FileUtils.getBucketName(), template);
-//        Map<Integer, String> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
-//                templateBytes,
-//                exportJobRecord.get(ExportJobMeta.ID),
-//                objectName
-//        );
-
         Map<Integer, ColumnHeaderDefinitionPath> attributeColumnMapping = exportExcelTemplateService.extractColumnHeaderMap(
                 templateBytes,
                 exportJobRecord.get(ExportJobMeta.ID),
@@ -122,7 +121,7 @@ public class ExportExcelService {
                 S3MultipartOutputStream0 s3Out = new S3MultipartOutputStream0(s3Client, bucketName, s3Key, uploadId, completedParts)
         ) {
 
-            Sheet originalSheet = targetWorkbook.getXSSFWorkbook().getSheetAt(0);
+            Sheet originalSheet = targetWorkbook.getSheetAt(0);
 
             int startRowIndex = originalSheet.getLastRowNum() + 1;
             AtomicInteger rowIndex = new AtomicInteger(startRowIndex);
@@ -259,6 +258,8 @@ public class ExportExcelService {
         });
     }
 
+}
+
 //    private Cell customExcelCell(
 //            UUID jobId,
 //            String objectName,
@@ -286,4 +287,3 @@ public class ExportExcelService {
 
 //        actionExecutor.execute(actionContext);
 //    }
-}

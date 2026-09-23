@@ -169,6 +169,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @Slf4j
 @AutoConfiguration
@@ -272,9 +273,13 @@ public class MsmAutoConfiguration {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(props.getExecutor().getCore());
         executor.setMaxPoolSize(props.getExecutor().getMax());
+        executor.setQueueCapacity(1000);
         executor.setThreadNamePrefix("ImportExportTaskExecutor-");
+        executor.setRejectedExecutionHandler(
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
         executor.initialize();
-        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
+        return executor;
     }
 
     @Bean

@@ -67,17 +67,6 @@ public class ExportJobService {
 
     @CreateHandler(resource = ExportJobMeta.OBJECT_NAME)
     public Map<String, Object> exportJob(ActionContext<Map<String, Object>> actionContext) {
-        //{
-        //    "objectName": "profile",
-        //    "service": "customer",
-        //    "fileName": "Import_profile_25082026.xlsx",
-        //    "originalFileName": "Import_profile_25082026.xlsx",
-        //    "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        //    "contentLength": 240675,
-        //    "description": ""
-        //}
-        // bhc/order/exportjob/20260919/file.xlsx
-
         UUID exportId = UUID.randomUUID();
         Map<String, Object> payload = actionContext.getPayload();
         DataRecord payloadRecord = DataRecord.of(payload);
@@ -89,9 +78,18 @@ public class ExportJobService {
                 .with(ImportJobMeta.STARTED_AT, Instant.now());
 
         Map<String, Object> exportJobMap = internalObjectQueryRepository.save(ExportJobMeta.OBJECT_NAME, exportJobRecord.getValues());
+        log.info(
+                "ENTER exportExcelData - thread={}, exportId={}",
+                Thread.currentThread().getName(),
+                exportJobRecord.get(ExportJobMeta.ID)
+        );
 
         exportExcelService.exportExcelData(s3FileUtils.getOrDefaultRootFolder(), exportJobMap);
-        log.info("Export job has been successfully completed");
+        log.info(
+                "SUBMITTED export - thread={}, exportId={}",
+                Thread.currentThread().getName(),
+                exportId
+        );
         return exportJobMap;
     }
 }
