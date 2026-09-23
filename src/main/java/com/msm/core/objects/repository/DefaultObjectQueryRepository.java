@@ -343,7 +343,10 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
     @Override
     public int upsert(String objectName, Map<String, Object> payload, List<String> conflictOnConstraintNames, Condition condition) {
-        return defaultQueryService.upsert(getObjectMetadata(objectName), payload, conflictOnConstraintNames, condition);
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        applyAudit(objectMetadata, AuditAction.CREATE, payload);
+        mapTo(objectMetadata, payload);
+        return defaultQueryService.upsert(objectMetadata, payload, conflictOnConstraintNames, condition);
     }
 
     @Override
