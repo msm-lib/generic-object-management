@@ -123,7 +123,7 @@ public class ExportExcelService {
 
             Sheet originalSheet = targetWorkbook.getSheetAt(0);
 
-            int startRowIndex = originalSheet.getLastRowNum() + 1;
+            int startRowIndex = targetWorkbook.getXSSFWorkbook().getSheetAt(0).getLastRowNum() + 1;
             AtomicInteger rowIndex = new AtomicInteger(startRowIndex);
 
             ObjectExportRegistry.ProcessingConfig processingConfig = exportConfigService.getProcessingConfig(objectName);
