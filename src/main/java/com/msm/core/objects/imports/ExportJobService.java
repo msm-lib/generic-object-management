@@ -37,8 +37,7 @@ public class ExportJobService {
         UUID objectId = actionContext.getObjectIdAs(UUID.class);
         Map<String, Object> objectMap = internalObjectQueryRepository.findById(ExportJobMeta.OBJECT_NAME,  objectId);
         DataRecord exportJobRecord = DataRecord.of(objectMap);
-        DataRecord s3FileInfoRecord = DataRecord.of(exportJobRecord.get(ExportJobMeta.FILE_INFO));
-
+        DataRecord s3FileInfoRecord = DataRecord.ofNullable(exportJobRecord.get(ExportJobMeta.FILE_INFO));
         String s3Key = s3FileInfoRecord.get(S3FileInfoMeta.S3_KEY);
         if(Objects.nonNull(s3Key)) {
             DataRecord attachmentRecord = DataRecord.of(s3FileUtils.getDownloadInfo(exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD), s3FileInfoRecord));
