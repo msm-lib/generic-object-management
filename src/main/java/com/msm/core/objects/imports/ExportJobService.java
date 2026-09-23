@@ -26,8 +26,6 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class ExportJobService {
-    private static final String ATTACHMENT_OBJECT_NAME = "attachment";
-    private static final String ATTACHMENT_ID_NAME = "attachmentId";
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ExportExcelService exportExcelService;
     private final S3FileUtils s3FileUtils;
@@ -93,6 +91,7 @@ public class ExportJobService {
         Map<String, Object> exportJobMap = internalObjectQueryRepository.save(ExportJobMeta.OBJECT_NAME, exportJobRecord.getValues());
 
         exportExcelService.exportExcelData(s3FileUtils.getOrDefaultRootFolder(), exportJobMap);
+        log.info("Export job has been successfully completed");
         return exportJobMap;
     }
 }

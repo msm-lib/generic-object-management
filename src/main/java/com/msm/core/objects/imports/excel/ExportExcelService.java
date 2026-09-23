@@ -63,10 +63,11 @@ public class ExportExcelService {
     private static final String MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 
-    @Async("hookTaskExecutor")
+    @Async("importExportDataTaskExecutor")
     public void exportExcelData(String schemaFolder, Map<String, Object> exportJobMap) {
         DataRecord exportJobRecord = DataRecord.ofNullable(exportJobMap);
         exportJobTransactionService.markExporting(exportJobRecord);
+        log.info("Exporting data record: {}", exportJobRecord.get(ExportJobMeta.ID));
         String objectName = exportJobRecord.get(ExportJobMeta.OBJECT_NAME_FIELD);
         Map<String, Object> filter = exportJobRecord.get(ExportJobMeta.FILTER_CRITERIA);
         ObjectFilterRequest request = Utils.O.toObject(filter, ObjectFilterRequest.class);
@@ -87,7 +88,7 @@ public class ExportExcelService {
                 objectName
         );
 
-
+        log.info("Detect data column header: {}", attributeColumnMapping);
         UUID exportId = exportJobRecord.get(ExportJobMeta.ID);
         String s3FileName = s3FileUtils.generateFileName(exportId, FILE_EXTENSION);
 
@@ -157,7 +158,7 @@ public class ExportExcelService {
                         }
                     }
             );
-
+            log.info("End write data to excel file: {} row", totalRow.get());
             targetWorkbook.write(s3Out);
             targetWorkbook.close();
             s3Out.close();

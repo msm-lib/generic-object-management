@@ -11,7 +11,7 @@ public class GenericObjectConfigProperties {
 
     @Data
     public static class Executor {
-        private int core = 1;
+        private int core = 5;
         private int max = 20;
     }
 

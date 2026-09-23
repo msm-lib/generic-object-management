@@ -266,6 +266,17 @@ public class MsmAutoConfiguration {
         return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
+    @Bean(name = "importExportDataTaskExecutor")
+    @ConditionalOnMissingBean(name = "importExportDataTaskExecutor")
+    public Executor importExportDataTaskExecutor(GenericObjectConfigProperties props) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(props.getExecutor().getCore());
+        executor.setMaxPoolSize(props.getExecutor().getMax());
+        executor.setThreadNamePrefix("ImportExportTaskExecutor-");
+        executor.initialize();
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public DataScopeResolver dataScopeResolver() {
@@ -1030,6 +1041,7 @@ public class MsmAutoConfiguration {
         );
     }
 
+    @ConditionalOnMissingBean
     @Bean("exportJobService")
     public ExportJobService exportJobService(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
