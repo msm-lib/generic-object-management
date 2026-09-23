@@ -2,9 +2,12 @@ package com.msm.core.objects.imports.excel;
 
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
+import com.msm.core.commons.Constants;
 import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.filter.domain.ObjectFilterRequest;
+import com.msm.core.filter.domain.PageResponse;
+import com.msm.core.filter.domain.pageable.PageRequest;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
@@ -128,35 +131,70 @@ public class ExportExcelService {
 
             ObjectExportRegistry.ProcessingConfig processingConfig = exportConfigService.getProcessingConfig(objectName);
             int batchSize = processingConfig.getBatchSize();
-            internalObjectQueryRepository.filterStream(
-                    objectName,
-                    request,
-                    batchSize,
-                    dataMap -> {
 
-                        Map<String, Object> rowMappingData = rowMapping(exportId, rowIndex.get(), objectName, attributeColumnMapping, dataMap);
-                        cellDataMapping(
-                                exportId,
-                                objectName,
-                                attributeColumnMapping,
-                                rowMappingData
-                        );
+            PageResponse<Map<String, Object>> pageResponse = getData(objectName, request);
 
-                        //Ignore row data null
-                        if(Objects.nonNull(rowMappingData)) {
-                            Row row = originalSheet.createRow(rowIndex.getAndIncrement());
-                            attributeColumnMapping.forEach((columnIndex, columnHeaderPath) -> {
-                                Object value = rowMappingData.get(columnHeaderPath.originalPath());
-                                if (Objects.isNull(value) && columnHeaderPath.isReference()) {
-                                    value = JsonPathUtil.extractValue(rowMappingData, columnHeaderPath.originalPath());
-                                }
-                                row.createCell(columnIndex).setCellValue(value != null ? value.toString() : "");
-                            });
+            while (Utils.CL.isNotEmpty(pageResponse.getContents())) {
+                pageResponse.getContents().forEach(dataMap -> {
+                    Map<String, Object> rowMappingData = rowMapping(exportId, rowIndex.get(), objectName, attributeColumnMapping, dataMap);
+                    cellDataMapping(
+                            exportId,
+                            objectName,
+                            attributeColumnMapping,
+                            rowMappingData
+                    );
 
-                            totalRow.incrementAndGet();
-                        }
+                    //Ignore row data null
+                    if(Objects.nonNull(rowMappingData)) {
+                        Row row = originalSheet.createRow(rowIndex.getAndIncrement());
+                        attributeColumnMapping.forEach((columnIndex, columnHeaderPath) -> {
+                            Object value = rowMappingData.get(columnHeaderPath.originalPath());
+                            if (Objects.isNull(value) && columnHeaderPath.isReference()) {
+                                value = JsonPathUtil.extractValue(rowMappingData, columnHeaderPath.originalPath());
+                            }
+                            row.createCell(columnIndex).setCellValue(value != null ? value.toString() : "");
+                        });
+
+                        totalRow.incrementAndGet();
                     }
-            );
+                });
+
+                PageRequest pageRequest = request.getPageRequest();
+                PageRequest newPageRequest = PageRequest.of(pageRequest.getPage() + 1, pageRequest.getSize(), pageRequest.getSorts());
+                request.setPageRequest(newPageRequest);
+                pageResponse = getData(objectName, request);
+
+            }
+
+//            internalObjectQueryRepository.filterStream(
+//                    objectName,
+//                    request,
+//                    batchSize,
+//                    dataMap -> {
+//
+//                        Map<String, Object> rowMappingData = rowMapping(exportId, rowIndex.get(), objectName, attributeColumnMapping, dataMap);
+//                        cellDataMapping(
+//                                exportId,
+//                                objectName,
+//                                attributeColumnMapping,
+//                                rowMappingData
+//                        );
+//
+//                        //Ignore row data null
+//                        if(Objects.nonNull(rowMappingData)) {
+//                            Row row = originalSheet.createRow(rowIndex.getAndIncrement());
+//                            attributeColumnMapping.forEach((columnIndex, columnHeaderPath) -> {
+//                                Object value = rowMappingData.get(columnHeaderPath.originalPath());
+//                                if (Objects.isNull(value) && columnHeaderPath.isReference()) {
+//                                    value = JsonPathUtil.extractValue(rowMappingData, columnHeaderPath.originalPath());
+//                                }
+//                                row.createCell(columnIndex).setCellValue(value != null ? value.toString() : "");
+//                            });
+//
+//                            totalRow.incrementAndGet();
+//                        }
+//                    }
+//            );
             log.info("End write data to excel file: {} row", totalRow.get());
             targetWorkbook.write(s3Out);
             targetWorkbook.close();
@@ -203,6 +241,17 @@ public class ExportExcelService {
             exportJobTransactionService.markFailed(exportJobRecord);
             throw Lombok.sneakyThrow(e);
         }
+    }
+
+
+    private PageResponse<Map<String, Object>> getData(String objectName, ObjectFilterRequest request) {
+        ActionContext<ObjectFilterRequest> actionContext = ActionContext
+                .<ObjectFilterRequest>builder()
+                .resource(objectName)
+                .action(Constants.FilterAction.FILTER_OBJECT)
+                .payload(request)
+                .build();
+        return internalObjectQueryRepository.filter(actionContext);
     }
 
 
