@@ -1,6 +1,7 @@
 package com.msm.core.objects.imports;
 
 import com.msm.core.commons.Constants;
+import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jooq.Condition;
 import org.jooq.Field;
+import org.jooq.RowN;
 import org.jooq.impl.DSL;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,8 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -48,73 +51,92 @@ public class BatchImportService {
         List<InsertDataResult> insertDataResults = new ArrayList<>();
         long success = 0;
 
+        ObjectImportRegistry.ObjectConfig objectConfig = importConfigService.getObject(objectMetadata.getName());
+
+        List<Map<String, Object>> data = findData(objectMetadata, objectConfig.getIdentity().getFields(), rows);
+        Map<String, Map<String, Object>> existingByIdentity = Utils.D.groupBy(
+                data,
+                objectMap -> {
+                    return IdentityKeyGenerator.generate(objectMap, objectConfig.getIdentity().getFields()).key();
+                },
+                Function.identity(),
+                (old, newData) -> old
+        );
+
+        List<DataRecord> updatedData = new ArrayList<>();
+        List<DataRecord> insertData = new ArrayList<>();
+
         for (Map<String, Object> row : rows) {
             DataRecord importStagingRecord = DataRecord.of(row);
 
+            String identityKeyStaging = importStagingRecord.get(ImportStagingMeta.IDENTITY_KEY);
+            Map<String, Object> duplicateDataRow = existingByIdentity.get(identityKeyStaging);
+            if(duplicateDataRow != null) {
+                DataRecord
+                        .of(importStagingRecord.get(ImportStagingMeta.DATA))
+                        .with(ImportStagingMeta.ID, DataRecord.of(duplicateDataRow).get(ImportStagingMeta.ID));
+                updatedData.add(importStagingRecord);
+            } else {
+                insertData.add(importStagingRecord);
+            }
+
+            success++;
+        }
+
+        if(!updatedData.isEmpty()) {
             try {
-                ObjectImportRegistry.IdentityConfig identityConfig = importConfigService.getObject(importObjectName).getIdentity();
-                ObjectImportRegistry.StrategyMode mode =  identityConfig.getStrategy();
-                Object id = getId(row);
-                if(Objects.nonNull(id)) {
-//                    update(importObjectName, id, row);
-                    importDataExecutor.updateObject(importObjectName, id, importStagingRecord.get(ImportStagingMeta.DATA));
-                } else {
-                    if(ObjectImportRegistry.StrategyMode.UPSERT.equals(mode)) {
-                        Condition condition = Objects.nonNull(identityConfig.getCondition()) ? DSL.condition(identityConfig.getCondition()) : DSL.noCondition();
-                        upsert(importObjectName, importStagingRecord.get(ImportStagingMeta.DATA), identityConfig.getFields(), condition);
-                    } else {
-                        Condition condition = DSL.noCondition();
-                        Attribute primaryAttr = objectMetadata.getIdAttribute();
-                        for (String attrName : identityConfig.getFields()) {
-                            Attribute attribute = objectMetadata.getAttributeByName(attrName);
-                            Field<Object> field = (Field<Object>) attribute.getField();
-                            Object val = row.get(attrName);
-                            if(Objects.nonNull(val)) {
-                                condition = condition.and(field.eq(val));
-                            }
-                        }
+                internalObjectQueryRepository.update(
+                        objectMetadata.getName(),
+                        updatedData.stream().map(dataRecord -> dataRecord.get(ImportStagingMeta.DATA)).collect(Collectors.toList())
+                );
+            } catch(Exception e) {
+                updatedData.forEach(importStagingRecord -> {
+                    errors.add(DataRecord.of()
+                            .with(ImportErrorMeta.IMPORT_ID, importId)
+                            .with(ImportErrorMeta.ROW_NUMBER, importStagingRecord.get(ImportStagingMeta.ROW_NUMBER))
+                            .with(ImportErrorMeta.ERROR_TYPE, "DATABASE")
+                            .with(ImportErrorMeta.ERROR_MESSAGE, e.getMessage())
+                            .with(ImportErrorMeta.ERROR_CODE, "IMPORT_ERROR")
+                            .with(ImportStagingMeta.DATA, importStagingRecord.get(ImportStagingMeta.DATA))
+                    );
+                    insertDataResults.add(
+                            new InsertDataResult(
+                                    updatedData.size(),
+                                    ImportStatus.COMPLETED_WITH_ERRORS,
+                                    "COMPLETED_WITH_ERRORS",
+                                    importStagingRecord.getValues()
+                            )
+                    );
+                });
 
-                        Map<String, Object> objectMap = internalObjectQueryRepository.findOneByCondition(
-                                importObjectName,
-                                condition,
-                                List.of(primaryAttr.getFieldName())
-                        );
+            }
+        }
 
-                        if(Objects.nonNull(objectMap)) {
-                            Object objectIdExists = objectMap.get(primaryAttr.getFieldName());
-                            row.put(primaryAttr.getFieldName(), objectIdExists);
-                            update(importObjectName, objectIdExists, row);
-                        }
-                    }
-                }
-
-//                importOne(importObjectName, importStagingRecord.get(ImportStagingMeta.DATA));
-                success++;
-                insertDataResults.add(
-                        new InsertDataResult(
-                                success,
-                                ImportStatus.COMPLETED,
-                                "COMPLETED",
-                                row
-                        )
+        if(!insertData.isEmpty()) {
+            try {
+                internalObjectQueryRepository.insertBatch(
+                        objectMetadata.getName(),
+                        insertData.stream().map(dataRecord -> dataRecord.get(ImportStagingMeta.DATA)).collect(Collectors.toList())
                 );
             } catch (Exception e) {
-                errors.add(DataRecord.of()
-                        .with(ImportErrorMeta.IMPORT_ID, importId)
-                        .with(ImportErrorMeta.ROW_NUMBER, importStagingRecord.get(ImportStagingMeta.ROW_NUMBER))
-                        .with(ImportErrorMeta.ERROR_TYPE, "DATABASE")
-                        .with(ImportErrorMeta.ERROR_MESSAGE, e.getMessage())
-                        .with(ImportErrorMeta.ERROR_CODE, "IMPORT_ERROR")
-                        .with(ImportStagingMeta.DATA, row)
-                );
-                insertDataResults.add(
-                        new InsertDataResult(
-                                success,
-                                ImportStatus.COMPLETED_WITH_ERRORS,
-                                "COMPLETED_WITH_ERRORS",
-                                row
-                        )
-                );
+                insertData.forEach(importStagingRecord -> {
+                    errors.add(DataRecord.of()
+                            .with(ImportErrorMeta.IMPORT_ID, importId)
+                            .with(ImportErrorMeta.ROW_NUMBER, importStagingRecord.get(ImportStagingMeta.ROW_NUMBER))
+                            .with(ImportErrorMeta.ERROR_TYPE, "DATABASE")
+                            .with(ImportErrorMeta.ERROR_MESSAGE, e.getMessage())
+                            .with(ImportErrorMeta.ERROR_CODE, "IMPORT_ERROR")
+                            .with(ImportStagingMeta.DATA, importStagingRecord.get(ImportStagingMeta.DATA))
+                    );
+                    insertDataResults.add(
+                            new InsertDataResult(
+                                    insertData.size(),
+                                    ImportStatus.COMPLETED_WITH_ERRORS,
+                                    "COMPLETED_WITH_ERRORS",
+                                    importStagingRecord.getValues()
+                            )
+                    );
+                });
             }
         }
 
@@ -171,8 +193,44 @@ public class BatchImportService {
         return DataRecord.of(data).get(ImportStagingMeta.DATA).get(Constants.OBJECT_PK);
     }
 
-    private Object extractValues(Map<String, Object> data) {
-        return DataRecord.of(data).get(ImportStagingMeta.DATA).get(Constants.OBJECT_PK);
+    private List<Map<String, Object>> findData(ObjectMetadata objectMetadata, List<String> identityFields, List<Map<String, Object>> rows) {
+
+        return internalObjectQueryRepository.findByCondition(
+                objectMetadata.getName(),
+                buildIdentityCondition(objectMetadata, identityFields, rows)
+        );
+    }
+
+
+    public Condition buildIdentityCondition(ObjectMetadata objectMetadata, List<String> identityFields, List<Map<String, Object>> rows) {
+        if (identityFields.isEmpty() || rows.isEmpty()) {
+            return DSL.falseCondition();
+        }
+
+        Field<?>[] tableFields = identityFields.stream()
+                .map(fieldName -> {
+                   Attribute attribute = objectMetadata.getAttributeByName(fieldName);
+                    return attribute.getField();
+                })
+                .toArray(Field[]::new);
+
+        RowN tableRow = DSL.row(tableFields);
+
+        List<RowN> values = new ArrayList<>();
+
+        for (Map<String, Object> row : rows) {
+            DataRecord dataRecord = DataRecord.of(row);
+            Map<String, Object> data = dataRecord.get(ImportStagingMeta.DATA);
+            Field<?>[] rowValues = identityFields.stream()
+                    .map(fieldName ->
+                            DSL.val(data.get(fieldName))
+                    )
+                    .toArray(Field[]::new);
+
+            values.add(DSL.row(rowValues));
+        }
+
+        return tableRow.in(values);
     }
 
 }

@@ -9,10 +9,12 @@ import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.model.AttributeReferenceContext;
+import com.msm.core.objects.imports.model.IdentityKey;
 import com.msm.core.objects.imports.model.ImportErrorData;
 import com.msm.core.objects.imports.model.ImportRow;
 import com.msm.core.objects.imports.reference.AttributeRefHelper;
@@ -31,11 +33,12 @@ public class BatchValidationService {
     private final ImportValidationService importValidationService;
     private final ActionExecutor actionExecutor;
     private final ObjectQueryRepository internalObjectQueryRepository;
-
+    private final ImportConfigService importConfigService;
 
 
     public void processBatch(UUID importJobId, ObjectMetadata metadata, List<ImportRow> rows) {
         List<ImportErrorData> errors = new ArrayList<>();
+        ObjectImportRegistry.ObjectConfig objectConfig = importConfigService.getObject(metadata.getName());
 
         for (ImportRow row : rows) {
             importValidationService.populate(metadata, row.rowData());
@@ -87,15 +90,20 @@ public class BatchValidationService {
                 )
         );
 
+
         List<Map<String, Object>> importStateRows = rows
                 .stream()
-                .map(importRow -> DataRecord
-                        .of()
-                        .with(ImportStagingMeta.IMPORT_ID, importJobId)
-                        .with(ImportStagingMeta.ROW_NUMBER, importRow.rowNumber())
-                        .with(ImportStagingMeta.DATA, importRow.rowData())
-                        .getValues()
-                ).collect(Collectors.toList());
+                .map(importRow -> {
+                    IdentityKey identityKey = IdentityKeyGenerator.generate(importRow.rowData(), objectConfig.getIdentity().getFields());
+                    return DataRecord
+                            .of()
+                            .with(ImportStagingMeta.IMPORT_ID, importJobId)
+                            .with(ImportStagingMeta.ROW_NUMBER, importRow.rowNumber())
+                            .with(ImportStagingMeta.DATA, importRow.rowData())
+                            .with(ImportStagingMeta.IDENTITY_KEY, identityKey.key())
+                            .with(ImportStagingMeta.IDENTITY_LEVEL, identityKey.level())
+                            .getValues();
+                }).collect(Collectors.toList());
 
         //insert ImportStagingMeta
         internalObjectQueryRepository.insertBatch(

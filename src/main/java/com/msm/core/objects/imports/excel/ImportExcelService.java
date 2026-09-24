@@ -15,6 +15,7 @@ import com.msm.core.objects.entity.metadata.ImportStagingMeta;
 import com.msm.core.objects.imports.BatchImportService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ImportJobService;
+import com.msm.core.objects.imports.ImportTransactionExecutor;
 import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.dtometda.AttachmentInfoMeta;
 import com.msm.core.objects.imports.dtometda.S3FileInfoMeta;
@@ -92,6 +93,7 @@ public class ImportExcelService {
     private final ImportConfigService importConfigService;
     private final ImportDataExecutor importDataExecutor;
     private final ImportJobService importJobService;
+    private final ImportTransactionExecutor importTransactionExecutor;
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_FILE)
@@ -113,7 +115,12 @@ public class ImportExcelService {
                                 )),
                         batchSize,
                         List.of(Sort.of(ImportStagingMeta.ROW_NUMBER.getFieldName(), SortDirection.ASC)),
-                        List.of(ImportStagingMeta.ROW_NUMBER.getFieldName(), ImportStagingMeta.DATA.getFieldName())
+                        List.of(
+                                ImportStagingMeta.ROW_NUMBER.getFieldName(),
+                                ImportStagingMeta.IDENTITY_KEY.getFieldName(),
+                                ImportStagingMeta.IDENTITY_LEVEL.getFieldName(),
+                                ImportStagingMeta.DATA.getFieldName()
+                        )
                 );
 
                 if (rows.isEmpty()) {
@@ -254,9 +261,8 @@ public class ImportExcelService {
             return finishValidation(importValidation.importId());
         } catch (Exception e) {
             log.error("Exception occurred when validating the object", e);
+            importJobService.makeJobValidateFailed(importId);
             throw Lombok.sneakyThrow(e);
-        } finally {
-            finishValidation(importId);
         }
     }
 

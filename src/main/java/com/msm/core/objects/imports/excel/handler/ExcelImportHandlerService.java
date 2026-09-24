@@ -8,6 +8,7 @@ import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.BatchImportServiceV2;
 import com.msm.core.objects.imports.BatchValidationService;
 import com.msm.core.objects.imports.FileReaderService;
 import com.msm.core.objects.imports.ImportConfigService;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -39,6 +41,7 @@ public class ExcelImportHandlerService {
     private final AttributeReferenceResolver attributeReferenceResolver;
     private final ImportConfigService importConfigService;
     private final BatchImportService batchImportService;
+    private final BatchImportServiceV2 batchImportServiceV2;
 
     @Handler(action = ObjectActionNamed.Excel.READ_FILE)
     public void read(ActionContext<ReadActionContext<Row>> actionContext) {
@@ -100,6 +103,10 @@ public class ExcelImportHandlerService {
             return ImportHelper.arrayParser(String.valueOf(attrVal));
         }
 
+        if (mapperContext.attribute().getJavaType().isTypeOrSubTypeOf(Instant.class)) {
+            return Utils.DATES.toInstant(Utils.STR.valueOf(attrVal));
+        }
+
         return mapperContext.attribute().cast(attrVal);
     }
 
@@ -120,17 +127,28 @@ public class ExcelImportHandlerService {
     @Handler(action = ObjectActionNamed.Excel.BATCH_INSERT_DATA_PROCESSING)
     public BatchInsertDataResult batchInsertDataProcessing(ActionContext<BatchInsertDataContext> actionContext) {
         BatchInsertDataContext batchInsertDataContext = actionContext.getPayload();
-        return batchImportService.batchInsertDataProcessing(batchInsertDataContext.jobId(), batchInsertDataContext.objectName(), batchInsertDataContext.data());
+        return batchImportServiceV2.batchInsertDataProcessing(batchInsertDataContext.jobId(), batchInsertDataContext.objectName(), batchInsertDataContext.data());
     }
 
 
-//    @CellMappingHandler(resource = "v2deliveryscheduleproduct.createdAt")
+//    @CellMappingHandler(resource = "profile.fromDate")
 //    public Object createdAt(ActionContext<CellMappingContext> actionContext) {
 //        CellMappingContext cellMapperContext = actionContext.getPayload();
 //        Map<String, Object> rowData = cellMapperContext.rowData();
 //        Object attrVal = rowData.get(cellMapperContext.attribute().getFieldName());
+//        Object object = Utils.DATES.toInstant(Utils.STR.valueOf(attrVal));
+//        System.out.println(object);
+//        return object;
+//    }
 //
-//        return Utils.DATES.toInstant(Utils.STR.valueOf(attrVal));
+//    @CellMappingHandler(resource = "profile.toDate")
+//    public Object toDate(ActionContext<CellMappingContext> actionContext) {
+//        CellMappingContext cellMapperContext = actionContext.getPayload();
+//        Map<String, Object> rowData = cellMapperContext.rowData();
+//        Object attrVal = rowData.get(cellMapperContext.attribute().getFieldName());
+//        Object object = Utils.DATES.toInstant(Utils.STR.valueOf(attrVal));
+//        System.out.println(object);
+//        return object;
 //    }
 
 }

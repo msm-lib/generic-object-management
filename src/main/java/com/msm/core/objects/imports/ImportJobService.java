@@ -108,4 +108,12 @@ public class ImportJobService {
         );
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void makeJobValidateFailed(UUID importId) {
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                importId,
+                DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATION_FAILED.name()).getValues()
+        );
+    }
 }

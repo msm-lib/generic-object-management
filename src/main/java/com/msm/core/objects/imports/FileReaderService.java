@@ -16,6 +16,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.BOMInputStream;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -129,6 +131,7 @@ public class FileReaderService {
 
             Sheet sheet = workbook.getSheetAt(0);
             for (Row row : sheet) {
+                if(isRowEmpty(row)) continue;
                 consumer.accept(
                         new RawRow<>(row.getRowNum(), importObjectName, row)
                 );
@@ -164,5 +167,25 @@ public class FileReaderService {
                 .build();
 
         actionExecutor.execute(actionRequest);
+    }
+
+    public static boolean isRowEmpty(Row row) {
+        if (row == null) {
+            return true;
+        }
+
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                if (cell.getCellType() == CellType.STRING) {
+                    if (!cell.getStringCellValue().trim().isEmpty()) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

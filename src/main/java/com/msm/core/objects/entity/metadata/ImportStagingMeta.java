@@ -37,6 +37,12 @@ public final class ImportStagingMeta {
     public static final TypedAttribute<Long> ROW_NUMBER =
             attr(TABLE, "rowNumber", "row_number", Long.class);
 
+    public static final TypedAttribute<String> IDENTITY_KEY =
+            attr(TABLE, "identityKey", "identity_key", String.class);
+
+    public static final TypedAttribute<Integer> IDENTITY_LEVEL =
+            attr(TABLE, "identityLevel", "identity_level", Integer.class);
+
     public static final TypedAttribute<Map<String, Object>> DATA =
             attr(TABLE, "data", "data", resolve(Map.class, String.class, Object.class));
 

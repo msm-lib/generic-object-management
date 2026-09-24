@@ -48,6 +48,14 @@ public class ImportStaging extends AuditingEntity {
     private Long rowNumber;
 
     @AttributeDefinition(required = true)
+    @Column(name = "identity_key")
+    private String identityKey;
+
+    @AttributeDefinition(required = true)
+    @Column(name = "identity_level")
+    private int identityLevel;
+
+    @AttributeDefinition(required = true)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data", nullable = false)
     private Map<String, Object> data;

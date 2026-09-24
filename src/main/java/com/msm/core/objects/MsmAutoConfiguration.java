@@ -48,6 +48,7 @@ import com.msm.core.objects.handler.GenericObjectHandler;
 import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
 import com.msm.core.objects.imports.BatchImportService;
+import com.msm.core.objects.imports.BatchImportServiceV2;
 import com.msm.core.objects.imports.BatchValidationService;
 import com.msm.core.objects.imports.ExportConfigService;
 import com.msm.core.objects.imports.ExportJobService;
@@ -55,6 +56,8 @@ import com.msm.core.objects.imports.FileReaderService;
 import com.msm.core.objects.imports.ImportConfigService;
 import com.msm.core.objects.imports.ImportErrorService;
 import com.msm.core.objects.imports.ImportJobService;
+import com.msm.core.objects.imports.ImportTransactionExecutor;
+import com.msm.core.objects.imports.ProcessBatchInsertUpdate;
 import com.msm.core.objects.imports.ReferenceProcessService;
 import com.msm.core.objects.imports.config.ImportConfigLoader;
 import com.msm.core.objects.imports.csv.CsvImportService;
@@ -796,12 +799,14 @@ public class MsmAutoConfiguration {
     public BatchValidationService batchProcessingService(
             @Qualifier("importValidationService0") com.msm.core.objects.imports.validation.ImportValidationService importValidationService0,
             ActionExecutor actionExecutor,
-            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportConfigService importConfigService
     ) {
         return new BatchValidationService(
                 importValidationService0,
                 actionExecutor,
-                internalObjectQueryRepository
+                internalObjectQueryRepository,
+                importConfigService
         );
     }
 
@@ -940,7 +945,8 @@ public class MsmAutoConfiguration {
             S3FileUtils s3FileUtils,
             ImportConfigService importConfigService,
             ImportDataExecutor importDataExecutor,
-            ImportJobService importJobService
+            ImportJobService importJobService,
+            ImportTransactionExecutor importTransactionExecutor
     ) {
         return new ImportExcelService(
                 batchImportService,
@@ -951,7 +957,8 @@ public class MsmAutoConfiguration {
                 s3FileUtils,
                 importConfigService,
                 importDataExecutor,
-                importJobService
+                importJobService,
+                importTransactionExecutor
         );
     }
 
@@ -961,14 +968,16 @@ public class MsmAutoConfiguration {
             FileReaderService fileReaderService,
             AttributeReferenceResolver attributeReferenceResolver,
             ImportConfigService importConfigService,
-            BatchImportService batchImportService
+            BatchImportService batchImportService,
+            BatchImportServiceV2 batchImportServiceV2
     ) {
         return new ExcelImportHandlerService(
                 processValidationBatch,
                 fileReaderService,
                 attributeReferenceResolver,
                 importConfigService,
-                batchImportService
+                batchImportService,
+                batchImportServiceV2
         );
     }
 
@@ -1079,6 +1088,41 @@ public class MsmAutoConfiguration {
                 internalObjectQueryRepository,
                 importConfigService,
                 importDataExecutor
+        );
+    }
+
+    @Bean("batchImportServiceV2")
+    public BatchImportServiceV2 batchImportServiceV2(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportErrorService importErrorService,
+            ImportConfigService importConfigService,
+            ImportDataExecutor importDataExecutor,
+            ProcessBatchInsertUpdate processBatchInsertUpdate
+    ) {
+        return new BatchImportServiceV2(
+                importErrorService,
+                internalObjectQueryRepository,
+                importConfigService,
+                importDataExecutor,
+                processBatchInsertUpdate
+        );
+    }
+    //ProcessInsertUpdateBatch
+    @Bean("processInsertUpdateBatch")
+    public ProcessBatchInsertUpdate processInsertUpdateBatch(
+            ImportTransactionExecutor transactionExecutor
+    ) {
+        return new ProcessBatchInsertUpdate(
+                transactionExecutor
+        );
+    }
+
+    @Bean("importTransactionExecutor")
+    public ImportTransactionExecutor importTransactionExecutor(
+            ActionExecutor actionExecutor
+    ) {
+        return new ImportTransactionExecutor(
+                actionExecutor
         );
     }
 
