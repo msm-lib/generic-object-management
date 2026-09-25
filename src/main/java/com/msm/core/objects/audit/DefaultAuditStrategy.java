@@ -23,8 +23,7 @@ public class DefaultAuditStrategy implements AuditStrategy {
                 put(meta, payload, Constants.CREATED_BY, ctx.getUsername());
                 put(meta, payload, Constants.CREATED_BY_ID, ctx.getUserId());
                 put(meta, payload, Constants.IS_DELETED, Boolean.FALSE);
-                put(meta, payload, Constants.TEAM_ID, getTeamId(ctx));
-                putTeamRef(payload, ctx.getTeam());
+                putTeam(meta, payload, ctx.getTeam());
             }
             case UPDATE -> {
                 put(meta, payload, Constants.UPDATED_AT, now);
@@ -48,18 +47,20 @@ public class DefaultAuditStrategy implements AuditStrategy {
         }
     }
 
-    private void putTeamRef(Map<String, Object> payload, Object value) {
-        payload.put(Constants.TEAM_ID_REF, value);
+    private void putTeam(ObjectMetadata meta, Map<String, Object> payload, Team team) {
+        Attribute attrTeam = meta.getAttributeByName(Constants.TEAM_ID);
+        if (attrTeam != null) {
+            payload.putIfAbsent(Constants.TEAM_ID, getTeamId(team));
+            payload.putIfAbsent(Constants.TEAM_ID_REF, team);
+        }
     }
-
 
     @Override
     public String support() {
         return DEFAULT_OBJECT_TYPE; // fallback
     }
 
-    private Object getTeamId(RequestContext ctx) {
-        Team team = ctx.getTeam();
+    private Object getTeamId(Team team) {
         return Objects.nonNull(team) ? team.getId() : null;
     }
 
