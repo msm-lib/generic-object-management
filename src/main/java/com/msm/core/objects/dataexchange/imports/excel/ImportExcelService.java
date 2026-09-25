@@ -4,11 +4,14 @@ import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
 import com.msm.core.commons.Utils;
+import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.filter.domain.pageable.Sort;
 import com.msm.core.filter.domain.pageable.SortDirection;
+import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.ObjectImportRegistry;
+import com.msm.core.objects.dataexchange.DataHelper;
 import com.msm.core.objects.dataexchange.ErrorHelper;
 import com.msm.core.objects.dataexchange.imports.ErrorType;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
@@ -191,6 +194,7 @@ public class ImportExcelService {
             ImportValidation importValidation = ImportValidation.of(importId, actionContext.getResource(), fileUrl);
             importJobService.makeJobValidating(importId);
 
+            ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(actionContext.getResource());
             final Map<Integer, String>[] cachedHeaderMap = new Map[]{null};
 
             ObjectImportRegistry.HeaderConfig header = importConfigService.getHeader(actionContext.getResource());
@@ -200,7 +204,7 @@ public class ImportExcelService {
                 if(header.isAutoDetectHeader()) {
                     if (cachedHeaderMap[0] == null) {
                         Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
-                        if (Utils.CL.isEmpty(detectedColumnHeaderMap)) {
+                        if(!DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
                             return;
                         }
                         cachedHeaderMap[0] = detectedColumnHeaderMap;
@@ -212,7 +216,7 @@ public class ImportExcelService {
                             return;
                         }
                         Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
-                        if (Utils.CL.isEmpty(detectedColumnHeaderMap)) {
+                        if (!DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
                             throw new IllegalArgumentException("Not found column header mapping to object attribute at row: " + header.getRow());
                         }
                         cachedHeaderMap[0] = detectedColumnHeaderMap;

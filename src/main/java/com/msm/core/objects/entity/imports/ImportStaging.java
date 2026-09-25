@@ -19,7 +19,6 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -60,9 +59,4 @@ public class ImportStaging extends SoftDeleteEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data", nullable = false)
     private Map<String, Object> data;
-
-
-    @Column(name = "custom_values")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> customValues = new HashMap<>();
 }

@@ -127,7 +127,7 @@ public class ImportDataService {
                             .with(ImportStagingMeta.ID, existingId);
 
                     if(versionAttr != null) {
-                        dataRecord.with(versionAttr.getFieldName(), existingRecord.get(versionAttr.getFieldName(), Long.class));
+                        dataRecord.with(versionAttr.getFieldName(), existingRecord.getOrDefault(versionAttr.getFieldName(), Long.class, 0L));
                     }
 
                     stagingRecord.with(ImportStagingMeta.DATA, dataRecord.getValues());

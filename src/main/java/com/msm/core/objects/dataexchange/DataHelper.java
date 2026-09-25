@@ -1,12 +1,16 @@
 package com.msm.core.objects.dataexchange;
 
 import com.msm.core.commons.Utils;
+import com.msm.core.metadata.Attribute;
+import com.msm.core.metadata.ObjectMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 public final class DataHelper {
@@ -67,6 +71,48 @@ public final class DataHelper {
 
             default -> null;
         };
+    }
+
+    public static boolean isColumnHeaderValid(ObjectMetadata objectMetadata, Map<Integer, String> columnHeaders, int totalColumn) {
+        List<Attribute> attrs = objectMetadata.getAttributes();
+
+        if(Utils.CL.isEmpty(columnHeaders)) {
+            return false;
+        }
+
+        if (attrs == null || attrs.isEmpty()) {
+            return true;
+        }
+
+        Set<String> columnNames = Set.copyOf(columnHeaders.values());
+        long count = attrs.stream()
+                .map(Attribute::getFieldName)
+                .filter(columnNames::contains)
+                .count();
+
+        return count >= (totalColumn / 2);
+    }
+
+    public static boolean isColumnHeaderValid(ObjectMetadata objectMetadata, Map<Integer, String> columnHeaders, double requiredPercentage) {
+        List<Attribute> attrs = objectMetadata.getAttributes();
+
+        if(Utils.CL.isEmpty(columnHeaders)) {
+            return false;
+        }
+
+        if (attrs == null || attrs.isEmpty()) {
+            return false;
+        }
+
+        Set<String> columnNames = Set.copyOf(columnHeaders.values());
+        long matchCount = attrs.stream()
+                .map(Attribute::getFieldName)
+                .filter(columnNames::contains)
+                .count();
+
+        double actualPercentage = ((double) matchCount / attrs.size()) * 100;
+
+        return actualPercentage >= requiredPercentage;
     }
 
 //    public static void readExcelStream(String importObjectName, UUID importId, String fileUrl, int bufferSize, int batchSize, Consumer<RawRow<Row>> consumer) {

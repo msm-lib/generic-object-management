@@ -70,9 +70,5 @@ public class ExportJob extends SoftDeleteEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "file_info")
     private Map<String, Object> fileInfo;
-
-    @Column(name = "custom_values")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> customValues = new HashMap<>();
 }
 
