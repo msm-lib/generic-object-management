@@ -27,7 +27,6 @@ import com.msm.core.objects.dataexchange.imports.model.RawRow;
 import com.msm.core.objects.dataexchange.imports.model.ReadActionContext;
 import com.msm.core.objects.dataexchange.imports.s3.ExcelOriginalMultipartAsyncService;
 import com.msm.core.objects.dataexchange.imports.s3.S3FileUtils;
-import com.msm.core.objects.dto.QueryTemplate;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.entity.metadata.ImportStagingMeta;
@@ -338,16 +337,6 @@ public class ImportExcelService {
 
 
         return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importId);
-    }
-
-
-
-    public static QueryTemplate createQueryAttachmentInfo(Object attachmentId) {
-        Map<String, Object> parameters = Utils.CL.newHashMap("id", attachmentId);
-        return QueryTemplate.builder()
-                .query("attachment-download-info")
-                .parameters(parameters)
-                .build();
     }
 
     private void trackingRowProcessing(UUID importId, long rowCount) {

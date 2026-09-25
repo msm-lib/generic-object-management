@@ -1,7 +1,7 @@
 package com.msm.core.objects.entity.imports;
 
 import com.msm.core.metadata.annotation.AttributeDefinition;
-import com.msm.core.objects.entity.AuditingEntity;
+import com.msm.core.objects.entity.SoftDeleteEntity;
 import com.msm.core.security.annotations.IgnorePermission;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,7 +27,7 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "export_job")
-public class ExportJob extends AuditingEntity {
+public class ExportJob extends SoftDeleteEntity {
 
     @Id
     @NotNull
@@ -70,5 +70,9 @@ public class ExportJob extends AuditingEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "file_info")
     private Map<String, Object> fileInfo;
+
+    @Column(name = "custom_values")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> customValues = new HashMap<>();
 }
 

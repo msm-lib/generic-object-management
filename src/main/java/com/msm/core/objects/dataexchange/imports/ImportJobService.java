@@ -21,11 +21,19 @@ import java.util.UUID;
 
 @RequiredArgsConstructor
 public class ImportJobService {
-    private static final String ATTACHMENT_OBJECT_NAME = "attachment";
-    private static final String ATTACHMENT_ID_NAME = "attachmentId";
     private final GenericObjectInternalService genericObjectInternalService;
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3FileUtils s3FileUtils;
+
+
+//    @HookAfterFilter(resource = ImportJobMeta.OBJECT_NAME)
+//    public void filterJob(ActionContext<ObjectFilterRequest> actionContext) {
+//        PageResponse<Map<String, Object>> pageResponse = actionContext.getResultAs(new TypeReference<>() {});
+//
+//        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> {
+//
+//        });
+//    }
 
     @CreateHandler(resource = ImportJobMeta.OBJECT_NAME)
     public Map<String, Object> importJob(ActionContext<Map<String, Object>> actionContext) {

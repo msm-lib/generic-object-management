@@ -16,7 +16,6 @@ import com.msm.core.objects.dataexchange.imports.model.ObjectImportContext;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
-import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,11 +72,8 @@ public class GenericObjectService {
                 .payload(objectFilter)
                 .build();
         actionRequest.setObjectId(id);
-        Map<String, Object> result = actionExecutor.execute(actionRequest);
 
-        Object object = JsonPathUtil.extractValue(result.get("orgIdReference"), "name");
-        System.out.println(object);
-        return result;
+        return actionExecutor.execute(actionRequest);
     }
 
     public List<Map<String, Object>> getAllObject(String objectName, List<String> returnFields) {

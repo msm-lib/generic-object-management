@@ -1,7 +1,7 @@
 package com.msm.core.objects.entity.imports;
 
 import com.msm.core.metadata.annotation.AttributeDefinition;
-import com.msm.core.objects.entity.AuditingEntity;
+import com.msm.core.objects.entity.SoftDeleteEntity;
 import com.msm.core.security.annotations.IgnorePermission;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,6 +20,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,7 +32,7 @@ import java.util.UUID;
 @Builder
 @Entity
 @Table(name = "import_job")
-public class ImportJob extends AuditingEntity {
+public class ImportJob extends SoftDeleteEntity {
 
     @Id
     @NotNull
@@ -83,4 +84,9 @@ public class ImportJob extends AuditingEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "file_info")
     private Map<String, Object> fileInfo;
+
+
+    @Column(name = "custom_values")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> customValues = new HashMap<>();
 }
