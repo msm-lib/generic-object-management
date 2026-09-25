@@ -86,5 +86,6 @@ public interface ObjectQueryRepository {
                                               int limit,
                                               List<Sort> sortFields,
                                               List<String> returnFields);
+    int[] insertBatchIgnoreDuplicate(String objectName, List<Map<String, Object>> payload);
 
 }

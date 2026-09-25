@@ -374,6 +374,16 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         return defaultQueryService.findByCondition(getObjectMetadata(objectName), condition, limit, sortFields, returnFields);
     }
 
+    @Override
+    public int[] insertBatchIgnoreDuplicate(String objectName, List<Map<String, Object>> payload) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        payload.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+        return defaultQueryService.insertBatchIgnoreDuplicate(getObjectMetadata(objectName), payload);
+    }
+
     private ObjectMetadata getObjectMetadata(String objectName) {
         return genericObjectMetadataService
                 .getObjectMetadata(objectName)

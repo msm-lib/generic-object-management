@@ -5,8 +5,9 @@ public final class ObjectActionNamed {
 
     public static final class Csv {
         public static final String NAME = "csv";
-        public static final String VALIDATION = "csv_import_validation";
-        public static final String IMPORT_FILE = "csv_import_file";
+        //Main handler from user
+        public static final String VALIDATION = "csv_import_validation_processing";
+        public static final String IMPORT_DATA = "csv_import_data_processing";
         public static final String READ_FILE = "csv_read_processing";
         public static final String DETECT_COLUMN_HEADER_MAPPING = "csv_detect_column_mapping_processing";
         public static final String ROW_MAPPING = "csv_row_mapping_processing";
@@ -17,8 +18,11 @@ public final class ObjectActionNamed {
 
     public static final class Excel {
         public static final String NAME = "excel";
-        public static final String VALIDATION = "excel_import_validation";
-        public static final String IMPORT_FILE = "excel_import_file";
+        //Main handler from user
+        public static final String VALIDATION = "excel_import_validation_processing";
+        public static final String IMPORT_DATA = "excel_import_data_processing";
+
+
         public static final String READ_FILE = "excel_read_processing";
         public static final String DETECT_COLUMN_HEADER_MAPPING = "excel_detect_column_mapping_processing";
         public static final String ROW_MAPPING = "excel_row_mapping_processing";
@@ -29,7 +33,7 @@ public final class ObjectActionNamed {
         public static final String DOWNLOAD_FILE_ERRORS = "excel_download_file_error_processing";
         public static final String FILE_PROCESSED_EVENT = "excel_file_processed_event";
 
-        public static final String BATCH_INSERT_DATA_PROCESSING = "excel_batch_insert_data_processing";
+        public static final String BATCH_INSERT_OR_UPDATE_DATA_PROCESSING = "excel_batch_insert_or_update_processing";
 
 
         public static final class Export {

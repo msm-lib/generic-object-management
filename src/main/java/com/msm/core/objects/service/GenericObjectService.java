@@ -11,11 +11,11 @@ import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.objects.ObjectActionNamed;
+import com.msm.core.objects.dataexchange.imports.model.DownloadErrorContext;
+import com.msm.core.objects.dataexchange.imports.model.ObjectImportContext;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
 import com.msm.core.objects.dto.QueryTemplate;
-import com.msm.core.objects.imports.model.DownloadErrorContext;
-import com.msm.core.objects.imports.model.ObjectImportContext;
 import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -220,11 +220,10 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
-    @Transactional
     public Map<String, Object> importFileByFileId(String objectName, UUID importJob, String type, Map<String, Object> request) {
-        String actionName = ObjectActionNamed.Csv.IMPORT_FILE;
+        String actionName = ObjectActionNamed.Csv.IMPORT_DATA;
         if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {
-            actionName = ObjectActionNamed.Excel.IMPORT_FILE;
+            actionName = ObjectActionNamed.Excel.IMPORT_DATA;
         }
 
         ActionContext<ObjectImportContext> actionRequest = ActionContext
@@ -236,7 +235,6 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
-    @Transactional
     public Map<String, Object> validateImportFileByFileId(String objectName, String type, Map<String, Object> request) {
         String actionName = ObjectActionNamed.Csv.VALIDATION;
         if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {
@@ -252,7 +250,7 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
-    @Transactional
+
     public Map<String, Object> downloadErrorsFile(String objectName, UUID importJob, String type) {
 
 

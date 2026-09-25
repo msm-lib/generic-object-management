@@ -380,6 +380,16 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         return internalQueryService.findByCondition(getObjectMetadata(objectName), condition, limit, sortFields, returnFields);
     }
 
+    @Override
+    public int[] insertBatchIgnoreDuplicate(String objectName, List<Map<String, Object>> payload) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        payload.forEach(objectMap -> {
+            applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            mapTo(objectMetadata, objectMap);
+        });
+        return internalQueryService.insertBatchIgnoreDuplicate(getObjectMetadata(objectName), payload);
+    }
+
     private ObjectMetadata getObjectMetadata(String objectName) {
         return genericObjectMetadataService
                 .getObjectMetadata(objectName)

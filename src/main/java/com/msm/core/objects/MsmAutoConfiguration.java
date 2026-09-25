@@ -44,35 +44,35 @@ import com.msm.core.objects.controller.InternalGenericObjectController;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.converter.DefaultCustomValueMappingStrategy;
 import com.msm.core.objects.converter.MappingStrategyResolverFactory;
+import com.msm.core.objects.dataexchange.exports.ExportConfigService;
+import com.msm.core.objects.dataexchange.exports.ExportJobService;
+import com.msm.core.objects.dataexchange.exports.ExportJobTransactionService;
+import com.msm.core.objects.dataexchange.exports.excel.ExportExcelService;
+import com.msm.core.objects.dataexchange.exports.excel.ExportExcelTemplateService;
+import com.msm.core.objects.dataexchange.exports.excel.handler.ExportExcelHandler;
+import com.msm.core.objects.dataexchange.imports.BatchImportService;
+import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.ImportDataProcessor;
+import com.msm.core.objects.dataexchange.imports.ImportDataService;
+import com.msm.core.objects.dataexchange.imports.ImportDataTransactionExecutor;
+import com.msm.core.objects.dataexchange.imports.ImportErrorService;
+import com.msm.core.objects.dataexchange.imports.ImportJobService;
+import com.msm.core.objects.dataexchange.imports.ImportValidationService;
+import com.msm.core.objects.dataexchange.imports.ReferenceProcessService;
+import com.msm.core.objects.dataexchange.imports.config.ImportConfigLoader;
+import com.msm.core.objects.dataexchange.imports.csv.CsvImportService;
+import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
+import com.msm.core.objects.dataexchange.imports.csv.handler.CsvImportHandlerService;
+import com.msm.core.objects.dataexchange.imports.excel.ImportDataExecutor;
+import com.msm.core.objects.dataexchange.imports.excel.ImportExcelService;
+import com.msm.core.objects.dataexchange.imports.excel.handler.ImportExcelHandler;
+import com.msm.core.objects.dataexchange.imports.reference.AttributeCodeReferenceResolver;
+import com.msm.core.objects.dataexchange.imports.reference.AttributeReferenceResolver;
+import com.msm.core.objects.dataexchange.imports.s3.ExcelOriginalMultipartAsyncService;
+import com.msm.core.objects.dataexchange.imports.s3.S3FileUtils;
 import com.msm.core.objects.handler.GenericObjectHandler;
 import com.msm.core.objects.hook.GenericHookEvent;
 import com.msm.core.objects.hook.system.SystemHookEvent;
-import com.msm.core.objects.imports.BatchImportService;
-import com.msm.core.objects.imports.BatchImportServiceV2;
-import com.msm.core.objects.imports.BatchValidationService;
-import com.msm.core.objects.imports.ExportConfigService;
-import com.msm.core.objects.imports.ExportJobService;
-import com.msm.core.objects.imports.FileReaderService;
-import com.msm.core.objects.imports.ImportConfigService;
-import com.msm.core.objects.imports.ImportErrorService;
-import com.msm.core.objects.imports.ImportJobService;
-import com.msm.core.objects.imports.ImportTransactionExecutor;
-import com.msm.core.objects.imports.ProcessBatchInsertUpdate;
-import com.msm.core.objects.imports.ReferenceProcessService;
-import com.msm.core.objects.imports.config.ImportConfigLoader;
-import com.msm.core.objects.imports.csv.CsvImportService;
-import com.msm.core.objects.imports.csv.handler.CsvImportHandlerService;
-import com.msm.core.objects.imports.excel.ExportExcelService;
-import com.msm.core.objects.imports.excel.ExportExcelTemplateService;
-import com.msm.core.objects.imports.excel.ExportJobTransactionService;
-import com.msm.core.objects.imports.excel.ImportDataExecutor;
-import com.msm.core.objects.imports.excel.ImportExcelService;
-import com.msm.core.objects.imports.excel.handler.ExcelImportHandlerService;
-import com.msm.core.objects.imports.excel.handler.ExportExcelHandlerService;
-import com.msm.core.objects.imports.reference.AttributeCodeReferenceResolver;
-import com.msm.core.objects.imports.reference.AttributeReferenceResolver;
-import com.msm.core.objects.imports.s3.ExcelOriginalMultipartAsyncService;
-import com.msm.core.objects.imports.s3.S3FileUtils;
 import com.msm.core.objects.integration.DefaultRequestClient;
 import com.msm.core.objects.integration.IntegrationClient;
 import com.msm.core.objects.integration.IntegrationClientExchange;
@@ -270,19 +270,17 @@ public class MsmAutoConfiguration {
         return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
-    @Bean(name = "importExportDataTaskExecutor")
-    @ConditionalOnMissingBean(name = "importExportDataTaskExecutor")
+    @Bean(name = "dataExchangeTaskExecutor")
+    @ConditionalOnMissingBean(name = "dataExchangeTaskExecutor")
     public Executor importExportDataTaskExecutor(GenericObjectConfigProperties props) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(props.getExecutor().getCore());
         executor.setMaxPoolSize(props.getExecutor().getMax());
         executor.setQueueCapacity(1000);
-        executor.setThreadNamePrefix("ImportExportTaskExecutor-");
-        executor.setRejectedExecutionHandler(
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
+        executor.setThreadNamePrefix("dataExchangeTaskExecutor-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
-        return executor;
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
     @Bean
@@ -773,11 +771,11 @@ public class MsmAutoConfiguration {
     //============ Import ===========
 
     @Bean("importValidationService0")
-    public com.msm.core.objects.imports.validation.ImportValidationService importValidationService0(
+    public com.msm.core.objects.dataexchange.imports.validation.ImportValidationService importValidationService0(
             @Qualifier("createAttributeValidator") AttributeValidator createAttributeValidator,
             @Qualifier("updateAttributeValidator") AttributeValidator updateAttributeValidator
     ) {
-        return new com.msm.core.objects.imports.validation.ImportValidationService(
+        return new com.msm.core.objects.dataexchange.imports.validation.ImportValidationService(
                 createAttributeValidator,
                 updateAttributeValidator
         );
@@ -796,13 +794,13 @@ public class MsmAutoConfiguration {
     }
 
     @Bean("batchProcessingService")
-    public BatchValidationService batchProcessingService(
-            @Qualifier("importValidationService0") com.msm.core.objects.imports.validation.ImportValidationService importValidationService0,
+    public ImportValidationService batchProcessingService(
+            @Qualifier("importValidationService0") com.msm.core.objects.dataexchange.imports.validation.ImportValidationService importValidationService0,
             ActionExecutor actionExecutor,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportConfigService importConfigService
     ) {
-        return new BatchValidationService(
+        return new ImportValidationService(
                 importValidationService0,
                 actionExecutor,
                 internalObjectQueryRepository,
@@ -843,7 +841,7 @@ public class MsmAutoConfiguration {
 
     @Bean("csvImportHandlerService")
     public CsvImportHandlerService csvImportHandlerService(
-            BatchValidationService processValidationBatch,
+            ImportValidationService processValidationBatch,
             FileReaderService fileReaderService,
             AttributeReferenceResolver attributeReferenceResolver,
             ImportConfigService importConfigService
@@ -936,7 +934,6 @@ public class MsmAutoConfiguration {
     //Excel
     @Bean("excelImportService")
     public ImportExcelService excelImportService(
-            BatchImportService batchImportService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ActionExecutor actionExecutor,
             GenericObjectConfigProperties config,
@@ -946,10 +943,9 @@ public class MsmAutoConfiguration {
             ImportConfigService importConfigService,
             ImportDataExecutor importDataExecutor,
             ImportJobService importJobService,
-            ImportTransactionExecutor importTransactionExecutor
+            ImportErrorService importErrorService
     ) {
         return new ImportExcelService(
-                batchImportService,
                 internalObjectQueryRepository,
                 actionExecutor,
                 referenceProcessService,
@@ -958,33 +954,31 @@ public class MsmAutoConfiguration {
                 importConfigService,
                 importDataExecutor,
                 importJobService,
-                importTransactionExecutor
+                importErrorService
         );
     }
 
     @Bean("excelImportHandlerService")
-    public ExcelImportHandlerService excelImportHandlerService(
-            BatchValidationService processValidationBatch,
+    public ImportExcelHandler excelImportHandlerService(
+            ImportValidationService processValidationBatch,
             FileReaderService fileReaderService,
             AttributeReferenceResolver attributeReferenceResolver,
             ImportConfigService importConfigService,
-            BatchImportService batchImportService,
-            BatchImportServiceV2 batchImportServiceV2
+            ImportDataService importDataService
     ) {
-        return new ExcelImportHandlerService(
+        return new ImportExcelHandler(
                 processValidationBatch,
                 fileReaderService,
                 attributeReferenceResolver,
                 importConfigService,
-                batchImportService,
-                batchImportServiceV2
+                importDataService
         );
     }
 
     @Bean("exportExcelHandlerService")
-    public ExportExcelHandlerService exportExcelHandlerService(
+    public ExportExcelHandler exportExcelHandlerService(
     ) {
-        return new ExportExcelHandlerService();
+        return new ExportExcelHandler();
     }
 
     @Bean("excelTemplateService")
@@ -1031,12 +1025,10 @@ public class MsmAutoConfiguration {
 
     @Bean("s3FileUtils")
     public S3FileUtils s3FileUtils(
-            S3Client s3Client,
             S3Presigner s3Presigner,
             S3PropConfig s3PropConfig
     ) {
         return new S3FileUtils(
-                s3Client,
                 s3Presigner,
                 s3PropConfig
         );
@@ -1092,36 +1084,34 @@ public class MsmAutoConfiguration {
     }
 
     @Bean("batchImportServiceV2")
-    public BatchImportServiceV2 batchImportServiceV2(
+    public ImportDataService batchImportServiceV2(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportErrorService importErrorService,
             ImportConfigService importConfigService,
-            ImportDataExecutor importDataExecutor,
-            ProcessBatchInsertUpdate processBatchInsertUpdate
+            ImportDataProcessor importDataProcessor
     ) {
-        return new BatchImportServiceV2(
+        return new ImportDataService(
                 importErrorService,
                 internalObjectQueryRepository,
                 importConfigService,
-                importDataExecutor,
-                processBatchInsertUpdate
+                importDataProcessor
         );
     }
     //ProcessInsertUpdateBatch
     @Bean("processInsertUpdateBatch")
-    public ProcessBatchInsertUpdate processInsertUpdateBatch(
-            ImportTransactionExecutor transactionExecutor
+    public ImportDataProcessor processInsertUpdateBatch(
+            ImportDataTransactionExecutor transactionExecutor
     ) {
-        return new ProcessBatchInsertUpdate(
+        return new ImportDataProcessor(
                 transactionExecutor
         );
     }
 
     @Bean("importTransactionExecutor")
-    public ImportTransactionExecutor importTransactionExecutor(
+    public ImportDataTransactionExecutor importTransactionExecutor(
             ActionExecutor actionExecutor
     ) {
-        return new ImportTransactionExecutor(
+        return new ImportDataTransactionExecutor(
                 actionExecutor
         );
     }
