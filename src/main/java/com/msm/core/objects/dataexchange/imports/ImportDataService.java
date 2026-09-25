@@ -224,10 +224,13 @@ public class ImportDataService {
         for (Map<String, Object> row : rows) {
             DataRecord dataRecord = DataRecord.of(row);
             Map<String, Object> data = dataRecord.get(ImportStagingMeta.DATA);
-            Field<?>[] rowValues = identityFields.stream()
-                    .map(fieldName ->
-                            DSL.val(data.get(fieldName))
-                    )
+            Field<?>[] rowValues = identityFields
+                    .stream()
+                    .map(fieldName -> {
+                        Attribute attribute = objectMetadata.getAttributeByName(fieldName);
+                        Object casted = attribute.cast(data.get(fieldName));
+                        return DSL.val(casted);
+                    })
                     .toArray(Field[]::new);
 
             values.add(DSL.row(rowValues));
@@ -235,4 +238,48 @@ public class ImportDataService {
 
         return tableRow.in(values);
     }
+
+
+
+//    public Condition buildIdentityCondition(
+//            ObjectMetadata objectMetadata,
+//            List<String> identityFields,
+//            List<Map<String, Object>> rows) {
+//
+//        if (identityFields.isEmpty() || rows.isEmpty()) {
+//            return DSL.falseCondition();
+//        }
+//
+//        Field<?>[] tableFields = identityFields.stream()
+//                .map(fieldName -> {
+//                    Attribute attribute = objectMetadata.getAttributeByName(fieldName);
+//                    return attribute.getField();
+//                })
+//                .toArray(Field[]::new);
+//
+//        RowN tableRow = DSL.row(tableFields);
+//
+//        List<RowN> values = new ArrayList<>();
+//
+//        for (Map<String, Object> row : rows) {
+//            DataRecord dataRecord = DataRecord.of(row);
+//            Map<String, Object> data = dataRecord.get(ImportStagingMeta.DATA);
+//
+//            Field<?>[] rowValues = IntStream.range(0, identityFields.size())
+//                    .mapToObj(i -> {
+//                        String fieldName = identityFields.get(i);
+//                        Field<?> tableField = tableFields[i];
+//
+//                        Object value = data.get(fieldName);
+//
+//                        return DSL.val(value, tableField.getDataType());
+//                    })
+//                    .toArray(Field[]::new);
+//
+//            values.add(DSL.row(rowValues));
+//        }
+//
+//        return tableRow.in(values);
+//    }
+
 }
