@@ -78,7 +78,7 @@ public class AttributeCodeReferenceResolver {
                 objectMap
         )).collect(Collectors.toList());
 
-        AttributeRefHelper.retainAllRefData(getMappingFieldValues(referenceDetailConfig), objectList);
+        AttributeRefHelper.filterMapByKeys(getMappingFieldValues(referenceDetailConfig), objectList);
 
         Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
                 objectList,

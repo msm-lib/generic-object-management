@@ -61,6 +61,7 @@ public class ObjectImportRegistry {
     @Data
     public static class LookupValuesConfig {
         private String attributeName = "code";
+        private String sourceField;
         private String filterAttribute;
         private Set<String> defaultValues = null;
         private boolean primary = true;

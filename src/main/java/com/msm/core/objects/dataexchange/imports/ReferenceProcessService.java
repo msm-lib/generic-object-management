@@ -8,7 +8,9 @@ import com.msm.core.dynamicquery.ObjectMetadataFactory;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.ObjectActionNamed;
+import com.msm.core.objects.dataexchange.imports.keys.IdentityKeyGenerator;
 import com.msm.core.objects.dataexchange.imports.model.AttributeReferenceContext;
+import com.msm.core.objects.dataexchange.imports.model.IdentityKey;
 import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 import com.msm.core.objects.dataexchange.imports.reference.AttributeRefHelper;
 import lombok.RequiredArgsConstructor;
@@ -35,8 +37,9 @@ public class ReferenceProcessService {
                     String attrName = attr.getFieldName();
                     Map<String, Map<String, Object>> objectCodeMap = refMapList.get(attrName);
                     if(Utils.CL.isNotEmpty(objectCodeMap)) {
-                        String codeRef = String.valueOf(itemMap.get(attrName));
-                        Map<String, Object> objectRef = objectCodeMap.get(codeRef);
+                        IdentityKey identityKey = IdentityKeyGenerator.generate(itemMap, importConfigService.getSourceFieldNames(importObjectName, attr));
+                        String keyCodeRef = identityKey.key();
+                        Map<String, Object> objectRef = objectCodeMap.get(keyCodeRef);
                         if(objectRef != null) {
                             Object idObj = objectRef.get(Constants.OBJECT_PK);
                             itemMap.put(attrName, idObj);

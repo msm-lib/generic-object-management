@@ -8,13 +8,13 @@ import java.util.Map;
 
 public final class IdentityKeyGenerator {
 
-    public static IdentityKey generate(
-            Map<String, Object> data,
-            List<String> fields
-    ) {
+    public static IdentityKey generate(Map<String, Object> data, List<String> fields) {
+        return generate(data, fields, "|");
+    }
+
+    public static IdentityKey generate(Map<String, Object> data, List<String> fields, String delimiter) {
         StringBuilder key = new StringBuilder();
         int level = 0;
-
         for (String field : fields) {
             Object value = data.get(field);
 
@@ -23,7 +23,7 @@ public final class IdentityKeyGenerator {
             }
 
             if (!key.isEmpty()) {
-                key.append('|');
+                key.append(delimiter);
             }
 
             String normalized = normalize(value);
@@ -39,12 +39,32 @@ public final class IdentityKeyGenerator {
         }
 
         if (level == 0) {
-            throw new ImportValidationException(
-                    "Identity cannot be empty"
-            );
+            throw new ImportValidationException("Identity cannot be empty");
         }
 
         return new IdentityKey(key.toString(), level);
+    }
+
+
+    public static String generateKey(Map<String, Object> data, List<String> fields, String delimiter) {
+        StringBuilder key = new StringBuilder();
+        for (String field : fields) {
+            Object value = data.get(field);
+
+            if (isNullOrBlank(value)) {
+                break;
+            }
+
+            if (!key.isEmpty()) {
+                key.append(delimiter);
+            }
+
+            String normalized = normalize(value);
+
+            key.append(normalized);
+        }
+
+        return key.toString();
     }
 
     private static boolean isNullOrBlank(Object value) {

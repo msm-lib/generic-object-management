@@ -53,14 +53,13 @@ public class AttributeRefHelper {
 //    }
 
     public static Map<String, Set<String>> getLookupValueMap(
-            Attribute sourceAttr,
             List<ObjectImportRegistry.LookupValuesConfig> attributeLookups,
             List<Map<String, Object>> items
     ) {
         Map<String, Set<String>> map = new HashMap<>();
         attributeLookups.forEach(attributeLookup -> {
             if(Utils.CL.isEmpty(attributeLookup.getDefaultValues())) {
-                map.put(attributeLookup.getAttributeName(), getLookupValues(sourceAttr.getFieldName(), items));
+                map.put(attributeLookup.getAttributeName(), getLookupValues(attributeLookup.getSourceField(), items));
             } else {
                 map.put(attributeLookup.getAttributeName(), attributeLookup.getDefaultValues());
             }
@@ -72,9 +71,17 @@ public class AttributeRefHelper {
         return Objects.nonNull(attribute.getAttributeRef()) && Utils.STR.isNotBlank(attribute.getAttributeRef().getFieldName());
     }
 
-    public static void retainAllRefData(Set<String> refNames, List<Map<String, Object>> objectList) {
+    public static void filterMapByKeys(Set<String> refNames, List<Map<String, Object>> objectList) {
         objectList.forEach(objectValue -> {
             objectValue.keySet().retainAll(refNames);
         });
+    }
+
+    public static Map<String, Object> filterMapByKeys(Map<String, Object> targetMap, Set<String> allowedKeys) {
+        if (targetMap == null || allowedKeys == null) {
+            return new HashMap<>();
+        }
+        targetMap.keySet().retainAll(allowedKeys);
+        return targetMap;
     }
 }
