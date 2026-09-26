@@ -25,7 +25,7 @@ public class AttributeRefHelper {
 //    }
 
     public static Set<String> getCodes(Attribute attribute, List<Map<String, Object>> items) {
-        return Utils.CL.emptyIfNull(Utils.D.toList(items, attribute.getFieldName()))
+        return Utils.CL.emptyIfNull(Utils.D.toListByKey(items, attribute.getFieldName()))
                 .stream()
                 .map(Object::toString)
                 .filter(s -> Utils.STR.isNotBlank(s) && !Utils.STR.isEmpty(s))
@@ -33,7 +33,7 @@ public class AttributeRefHelper {
     }
 
     public static Set<String> getLookupValues(String sourceAttributeName, List<Map<String, Object>> items) {
-        return Utils.CL.emptyIfNull(Utils.D.toList(items, sourceAttributeName))
+        return Utils.CL.emptyIfNull(Utils.D.toListByKey(items, sourceAttributeName))
                 .stream()
                 .map(Object::toString)
                 .filter(s -> Utils.STR.isNotBlank(s) && !Utils.STR.isEmpty(s))

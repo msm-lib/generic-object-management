@@ -44,6 +44,7 @@ public class ImportDataService {
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(importObjectName);
         ObjectImportRegistry.ObjectConfig objectConfig = importConfigService.getObject(objectMetadata.getName());
         Attribute versionAttr = objectMetadata.getVersionAttribute();
+        Attribute idAttr = objectMetadata.getIdAttribute();
 
         List<DataRecord> errors = new ArrayList<>();
         List<InsertDataResult> results = new ArrayList<>();
@@ -51,107 +52,121 @@ public class ImportDataService {
             return new BatchInsertDataResult(0, 0, results);
         }
 
-
-        List<Map<String, Object>> existingData;
-
-        try {
-            existingData = findExistingData(
-                    objectMetadata,
-                    objectConfig.getIdentity().getFields(),
-                    rows
-            );
-        } catch (Exception e) {
-            String message = importDataProcessor.resolveErrorMessage(e);
-            for (Map<String, Object> row : rows) {
-                DataRecord stagingRecord = DataRecord.of(row);
-                errors.add(importDataProcessor.buildError(
-                        importId,
-                        stagingRecord,
-                        "DATABASE",
-                        "IMPORT_FIND_DATA_ERROR",
-                        message
-                ));
-
-                results.add(importDataProcessor.buildErrorResult(stagingRecord, message));
-            }
-
-            importErrorService.insertErrors(errors);
-
-            return new BatchInsertDataResult(
-                    0,
-                    errors.size(),
-                    results
-            );
-        }
-
-        Map<String, Map<String, Object>> existingByIdentity = Utils.D.groupBy(
-                existingData,
-                objectMap -> IdentityKeyGenerator.generate(objectMap, objectConfig.getIdentity().getFields()).key(),
-                Function.identity(),
-                (old, newData) -> old
-        );
-
         List<DataRecord> updateData = new ArrayList<>();
         List<DataRecord> insertData = new ArrayList<>();
 
 
-        for (Map<String, Object> row : rows) {
-            DataRecord stagingRecord = DataRecord.of(row);
 
+
+
+        List<List<Map<String, Object>>> identityDataList = extractIdentityData(objectMetadata, rows);
+        List<Map<String, Object>> statingDataExistingIds = identityDataList.getFirst();
+
+        if (!statingDataExistingIds.isEmpty()) {
+            applyStatingDataExistingIds(importObjectName, idAttr, versionAttr, updateData, statingDataExistingIds);
+        }
+
+        List<Map<String, Object>> statingData = identityDataList.getLast();
+
+        if(!statingData.isEmpty()) {
+            List<Map<String, Object>> existingData;
             try {
-                String identityKey = stagingRecord.get(ImportStagingMeta.IDENTITY_KEY);
-                if (identityKey == null || identityKey.isBlank()) {
+                existingData = findExistingData(
+                        objectMetadata,
+                        objectConfig.getIdentity().getFields(),
+                        statingData
+                );
+            } catch (Exception e) {
+                String message = importDataProcessor.resolveErrorMessage(e);
+                for (Map<String, Object> row : statingData) {
+                    DataRecord stagingRecord = DataRecord.of(row);
                     errors.add(importDataProcessor.buildError(
                             importId,
                             stagingRecord,
                             "VALIDATION",
-                            "MISSING_IDENTITY",
-                            "Identity key is missing."
+                            "FIND_DATA_ERROR",
+                            message
                     ));
 
-                    results.add(importDataProcessor.buildErrorResult(
-                            stagingRecord,
-                            "Identity key is missing."
-                    ));
-
-                    continue;
+                    results.add(importDataProcessor.buildErrorResult(stagingRecord, message));
                 }
 
-                Map<String, Object> existingRow = existingByIdentity.get(identityKey);
-                if (existingRow != null) {
-                    DataRecord existingRecord = DataRecord.of(existingRow);
-                    UUID existingId = existingRecord.get(ImportStagingMeta.ID);
+                importErrorService.insertErrors(errors);
 
-                    DataRecord dataRecord = DataRecord
-                            .of(stagingRecord.get(ImportStagingMeta.DATA))
-                            .with(ImportStagingMeta.ID, existingId);
+                return new BatchInsertDataResult(
+                        0,
+                        errors.size(),
+                        results
+                );
+            }
 
-                    if(versionAttr != null) {
-                        dataRecord.with(versionAttr.getFieldName(), existingRecord.getOrDefault(versionAttr.getFieldName(), Long.class, 0L));
+            Map<String, Map<String, Object>> existingByIdentity = Utils.D.groupBy(
+                    existingData,
+                    objectMap -> IdentityKeyGenerator.generate(objectMap, objectConfig.getIdentity().getFields()).key(),
+                    Function.identity(),
+                    (old, newData) -> old
+            );
+
+
+            for (Map<String, Object> row : statingData) {
+                DataRecord stagingRecord = DataRecord.of(row);
+
+                try {
+                    String identityKey = stagingRecord.get(ImportStagingMeta.IDENTITY_KEY);
+                    if (identityKey == null || identityKey.isBlank()) {
+                        errors.add(importDataProcessor.buildError(
+                                importId,
+                                stagingRecord,
+                                "VALIDATION",
+                                "MISSING_IDENTITY",
+                                "Identity key is missing."
+                        ));
+
+                        results.add(importDataProcessor.buildErrorResult(
+                                stagingRecord,
+                                "Identity key is missing."
+                        ));
+
+                        continue;
                     }
 
-                    stagingRecord.with(ImportStagingMeta.DATA, dataRecord.getValues());
-                    updateData.add(stagingRecord);
+                    Map<String, Object> existingRow = existingByIdentity.get(identityKey);
+                    if (existingRow != null) {
+                        DataRecord existingRecord = DataRecord.of(existingRow);
+                        UUID existingId = existingRecord.get(ImportStagingMeta.ID);
 
-                } else {
-                    insertData.add(stagingRecord);
+                        DataRecord dataRecord = DataRecord
+                                .of(stagingRecord.get(ImportStagingMeta.DATA))
+                                .with(ImportStagingMeta.ID, existingId);
+
+                        if(versionAttr != null) {
+                            dataRecord.with(versionAttr.getFieldName(), existingRecord.getOrDefault(versionAttr.getFieldName(), Long.class, 0L));
+                        }
+
+                        stagingRecord.with(ImportStagingMeta.DATA, dataRecord.getValues());
+                        updateData.add(stagingRecord);
+
+                    } else {
+                        insertData.add(stagingRecord);
+                    }
+
+                } catch (Exception e) {
+                    String message = importDataProcessor.resolveErrorMessage(e);
+                    errors.add(importDataProcessor.buildError(
+                            importId,
+                            stagingRecord,
+                            "VALIDATION",
+                            "INVALID_DATA",
+                            message
+                    ));
+                    results.add(importDataProcessor.buildErrorResult(
+                            stagingRecord,
+                            message
+                    ));
                 }
-
-            } catch (Exception e) {
-                String message = importDataProcessor.resolveErrorMessage(e);
-                errors.add(importDataProcessor.buildError(
-                        importId,
-                        stagingRecord,
-                        "VALIDATION",
-                        "INVALID_DATA",
-                        message
-                ));
-                results.add(importDataProcessor.buildErrorResult(
-                        stagingRecord,
-                        message
-                ));
             }
         }
+
 
         /*
          * ---------------------------------------------------------
@@ -239,6 +254,73 @@ public class ImportDataService {
         return tableRow.in(values);
     }
 
+
+    public List<List<Map<String, Object>>> extractIdentityData(ObjectMetadata objectMetadata, List<Map<String, Object>> rows) {
+        Attribute idAttribute =  objectMetadata.getIdAttribute();
+        List<Map<String, Object>> left = new  ArrayList<>();
+        List<Map<String, Object>> right = new  ArrayList<>();
+        rows.forEach(stagingDataMap -> {
+            DataRecord stagingRecord = DataRecord.of(stagingDataMap);
+            Map<String, Object> objectDataMap = stagingRecord.get(ImportStagingMeta.DATA);
+            if(objectDataMap.containsKey(idAttribute.getFieldName())) {
+                left.add(stagingDataMap);
+            } else {
+                right.add(stagingDataMap);
+            }
+        });
+
+        return List.of(left, right);
+    }
+
+
+    public void applyStatingDataExistingIds(
+            String importObjectName,
+            Attribute idAttribute,
+            Attribute versionAttribute,
+            List<DataRecord> updateData,
+            List<Map<String, Object>> statingDataExistingIds
+    ) {
+
+        if(versionAttribute == null) {
+            statingDataExistingIds.forEach(data -> {
+                updateData.add(DataRecord.of(data));
+            });
+            return;
+        }
+
+        //Find data id, version fron db
+        List<Map<String, Object>> existingFromDbMap = internalObjectQueryRepository.findByIds(
+                importObjectName,
+                Utils.D.toList(
+                        statingDataExistingIds,
+                        statingData -> DataRecord.of(statingData).get(ImportStagingMeta.DATA).get(idAttribute.getFieldName())
+                ),
+                List.of(idAttribute.getFieldName(), versionAttribute.getFieldName())
+        );
+
+        //Group data by id
+        Map<UUID, Map<String, Object>> existingFromDbByIdentity = Utils.D.groupBy(
+                existingFromDbMap,
+                objectMap -> (UUID) objectMap.get(idAttribute.getFieldName()),
+                Function.identity(),
+                (old, newData) -> old
+        );
+
+        statingDataExistingIds.forEach(row -> {
+            DataRecord stagingRecord = DataRecord.of(row);
+
+            DataRecord currentObjectRecord = DataRecord.of(stagingRecord.get(ImportStagingMeta.DATA));
+            Map<String, Object> existingDataFromDb = existingFromDbByIdentity.get(currentObjectRecord.get(idAttribute.getFieldName(), UUID.class));
+
+            //update version from db
+            currentObjectRecord.with(versionAttribute.getFieldName(), DataRecord.of(existingDataFromDb).getOrDefault(versionAttribute.getFieldName(), Long.class, 0L));
+
+            //set new object data
+            stagingRecord.with(ImportStagingMeta.DATA, currentObjectRecord.getValues());
+
+            updateData.add(stagingRecord);
+        });
+    }
 
 
 //    public Condition buildIdentityCondition(
