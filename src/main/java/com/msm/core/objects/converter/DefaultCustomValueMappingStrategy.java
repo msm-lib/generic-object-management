@@ -43,14 +43,15 @@ public class DefaultCustomValueMappingStrategy implements CustomValueMappingStra
         }
     }
 
-    private static Map<String, Object> getCustomValues(ObjectMetadata meta, Map<String, Object> userObject) {
+    private Map<String, Object> getCustomValues(ObjectMetadata meta, Map<String, Object> userObject) {
         Map<String, Object> customValues = new HashMap<>();
         //Get all attribute ref
         List<Attribute> attributes =  meta.getAttributeRefs();
         attributes.forEach(attribute -> {
             String attributeRef = attribute.getAttributeRef().getFieldName();
+            Object attributeValue = userObject.get(attribute.getFieldName());
             Object attributeRefValue = userObject.get(attributeRef);
-            if (attributeRefValue != null) {
+            if (attributeValue != null && attributeRefValue != null) {
                 customValues.put(attributeRef, attributeRefValue);
                 //maybe remove ref
             }
