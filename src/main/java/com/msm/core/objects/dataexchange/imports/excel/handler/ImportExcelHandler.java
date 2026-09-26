@@ -27,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -102,7 +104,17 @@ public class ImportExcelHandler {
         }
 
         if (mapperContext.attribute().getJavaType().isTypeOrSubTypeOf(Instant.class)) {
+            if(attrVal instanceof Date) {
+                return Utils.DATES.toInstant((Date) attrVal);
+            }
             return Utils.DATES.toInstant(Utils.STR.valueOf(attrVal));
+        }
+
+        if (mapperContext.attribute().getJavaType().isTypeOrSubTypeOf(LocalDate.class)) {
+            if(attrVal instanceof Date) {
+                return Utils.DATES.toLocalDate((Date) attrVal);
+            }
+            return Utils.DATES.toLocalDate(Utils.STR.valueOf(attrVal));
         }
 
         return mapperContext.attribute().cast(attrVal);

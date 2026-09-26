@@ -47,7 +47,7 @@ val queryDslVersion = "6.10.1"
 val awssdkVersion = "2.29.47"
 
 //https://jitpack.io/#msm-lib/commons/3.1
-val msmCommonVersion = "2.2.1"
+val msmCommonVersion = "2.2.2"
 
 dependencies {
 
