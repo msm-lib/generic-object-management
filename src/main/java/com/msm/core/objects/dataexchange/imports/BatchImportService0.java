@@ -94,6 +94,7 @@ public class BatchImportService0 {
                 success++;
                 insertDataResults.add(
                         new InsertDataResult(
+                                importId,
                                 success,
                                 ImportStatus.COMPLETED,
                                 "COMPLETED",
@@ -111,6 +112,7 @@ public class BatchImportService0 {
                 );
                 insertDataResults.add(
                         new InsertDataResult(
+                                importId,
                                 success,
                                 ImportStatus.COMPLETED_WITH_ERRORS,
                                 "COMPLETED_WITH_ERRORS",
