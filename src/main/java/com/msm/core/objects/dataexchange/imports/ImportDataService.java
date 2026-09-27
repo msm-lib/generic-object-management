@@ -21,6 +21,7 @@ import org.jooq.impl.DSL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -33,8 +34,6 @@ public class ImportDataService {
     private final ImportConfigService importConfigService;
     private final ImportDataProcessor importDataProcessor;
 
-
-//    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BatchInsertDataResult batchInsertDataProcessing(
             UUID importId,
             String importObjectName,
@@ -63,7 +62,16 @@ public class ImportDataService {
         List<Map<String, Object>> statingDataExistingIds = identityDataList.getFirst();
 
         if (!statingDataExistingIds.isEmpty()) {
-            applyStatingDataExistingIds(importObjectName, idAttr, versionAttr, updateData, statingDataExistingIds);
+            applyStatingDataExistingIds(
+                    importId,
+                    importObjectName,
+                    idAttr,
+                    versionAttr,
+                    updateData,
+                    errors,
+                    results,
+                    statingDataExistingIds
+            );
         }
 
         List<Map<String, Object>> statingData = identityDataList.getLast();
@@ -83,12 +91,12 @@ public class ImportDataService {
                     errors.add(importDataProcessor.buildError(
                             importId,
                             stagingRecord,
-                            "VALIDATION",
+                            "IMPORT_ERROR",
                             "FIND_DATA_ERROR",
                             message
                     ));
 
-                    results.add(importDataProcessor.buildErrorResult(stagingRecord, message));
+                    results.add(importDataProcessor.buildErrorResult(importId, stagingRecord, message));
                 }
 
                 importErrorService.insertErrors(errors);
@@ -117,12 +125,13 @@ public class ImportDataService {
                         errors.add(importDataProcessor.buildError(
                                 importId,
                                 stagingRecord,
-                                "VALIDATION",
+                                "IMPORT_ERROR",
                                 "MISSING_IDENTITY",
                                 "Identity key is missing."
                         ));
 
                         results.add(importDataProcessor.buildErrorResult(
+                                importId,
                                 stagingRecord,
                                 "Identity key is missing."
                         ));
@@ -155,11 +164,12 @@ public class ImportDataService {
                     errors.add(importDataProcessor.buildError(
                             importId,
                             stagingRecord,
-                            "VALIDATION",
+                            "IMPORT_ERROR",
                             "INVALID_DATA",
                             message
                     ));
                     results.add(importDataProcessor.buildErrorResult(
+                            importId,
                             stagingRecord,
                             message
                     ));
@@ -274,19 +284,19 @@ public class ImportDataService {
 
 
     public void applyStatingDataExistingIds(
+            UUID jobId,
             String importObjectName,
             Attribute idAttribute,
             Attribute versionAttribute,
             List<DataRecord> updateData,
+            List<DataRecord> errors,
+            List<InsertDataResult> results,
             List<Map<String, Object>> statingDataExistingIds
     ) {
 
-        if(versionAttribute == null) {
-            statingDataExistingIds.forEach(data -> {
-                updateData.add(DataRecord.of(data));
-            });
-            return;
-        }
+        List<String> returnFields = Objects.nonNull(versionAttribute)
+                ? List.of(idAttribute.getFieldName(), versionAttribute.getFieldName())
+                : List.of(idAttribute.getFieldName());
 
         //Find data id, version fron db
         List<Map<String, Object>> existingFromDbMap = internalObjectQueryRepository.findByIds(
@@ -295,7 +305,7 @@ public class ImportDataService {
                         statingDataExistingIds,
                         statingData -> DataRecord.of(statingData).get(ImportStagingMeta.DATA).get(idAttribute.getFieldName())
                 ),
-                List.of(idAttribute.getFieldName(), versionAttribute.getFieldName())
+                returnFields
         );
 
         //Group data by id
@@ -312,14 +322,46 @@ public class ImportDataService {
             DataRecord currentObjectRecord = DataRecord.of(stagingRecord.get(ImportStagingMeta.DATA));
             Map<String, Object> existingDataFromDb = existingFromDbByIdentity.get(currentObjectRecord.get(idAttribute.getFieldName(), UUID.class));
 
-            //update version from db
-            currentObjectRecord.with(versionAttribute.getFieldName(), DataRecord.of(existingDataFromDb).getOrDefault(versionAttribute.getFieldName(), Long.class, 0L));
+            if(Utils.CL.isEmpty(existingDataFromDb)) {
+                errors.add(errorRecordNotFound(jobId, stagingRecord));
+                results.add(resultRecordNotFound(jobId, stagingRecord));
+            } else {
+                //update version from db
+                if(Objects.nonNull(versionAttribute)) {
+                    currentObjectRecord.with(versionAttribute.getFieldName(), DataRecord.of(existingDataFromDb).getOrDefault(versionAttribute.getFieldName(), Long.class, 0L));
+                }
 
-            //set new object data
-            stagingRecord.with(ImportStagingMeta.DATA, currentObjectRecord.getValues());
+                //set new object data
+                stagingRecord.with(ImportStagingMeta.DATA, currentObjectRecord.getValues());
 
-            updateData.add(stagingRecord);
+                updateData.add(stagingRecord);
+            }
         });
+    }
+
+
+    private DataRecord errorRecordNotFound(
+            UUID jobId,
+            DataRecord stagingRecord
+    ) {
+        return importDataProcessor.buildError(
+                jobId,
+                stagingRecord,
+                "IMPORT_ERROR",
+                "DATA_NOT_FOUND",
+                "Record does not exist"
+        );
+    }
+
+    private InsertDataResult resultRecordNotFound(
+            UUID jobId,
+            DataRecord stagingRecord
+    ) {
+        return importDataProcessor.buildErrorResult(
+                jobId,
+                stagingRecord,
+                "Record does not exist"
+        );
     }
 
 

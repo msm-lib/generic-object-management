@@ -70,6 +70,7 @@ public class ImportDataProcessor {
                     ));
 
                     results.add(buildErrorResult(
+                            importId,
                             record,
                             message
                     ));
@@ -139,6 +140,7 @@ public class ImportDataProcessor {
                     ));
 
                     results.add(buildErrorResult(
+                            importId,
                             record,
                             message
                     ));
@@ -349,10 +351,12 @@ public class ImportDataProcessor {
     }
 
     public InsertDataResult buildErrorResult(
+            UUID importId,
             DataRecord record,
             String message
     ) {
         return new InsertDataResult(
+                importId,
                 0,
                 ImportStatus.COMPLETED_WITH_ERRORS,
                 message,

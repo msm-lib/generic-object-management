@@ -104,6 +104,7 @@ public class BatchImportService {
                     );
                     insertDataResults.add(
                             new InsertDataResult(
+                                    importId,
                                     updatedData.size(),
                                     ImportStatus.COMPLETED_WITH_ERRORS,
                                     "COMPLETED_WITH_ERRORS",
@@ -133,6 +134,7 @@ public class BatchImportService {
                     );
                     insertDataResults.add(
                             new InsertDataResult(
+                                    importId,
                                     insertData.size(),
                                     ImportStatus.COMPLETED_WITH_ERRORS,
                                     "COMPLETED_WITH_ERRORS",
