@@ -3,7 +3,6 @@ package com.msm.core.objects.dataexchange.imports;
 import com.msm.core.action.annotations.action.CreateHandler;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.metadata.typesafe.DataRecord;
-import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.ImportJobDtoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
@@ -21,19 +20,10 @@ import java.util.UUID;
 
 @RequiredArgsConstructor
 public class ImportJobService {
-    private final GenericObjectInternalService genericObjectInternalService;
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3FileUtils s3FileUtils;
 
 
-//    @HookAfterFilter(resource = ImportJobMeta.OBJECT_NAME)
-//    public void filterJob(ActionContext<ObjectFilterRequest> actionContext) {
-//        PageResponse<Map<String, Object>> pageResponse = actionContext.getResultAs(new TypeReference<>() {});
-//
-//        Utils.CL.emptyIfNull(pageResponse.getContents()).forEach(object -> {
-//
-//        });
-//    }
 
     @CreateHandler(resource = ImportJobMeta.OBJECT_NAME)
     public Map<String, Object> importJob(ActionContext<Map<String, Object>> actionContext) {

@@ -31,6 +31,7 @@ public final class ObjectActionNamed {
         public static final String DATA_VALIDATE_PROCESSING = "excel_batch_data_validate_processing";
 
         public static final String DOWNLOAD_FILE_ERRORS = "excel_download_file_error_processing";
+        public static final String DOWNLOAD_EXCEL_FILE = "excel_download_excel_file_processing";
         public static final String FILE_PROCESSED_EVENT = "excel_file_processed_event";
 
         public static final String BATCH_INSERT_OR_UPDATE_DATA_PROCESSING = "excel_batch_insert_or_update_processing";

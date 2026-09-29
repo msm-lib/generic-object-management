@@ -11,7 +11,8 @@ import com.msm.core.filter.domain.LogicalOperator;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.objects.ObjectActionNamed;
-import com.msm.core.objects.dataexchange.imports.model.DownloadErrorContext;
+import com.msm.core.objects.dataexchange.FileType;
+import com.msm.core.objects.dataexchange.imports.model.DownloadFileContext;
 import com.msm.core.objects.dataexchange.imports.model.ObjectImportContext;
 import com.msm.core.objects.dto.ObjectConversionRequest;
 import com.msm.core.objects.dto.ObjectDeleteRequest;
@@ -249,12 +250,22 @@ public class GenericObjectService {
 
     public Map<String, Object> downloadErrorsFile(String objectName, UUID importJob, String type) {
 
-
-        ActionContext<DownloadErrorContext> actionRequest = ActionContext
-                .<DownloadErrorContext>builder()
+        ActionContext<DownloadFileContext> actionRequest = ActionContext
+                .<DownloadFileContext>builder()
                 .resource(objectName)
                 .action(ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
-                .payload(DownloadErrorContext.of(objectName, importJob))
+                .payload(DownloadFileContext.of(importJob, objectName, FileType.EXCEL))
+                .build();
+        return actionExecutor.execute(actionRequest);
+    }
+
+    public Map<String, Object> downloadFileByJobId(String objectName, UUID importJob, String type) {
+
+        ActionContext<DownloadFileContext> actionRequest = ActionContext
+                .<DownloadFileContext>builder()
+                .resource(objectName)
+                .action(ObjectActionNamed.Excel.DOWNLOAD_EXCEL_FILE)
+                .payload(DownloadFileContext.of(importJob, objectName, FileType.EXCEL))
                 .build();
         return actionExecutor.execute(actionRequest);
     }

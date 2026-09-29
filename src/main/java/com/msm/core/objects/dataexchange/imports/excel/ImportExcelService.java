@@ -21,7 +21,7 @@ import com.msm.core.objects.dataexchange.imports.ReferenceProcessService;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
 import com.msm.core.objects.dataexchange.imports.model.BatchInsertDataResult;
-import com.msm.core.objects.dataexchange.imports.model.DownloadErrorContext;
+import com.msm.core.objects.dataexchange.imports.model.DownloadFileContext;
 import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
 import com.msm.core.objects.dataexchange.imports.model.ImportValidation;
@@ -353,8 +353,8 @@ public class ImportExcelService {
 
 
     @Handler(action = ObjectActionNamed.Excel.DOWNLOAD_FILE_ERRORS)
-    public Map<String, Object> downloadErrors(ActionContext<DownloadErrorContext> actionContext) {
-        DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().importId()));
+    public Map<String, Object> downloadErrors(ActionContext<DownloadFileContext> actionContext) {
+        DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().jobId()));
 
         String s3KeyErrorFile = dataRecord.get(ImportJobMeta.ERROR_FILE_PATH);
         if(s3KeyErrorFile != null) {
@@ -364,9 +364,32 @@ public class ImportExcelService {
         DataRecord fileInfo = DataRecord.ofNullable(dataRecord.get(ImportJobMeta.FILE_INFO));
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
-                actionContext.getPayload().importId(),
+                actionContext.getPayload().jobId(),
                 Map.of(ImportJobMeta.ERROR_FILE_PATH.getFieldName(), fileInfo.get(S3FileInfoMeta.S3_KEY))
         );
+        return s3FileUtils.getDownloadInfo(dataRecord.asMap());
+    }
+
+
+    @Handler(action = ObjectActionNamed.Excel.DOWNLOAD_EXCEL_FILE)
+    public Map<String, Object> downloadExcelFile(ActionContext<DownloadFileContext> actionContext) {
+        DataRecord dataRecord = DataRecord.ofNullable(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, actionContext.getPayload().jobId()));
+
+        String status = dataRecord.get(ImportJobMeta.STATUS);
+        if(ImportStatus.VALIDATION_FAILED.name().equals(status) || ImportStatus.COMPLETED_WITH_ERRORS.name().equals(status)) {
+            String s3KeyErrorFile = dataRecord.get(ImportJobMeta.ERROR_FILE_PATH);
+            if(s3KeyErrorFile == null) {
+                excelOriginalMultipartAsyncService.writeErrorsToOriginalSheetMultipartAsync(dataRecord);
+                DataRecord fileInfo = DataRecord.ofNullable(dataRecord.get(ImportJobMeta.FILE_INFO));
+                internalObjectQueryRepository.update(
+                        ImportJobMeta.OBJECT_NAME,
+                        actionContext.getPayload().jobId(),
+                        Map.of(ImportJobMeta.ERROR_FILE_PATH.getFieldName(), fileInfo.get(S3FileInfoMeta.S3_KEY))
+                );
+            }
+        }
+
+
         return s3FileUtils.getDownloadInfo(dataRecord.asMap());
     }
 }

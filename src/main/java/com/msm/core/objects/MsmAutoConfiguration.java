@@ -164,7 +164,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -267,7 +267,7 @@ public class MsmAutoConfiguration {
         executor.setMaxPoolSize(props.getExecutor().getMax());
         executor.setThreadNamePrefix("HookTaskExecutor-");
         executor.initialize();
-        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
+        return new DelegatingSecurityContextExecutor(executor);
     }
 
     @Bean(name = "dataExchangeTaskExecutor")
@@ -280,7 +280,7 @@ public class MsmAutoConfiguration {
         executor.setThreadNamePrefix("dataExchangeTaskExecutor-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
-        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
+        return new DelegatingSecurityContextExecutor(executor);
     }
 
     @Bean
@@ -1037,11 +1037,9 @@ public class MsmAutoConfiguration {
     @Bean("importJobService")
     public ImportJobService importJobService(
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            GenericObjectInternalService genericObjectInternalService,
             S3FileUtils s3FileUtils
     ) {
         return new ImportJobService(
-                genericObjectInternalService,
                 internalObjectQueryRepository,
                 s3FileUtils
         );
