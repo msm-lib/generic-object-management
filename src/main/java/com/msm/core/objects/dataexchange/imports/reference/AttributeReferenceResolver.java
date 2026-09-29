@@ -128,20 +128,34 @@ public class AttributeReferenceResolver {
 
 
         List<String> attributeLookupNames = importConfigService.getLookupAttributeNames(sourceObjectName, sourceAttribute);
-        Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
-                Utils.CL.emptyIfNull(objectList),
-                objectValueMap -> generateKey(objectValueMap, attributeLookupNames),
-                objectValue -> AttributeRefHelper.filterMapByKeys(objectValue, getMappingFieldValues(referenceDetailConfig)));
+//        Map<String, Map<String, Object>> codeMap = Utils.CL.toMap(
+//                Utils.CL.emptyIfNull(objectList),
+//                objectValueMap -> generateKey(objectValueMap, attributeLookupNames),
+//                objectValue -> AttributeRefHelper.filterMapByKeys(objectValue, getMappingFieldValues(referenceDetailConfig)));
+
+        Map<String, Map<String, Object>> codeMap = toMapCode(objectList, attributeLookupNames, referenceDetailConfig);
         Map<String, Map<String, Map<String, Object>>> objectMap = new HashMap<>();
         objectMap.put(sourceAttribute.getFieldName(), codeMap);
 
         return objectMap;
     }
 
-    private String generateKey(Map<String, Object> objectValue, List<String> attributeLookupName) {
-        IdentityKey identityKey = IdentityKeyGenerator.generate(objectValue, attributeLookupName);
-        return identityKey.key();
+    private Map<String, Map<String, Object>> toMapCode(List<Map<String, Object>> objectList, List<String> attributeLookupNames, ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig) {
+        Map<String, Map<String, Object>> codeMap = new HashMap<>();
+        Utils.CL.emptyIfNull(objectList).forEach(objectValue -> {
+            IdentityKey identityKey = IdentityKeyGenerator.generateKey(objectValue, attributeLookupNames);
+            if(identityKey != null) {
+                codeMap.put(identityKey.key(), AttributeRefHelper.filterMapByKeys(objectValue, getMappingFieldValues(referenceDetailConfig)));
+            }
+        });
+
+        return codeMap;
     }
+
+//    private String generateKey(Map<String, Object> objectValue, List<String> attributeLookupName) {
+//        IdentityKey identityKey = IdentityKeyGenerator.generate(objectValue, attributeLookupName);
+//        return identityKey.key();
+//    }
 
     private Set<String> getMappingFieldValues(ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig) {
         if (Utils.CL.isNotEmpty(referenceDetailConfig.getMappingValues())) {

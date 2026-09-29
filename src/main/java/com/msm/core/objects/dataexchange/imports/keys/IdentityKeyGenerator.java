@@ -45,6 +45,13 @@ public final class IdentityKeyGenerator {
         return new IdentityKey(key.toString(), level);
     }
 
+    public static IdentityKey generateKey(Map<String, Object> data, List<String> fields) {
+        try {
+            return generate(data, fields, "|");
+        }  catch (ImportValidationException e) {
+            return null;
+        }
+    }
 
     public static String generateKey(Map<String, Object> data, List<String> fields, String delimiter) {
         StringBuilder key = new StringBuilder();

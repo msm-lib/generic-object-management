@@ -37,22 +37,15 @@ public class ReferenceProcessService {
                     String attrName = attr.getFieldName();
                     Map<String, Map<String, Object>> objectCodeMap = refMapList.get(attrName);
                     if(Utils.CL.isNotEmpty(objectCodeMap)) {
-                        IdentityKey identityKey = IdentityKeyGenerator.generate(itemMap, importConfigService.getSourceFieldNames(importObjectName, attr));
-                        String keyCodeRef = identityKey.key();
-                        Map<String, Object> objectRef = objectCodeMap.get(keyCodeRef);
-                        if(objectRef != null) {
-                            Object idObj = objectRef.get(Constants.OBJECT_PK);
-                            itemMap.put(attrName, idObj);
-                            itemMap.put(attr.getAttributeRef().getFieldName(), objectRef);
-//                            itemMap.put(
-//                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
-//                                    getRefMappedData(importObjectName, attrName, objectRef)
-//                            );
-
-//                            itemMap.put(
-//                                    Utils.STR.format(Constants.ATTRIBUTE_REF_TEMPLATE, attrName),
-//                                    Utils.O.reMappingKeys(objectRef, importConfigService.getReferenceConfig(importObjectName, attrName).getMappingKeys())
-//                            );
+                        IdentityKey identityKey = IdentityKeyGenerator.generateKey(itemMap, importConfigService.getSourceFieldNames(importObjectName, attr));
+                        if(identityKey != null) {
+                            String keyCodeRef = identityKey.key();
+                            Map<String, Object> objectRef = objectCodeMap.get(keyCodeRef);
+                            if(objectRef != null) {
+                                Object idObj = objectRef.get(Constants.OBJECT_PK);
+                                itemMap.put(attrName, idObj);
+                                itemMap.put(attr.getAttributeRef().getFieldName(), objectRef);
+                            }
                         }
                     }
                 });
