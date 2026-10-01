@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVRecord;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -91,7 +92,7 @@ public class CsvImportHandlerService {
     @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
-        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
+        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data(), new HashSet<>());
     }
 
 

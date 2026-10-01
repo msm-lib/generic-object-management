@@ -1,7 +1,10 @@
 package com.msm.core.objects.dataexchange;
 
+import org.apache.poi.EmptyFileException;
+import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ooxml.POIXMLException;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.openxml4j.exceptions.NotOfficeXmlFileException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -10,7 +13,10 @@ import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.UncategorizedSQLException;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.sql.SQLDataException;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -20,11 +26,51 @@ import java.sql.SQLTransientConnectionException;
 import java.text.ParseException;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.zip.ZipException;
 
 public class ErrorHelper {
 
     public static String resolveErrorMessage(Exception exception) {
         Throwable root = getRootCause(exception);
+
+
+        // =========================================================
+        // Excel / File errors
+        // =========================================================
+
+        if (findCause(exception, FileNotFoundException.class) != null) {
+            return "Excel file not found. Please upload the file again.";
+        }
+
+        if (findCause(exception, SocketTimeoutException.class) != null
+                || findCause(exception, ConnectException.class) != null) {
+            return "Unable to download the Excel file. Please try again.";
+        }
+
+        if (findCause(exception, EmptyFileException.class) != null) {
+            return "The Excel file is empty. Please select another file.";
+        }
+
+        if (findCause(exception, EncryptedDocumentException.class) != null) {
+            return "The Excel file is password-protected. Please remove the password and upload it again.";
+        }
+
+        if (findCause(exception, NotOfficeXmlFileException.class) != null) {
+            return "Invalid Excel file format. Please upload a valid .xlsx file.";
+        }
+
+        if (findCause(exception, InvalidFormatException.class) != null) {
+            return "The uploaded file has an invalid or unsupported Excel format.";
+        }
+
+        if (findCause(exception, ZipException.class) != null) {
+            return "Unable to read the Excel file. The file may be corrupted or invalid.";
+        }
+
+        if (findCause(exception, POIXMLException.class) != null) {
+            return "The Excel file is corrupted or could not be read.";
+        }
+
 
         if (root instanceof NumberFormatException) {
             return "The value has an invalid number format.";
@@ -70,54 +116,6 @@ public class ErrorHelper {
         if (root instanceof SQLIntegrityConstraintViolationException) {
             return resolveConstraintMessage(root);
         }
-
-        // PostgreSQL specific constraint exception
-//        if (root instanceof PSQLException) {
-//            String message = root.getMessage();
-//
-//            if (message != null) {
-//                String lower = message.toLowerCase(Locale.ROOT);
-//
-//                if (lower.contains("duplicate key")
-//                        || lower.contains("unique constraint")
-//                        || lower.contains("duplicate")) {
-//                    return "The record already exists. Please check the unique or identity fields.";
-//                }
-//
-//                if (lower.contains("foreign key constraint")
-//                        || lower.contains("violates foreign key")) {
-//                    return "The record references data that does not exist. Please check the related fields.";
-//                }
-//
-//                if (lower.contains("not-null constraint")
-//                        || lower.contains("null value in column")) {
-//                    return "A required field is missing. Please provide all mandatory fields.";
-//                }
-//
-//                if (lower.contains("check constraint")) {
-//                    return "The data does not satisfy the required validation rules.";
-//                }
-//
-//                if (lower.contains("invalid input syntax")) {
-//                    return "One or more values have an invalid format.";
-//                }
-//
-//                if (lower.contains("value too long")
-//                        || lower.contains("character varying")
-//                        || lower.contains("too long")) {
-//                    return "One or more values exceed the allowed field length.";
-//                }
-//
-//                if (lower.contains("numeric field overflow")
-//                        || lower.contains("out of range")) {
-//                    return "One or more numeric values are outside the allowed range.";
-//                }
-//
-//                if (lower.contains("current transaction is aborted")) {
-//                    return "The database operation could not be completed because the transaction failed.";
-//                }
-//            }
-//        }
 
         if (root instanceof SQLException sqlException) {
             return resolveSqlErrorMessage(sqlException);
@@ -193,19 +191,13 @@ public class ErrorHelper {
             return "An unexpected error occurred while processing the record.";
         }
 
-        /*
-         * Only return the original message if it is considered safe.
-         * Otherwise, hide internal implementation details.
-         */
+
         return sanitizeErrorMessage(message);
     }
 
     private static String sanitizeErrorMessage(String message) {
         String lower = message.toLowerCase(Locale.ROOT);
 
-        /*
-         * Do not expose internal database / SQL information.
-         */
         if (lower.contains("select ")
                 || lower.contains("insert into ")
                 || lower.contains("update ")
@@ -390,4 +382,42 @@ public class ErrorHelper {
 
         return "IMPORT_ERROR";
     }
+
+
+    public static String resolveMessageReadExcelError(Throwable throwable) {
+
+        Throwable rootCause = getRootCause(throwable);
+
+        if (rootCause instanceof FileNotFoundException) {
+            return "Excel file not found. Please upload the file again.";
+        }
+
+        if (rootCause instanceof SocketTimeoutException
+                || rootCause instanceof ConnectException) {
+            return "Unable to download the Excel file. Please try again.";
+        }
+
+        if (rootCause instanceof ZipException) {
+            return "Unable to read the Excel file. The file may be corrupted or invalid.";
+        }
+
+        if (rootCause instanceof EncryptedDocumentException) {
+            return "The Excel file is password-protected. Please remove the password and upload it again.";
+        }
+
+        if (rootCause instanceof EmptyFileException) {
+            return "The Excel file is empty. Please select another file.";
+        }
+
+        if (rootCause instanceof NotOfficeXmlFileException) {
+            return "Invalid Excel file format. Please upload a valid .xlsx file.";
+        }
+
+        if (rootCause instanceof IOException) {
+            return "Unable to read the Excel file. Please check the file and try again.";
+        }
+
+        return "Unable to read the Excel file. Please check the file and try again.";
+    }
+
 }

@@ -16,7 +16,9 @@ import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
 import com.msm.core.objects.dataexchange.imports.keys.IdentityKeyGenerator;
+import com.msm.core.objects.dataexchange.imports.model.AttributeReferenceFailed;
 import com.msm.core.objects.dataexchange.imports.model.IdentityKey;
+import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.utils.JsonPathUtil;
 import lombok.RequiredArgsConstructor;
@@ -79,13 +81,15 @@ public class AttributeReferenceResolver {
     public Map<String, Map<String, Map<String, Object>>> resolve(
             String sourceObjectName,
             Attribute sourceAttribute,
-            List<Map<String, Object>> items) {
+            List<ImportRow> importRows,
+            Set<AttributeReferenceFailed> attributeFailedRef
+    ) {
 
         ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig = importConfigService
                 .getReferenceConfig(sourceObjectName, sourceAttribute.getAttributeRef().getFieldName());
         List<ObjectImportRegistry.LookupValuesConfig> attributeLookups = referenceDetailConfig.getLookups();
 
-        Map<String, Set<String>> lookupValues = AttributeRefHelper.getLookupValueMap(attributeLookups, items);
+        Map<String, Set<String>> lookupValues = AttributeRefHelper.getLookupValueMap(attributeLookups, importRows, attributeFailedRef);
 
         if(isEmpty(lookupValues)) {
             return Map.of();

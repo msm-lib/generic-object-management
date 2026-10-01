@@ -18,7 +18,7 @@ public class CsvAttributeReferenceService {
 //    @Handler(action = ObjectActionNamed.Csv.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
         AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
-        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
+        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data(), attributeReferenceContext.attributeFailedRef());
     }
 
 

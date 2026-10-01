@@ -3,8 +3,11 @@ package com.msm.core.objects.dataexchange.imports.reference;
 import com.msm.core.commons.Utils;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.objects.config.ObjectImportRegistry;
+import com.msm.core.objects.dataexchange.imports.model.AttributeReferenceFailed;
+import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,12 +35,27 @@ public class AttributeRefHelper {
                 .collect(Collectors.toSet());
     }
 
-    public static Set<String> getLookupValues(String sourceAttributeName, List<Map<String, Object>> items) {
-        return Utils.CL.emptyIfNull(Utils.D.toListByKey(items, sourceAttributeName))
-                .stream()
-                .map(Object::toString)
-                .filter(s -> Utils.STR.isNotBlank(s) && !Utils.STR.isEmpty(s))
-                .collect(Collectors.toSet());
+    public static Set<String> getLookupValues(String sourceAttributeName, List<ImportRow> importRows, Set<AttributeReferenceFailed> attributeFailedRef) {
+
+        Set<String> result = new HashSet<>();
+        for(ImportRow importRow : importRows) {
+            AttributeReferenceFailed attributeReferenceFailed = AttributeReferenceFailed.of(importRow.rowNumber(), sourceAttributeName);
+            if(attributeFailedRef.contains(attributeReferenceFailed)) {
+                continue;
+            }
+            String data = Objects.toString(importRow.rowData().get(sourceAttributeName));
+            if(Utils.STR.isNotBlank(data) && !Utils.STR.isEmpty(data)) {
+                result.add(data);
+            }
+        }
+
+        return result;
+
+//        return Utils.CL.emptyIfNull(Utils.D.toListByKey(items, sourceAttributeName))
+//                .stream()
+//                .map(Object::toString)
+//                .filter(s -> Utils.STR.isNotBlank(s) && !Utils.STR.isEmpty(s))
+//                .collect(Collectors.toSet());
     }
 
 //    public static Map<String, Set<String>> getLookupValueMap(Attribute sourceAttr, List<AttributeLookup> attributeLookups, List<Map<String, Object>> items) {
@@ -54,12 +72,13 @@ public class AttributeRefHelper {
 
     public static Map<String, Set<String>> getLookupValueMap(
             List<ObjectImportRegistry.LookupValuesConfig> attributeLookups,
-            List<Map<String, Object>> items
+            List<ImportRow> importRows,
+            Set<AttributeReferenceFailed> attributeFailedRef
     ) {
         Map<String, Set<String>> map = new HashMap<>();
         attributeLookups.forEach(attributeLookup -> {
             if(Utils.CL.isEmpty(attributeLookup.getDefaultValues())) {
-                map.put(attributeLookup.getAttributeName(), getLookupValues(attributeLookup.getSourceField(), items));
+                map.put(attributeLookup.getAttributeName(), getLookupValues(attributeLookup.getSourceField(), importRows,  attributeFailedRef));
             } else {
                 map.put(attributeLookup.getAttributeName(), attributeLookup.getDefaultValues());
             }

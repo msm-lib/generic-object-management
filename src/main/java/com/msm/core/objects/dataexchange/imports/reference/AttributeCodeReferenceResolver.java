@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Deprecated
 @RequiredArgsConstructor
 public class AttributeCodeReferenceResolver {
     private static final String ATTRIBUTE_LOOKUP_NAME = "code";

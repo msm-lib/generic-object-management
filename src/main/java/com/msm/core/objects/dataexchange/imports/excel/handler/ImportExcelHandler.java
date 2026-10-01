@@ -123,8 +123,8 @@ public class ImportExcelHandler {
 
     @Handler(action = ObjectActionNamed.Excel.FIELD_REFERENCE_RESOLVE)
     public Map<String, Map<String, Map<String, Object>>> refMapping(ActionContext<AttributeReferenceContext> actionContext) {
-        AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
-        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data());
+        AttributeReferenceContext context = actionContext.getPayload();
+        return attributeReferenceResolver.resolve(context.importObjectName(), context.attribute(), context.data(), context.attributeFailedRef());
     }
 
     @Handler(action = ObjectActionNamed.Excel.DATA_VALIDATE_PROCESSING)

@@ -109,7 +109,7 @@ public class FileReaderService {
                 }
             }
         } catch (Exception e) {
-            status = FileProcessStatus.SUCCESS;
+            status = FileProcessStatus.FAILED;
             throw Lombok.sneakyThrow(e);
         } finally {
             finishFileProcess(importObjectName, importId, FileType.EXCEL, status);

@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -97,6 +98,7 @@ public class ImportExcelService {
     private final ImportDataExecutor importDataExecutor;
     private final ImportJobService importJobService;
     private final ImportErrorService importErrorService;
+    private final Map<UUID, Map<Integer, String>> ATTRIBUTE_HEADER_CACHE = new ConcurrentHashMap<>();
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_DATA)
@@ -195,67 +197,24 @@ public class ImportExcelService {
             importJobService.makeJobValidating(importId);
 
             ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(actionContext.getResource());
-            final Map<Integer, String>[] cachedHeaderMap = new Map[]{null};
 
             ObjectImportRegistry.HeaderConfig header = importConfigService.getHeader(actionContext.getResource());
             int batchSize = importConfigService.getProcessingConfig(actionContext.getResource()).getBatchSize();
             List<ImportRow> batchBuffer = new ArrayList<>();
             Consumer<RawRow<Row>> rowConsumer = rowRawRow -> {
-                if(header.isAutoDetectHeader()) {
-                    if (cachedHeaderMap[0] == null) {
-                        Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
-                        if(!DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
-                            return;
-                        }
-                        cachedHeaderMap[0] = detectedColumnHeaderMap;
-                        return;
-                    }
-                } else {
-                    if (cachedHeaderMap[0] == null) {
-                        if(rowRawRow.rowNumber() < header.getRow()) {
-                            return;
-                        }
-                        Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(importId, rowRawRow);
-                        if (!DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
-                            throw new IllegalArgumentException("Not found column header mapping to object attribute at row: " + header.getRow());
-                        }
-                        cachedHeaderMap[0] = detectedColumnHeaderMap;
-                        return;
-                    }
+
+                Map<Integer, String> attributeHeader = getAttributeHeader(importId, objectMetadata, header, rowRawRow);
+                if(attributeHeader == null) {
+                    return;
                 }
 
 
-                Map<String, Object> rowData = null;
-                try {
-                    rowData = importDataExecutor.rowMapping(importId, cachedHeaderMap[0], rowRawRow);
-                } catch (Exception e) {
-                    errors.add(DataRecord
-                            .of()
-                            .with(ImportErrorMeta.IMPORT_ID, importId)
-                            .with(ImportErrorMeta.ROW_NUMBER, rowRawRow.rowNumber())
-                            .with(ImportErrorMeta.ERROR_TYPE, ErrorType.VALIDATION_ERROR)
-                            .with(ImportErrorMeta.FIELD_NAME, null)
-                            .with(ImportErrorMeta.ERROR_MESSAGE, ErrorHelper.resolveErrorMessage(e))
-                            .with(ImportErrorMeta.ERROR_CODE, ErrorType.ROW_MAPPING_ERROR)
-                            .with(ImportErrorMeta.DATA, null)
-                    );
-                }
+                Map<String, Object> rowData = applyRowMapping(importId, attributeHeader, rowRawRow, errors);
 
                 if(Utils.CL.isNotEmpty(rowData)) {
-                    try {
-                        importDataExecutor.cellMapping(importId, rowRawRow.objectName(), cachedHeaderMap[0], rowData);
-                    } catch (Exception e) {
-                        errors.add(DataRecord
-                                .of()
-                                .with(ImportErrorMeta.IMPORT_ID, importId)
-                                .with(ImportErrorMeta.ROW_NUMBER, rowRawRow.rowNumber())
-                                .with(ImportErrorMeta.ERROR_TYPE, ErrorType.VALIDATION_ERROR)
-                                .with(ImportErrorMeta.FIELD_NAME, null)
-                                .with(ImportErrorMeta.ERROR_MESSAGE, ErrorHelper.resolveErrorMessage(e))
-                                .with(ImportErrorMeta.ERROR_CODE, ErrorType.CELL_MAPPING_ERROR)
-                                .with(ImportErrorMeta.DATA, rowData)
-                        );
-                    }
+
+                    applyCellMapping(importId, rowRawRow, attributeHeader, rowData, errors);
+
                     batchBuffer.add(ImportRow.of(rowRawRow.rowNumber(), rowData));
                     if (batchBuffer.size() >= batchSize) {
                         executeBatchProcessing(importValidation.importId(), importValidation.importObjectName(), batchBuffer);
@@ -285,13 +244,74 @@ public class ImportExcelService {
 
             return finishValidation(importValidation.importId());
         } catch (Exception e) {
-            importJobService.makeJobValidateFailed(importId);
+            importJobService.makeJobValidateFailed(importId, ErrorHelper.resolveErrorMessage(e));
             if(!errors.isEmpty()) {
                 importErrorService.insertErrorsIgnoreDuplicate(errors);
             }
             log.error("Exception occurred when validating the object", e);
             throw Lombok.sneakyThrow(e);
+        } finally {
+            ATTRIBUTE_HEADER_CACHE.remove(importId);
         }
+    }
+
+
+    private Map<String, Object> applyRowMapping(UUID importId, Map<Integer, String> attributeHeader, RawRow<Row> rowRawRow, List<DataRecord> errors) {
+        try {
+            return importDataExecutor.rowMapping(importId, attributeHeader, rowRawRow);
+        } catch (Exception e) {
+            errors.add(DataRecord
+                    .of()
+                    .with(ImportErrorMeta.IMPORT_ID, importId)
+                    .with(ImportErrorMeta.ROW_NUMBER, rowRawRow.rowNumber())
+                    .with(ImportErrorMeta.ERROR_TYPE, ErrorType.VALIDATION_ERROR)
+                    .with(ImportErrorMeta.FIELD_NAME, null)
+                    .with(ImportErrorMeta.ERROR_MESSAGE, ErrorHelper.resolveErrorMessage(e))
+                    .with(ImportErrorMeta.ERROR_CODE, ErrorType.ROW_MAPPING_ERROR)
+                    .with(ImportErrorMeta.DATA, null)
+            );
+            return null;
+        }
+    }
+
+    private void applyCellMapping(UUID importId, RawRow<Row> row,  Map<Integer, String> attributeHeader, Map<String, Object> rowDataParsed, List<DataRecord> errors) {
+        try {
+            importDataExecutor.cellMapping(importId, row.objectName(), attributeHeader, rowDataParsed);
+        } catch (Exception e) {
+            errors.add(DataRecord
+                    .of()
+                    .with(ImportErrorMeta.IMPORT_ID, importId)
+                    .with(ImportErrorMeta.ROW_NUMBER, row.rowNumber())
+                    .with(ImportErrorMeta.ERROR_TYPE, ErrorType.VALIDATION_ERROR)
+                    .with(ImportErrorMeta.FIELD_NAME, null)
+                    .with(ImportErrorMeta.ERROR_MESSAGE, ErrorHelper.resolveErrorMessage(e))
+                    .with(ImportErrorMeta.ERROR_CODE, ErrorType.CELL_MAPPING_ERROR)
+                    .with(ImportErrorMeta.DATA, rowDataParsed)
+            );
+        }
+    }
+
+    public Map<Integer, String> getAttributeHeader(UUID jobId, ObjectMetadata objectMetadata, ObjectImportRegistry.HeaderConfig headerConfig, RawRow<Row> rowRawRow) {
+        if(!ATTRIBUTE_HEADER_CACHE.containsKey(jobId)) {
+            if(headerConfig.isAutoDetectHeader()) {
+                Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(jobId, rowRawRow);
+                if(DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
+                    ATTRIBUTE_HEADER_CACHE.put(jobId, detectedColumnHeaderMap);
+                }
+            } else {
+                if(rowRawRow.rowNumber() == headerConfig.getRow()) {
+                    Map<Integer, String> detectedColumnHeaderMap = importDataExecutor.detectColumnHeaderMapping(jobId, rowRawRow);
+                    if (!DataHelper.isColumnHeaderValid(objectMetadata, detectedColumnHeaderMap, rowRawRow.data().getLastCellNum())) {
+                        throw new IllegalArgumentException("Not found column header mapping to object attribute at row: " + headerConfig.getRow());
+                    }
+                    ATTRIBUTE_HEADER_CACHE.put(jobId, detectedColumnHeaderMap);
+                }
+            }
+
+            return null;
+        }
+
+        return ATTRIBUTE_HEADER_CACHE.get(jobId);
     }
 
 

@@ -107,11 +107,15 @@ public class ImportJobService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void makeJobValidateFailed(UUID importId) {
+    public void makeJobValidateFailed(UUID importId, String errorMessage) {
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
                 importId,
-                DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATION_FAILED.name()).getValues()
+                DataRecord
+                        .of()
+                        .with(ImportJobMeta.STATUS, ImportStatus.VALIDATION_FAILED.name())
+                        .with(ImportJobMeta.ERROR_MESSAGE, errorMessage)
+                        .getValues()
         );
     }
 }
