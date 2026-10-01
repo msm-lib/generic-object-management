@@ -1,10 +1,6 @@
 package com.msm.core.objects.dataexchange.imports.reference;
 
-import com.msm.core.action.context.ActionContext;
-import com.msm.core.objects.dataexchange.imports.model.AttributeReferenceContext;
 import lombok.RequiredArgsConstructor;
-
-import java.util.Map;
 
 @Deprecated
 @RequiredArgsConstructor
@@ -16,10 +12,10 @@ public class ExcelAttributeReferenceService {
 
     //Default ref by code
 //    @Handler(action = ObjectActionNamed.Excel.FIELD_REFERENCE_RESOLVE)
-    public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
-        AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
-        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data(), attributeReferenceContext.attributeFailedRef());
-    }
+//    public Map<String, Map<String, Map<String, Object>>> codeRef(ActionContext<AttributeReferenceContext> actionContext) {
+//        AttributeReferenceContext attributeReferenceContext = actionContext.getPayload();
+//        return attributeReferenceResolver.resolve(attributeReferenceContext.importObjectName(), attributeReferenceContext.attribute(), attributeReferenceContext.data(), attributeReferenceContext.attributeFailedRef());
+//    }
 
 
 

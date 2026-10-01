@@ -39,6 +39,7 @@ public class AttributeRefHelper {
 
         Set<String> result = new HashSet<>();
         for(ImportRow importRow : importRows) {
+            if(sourceAttributeName == null) continue;
             AttributeReferenceFailed attributeReferenceFailed = AttributeReferenceFailed.of(importRow.rowNumber(), sourceAttributeName);
             if(attributeFailedRef.contains(attributeReferenceFailed)) {
                 continue;
@@ -75,15 +76,17 @@ public class AttributeRefHelper {
             List<ImportRow> importRows,
             Set<AttributeReferenceFailed> attributeFailedRef
     ) {
-        Map<String, Set<String>> map = new HashMap<>();
-        attributeLookups.forEach(attributeLookup -> {
+
+        Map<String, Set<String>> result = new HashMap<>();
+        Utils.CL.emptyIfNull(attributeLookups).forEach(attributeLookup -> {
             if(Utils.CL.isEmpty(attributeLookup.getDefaultValues())) {
-                map.put(attributeLookup.getAttributeName(), getLookupValues(attributeLookup.getSourceField(), importRows,  attributeFailedRef));
+                result.put(attributeLookup.getAttributeName(), getLookupValues(attributeLookup.getSourceField(), importRows,  attributeFailedRef));
             } else {
-                map.put(attributeLookup.getAttributeName(), attributeLookup.getDefaultValues());
+                result.put(attributeLookup.getAttributeName(), attributeLookup.getDefaultValues());
             }
         });
-        return map;
+
+        return result;
     }
 
     public static boolean hasRef(Attribute attribute) {

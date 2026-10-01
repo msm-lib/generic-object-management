@@ -38,6 +38,9 @@ public class ImportConfigService {
 
         ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig = getReferenceConfig(objectName, attribute.getAttributeRef().getFieldName());
         List<ObjectImportRegistry.LookupValuesConfig> attributeLookups = referenceDetailConfig.getLookups();
+        if(Utils.CL.isEmpty(attributeLookups)) {
+            return Utils.CL.newArrayList();
+        }
         return attributeLookups
                 .stream()
                 .filter(lookupValuesConfig -> Utils.CL.isEmpty(lookupValuesConfig.getDefaultValues()))
@@ -49,6 +52,10 @@ public class ImportConfigService {
 
         ObjectImportRegistry.ReferenceDetailConfig referenceDetailConfig = getReferenceConfig(objectName, attribute.getAttributeRef().getFieldName());
         List<ObjectImportRegistry.LookupValuesConfig> attributeLookups = referenceDetailConfig.getLookups();
+
+        if(Utils.CL.isEmpty(attributeLookups)) {
+            return Utils.CL.newArrayList();
+        }
 
         return attributeLookups
                 .stream()

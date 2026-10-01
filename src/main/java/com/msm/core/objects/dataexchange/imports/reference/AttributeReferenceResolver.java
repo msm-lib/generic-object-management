@@ -65,7 +65,9 @@ public class AttributeReferenceResolver {
     }
 
     private boolean isEmpty(Map<String, Set<String>> lookupValues) {
-        return lookupValues.values().stream()
+        return lookupValues
+                .values()
+                .stream()
                 .anyMatch(set -> set == null || set.isEmpty());
     }
 

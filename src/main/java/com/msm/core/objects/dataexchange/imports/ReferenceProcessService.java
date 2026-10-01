@@ -92,27 +92,29 @@ public class ReferenceProcessService {
         }
 
         Map<String, Map<String, Map<String, Object>>> refMapList = resolveAttributeRef(importId, objectMetadata.getName(), attr, rows, attributeReferenceFailed);
-        rows.forEach(importRow -> {
-            Map<String, Object> itemMap = importRow.rowData();
-            String attrName = attr.getFieldName();
-            Map<String, Map<String, Object>> objectCodeMap = refMapList.get(attrName);
-            if (Utils.CL.isNotEmpty(objectCodeMap)) {
-                IdentityKey identityKey = IdentityKeyGenerator.generateKey(itemMap, importConfigService.getSourceFieldNames(objectMetadata.getName(), attr));
-                if (identityKey != null) {
-                    String keyCodeRef = identityKey.key();
-                    Map<String, Object> objectRef = objectCodeMap.get(keyCodeRef);
-                    if (objectRef != null) {
-                        Object idObj = objectRef.get(Constants.OBJECT_PK);
-                        itemMap.put(attrName, idObj);
-                        itemMap.put(attr.getAttributeRef().getFieldName(), objectRef);
-                    } else {//update attribute failed
-                        attributeReferenceFailed.add(AttributeReferenceFailed.of(importRow.rowNumber(), attrName));
+        if(Utils.CL.isNotEmpty(refMapList)) {
+            rows.forEach(importRow -> {
+                Map<String, Object> itemMap = importRow.rowData();
+                String attrName = attr.getFieldName();
+                Map<String, Map<String, Object>> objectCodeMap = refMapList.get(attrName);
+                if (Utils.CL.isNotEmpty(objectCodeMap)) {
+                    IdentityKey identityKey = IdentityKeyGenerator.generateKey(itemMap, importConfigService.getSourceFieldNames(objectMetadata.getName(), attr));
+                    if (identityKey != null) {
+                        String keyCodeRef = identityKey.key();
+                        Map<String, Object> objectRef = objectCodeMap.get(keyCodeRef);
+                        if (objectRef != null) {
+                            Object idObj = objectRef.get(Constants.OBJECT_PK);
+                            itemMap.put(attrName, idObj);
+                            itemMap.put(attr.getAttributeRef().getFieldName(), objectRef);
+                        } else {//update attribute failed
+                            attributeReferenceFailed.add(AttributeReferenceFailed.of(importRow.rowNumber(), attrName));
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        attributeReferenceMap.remove(attr.getFieldName());
+            attributeReferenceMap.remove(attr.getFieldName());
+        }
     }
 
     private List<ObjectImportRegistry.LookupValuesConfig> getDependencies(ObjectMetadata objectMetadata, Attribute attr, Map<String, Attribute> attributeReferenceMap) {
@@ -121,11 +123,15 @@ public class ReferenceProcessService {
         List<ObjectImportRegistry.LookupValuesConfig> attributeLookups = referenceDetailConfig.getLookups();
 
 
-        return attributeLookups
+        return Utils.CL.emptyIfNull(attributeLookups)
                 .stream()
                 .filter(lookupValuesConfig ->  Utils.CL.isEmpty(lookupValuesConfig.getDefaultValues()))
                 .filter(lookupValuesConfig -> {
                     String sourceField = lookupValuesConfig.getSourceField();
+                    if(sourceField == null) {
+                        log.warn("The reference field[{}] is not config source field", attr.getFieldName());
+                        return false;
+                    }
 
                     boolean isSameCurrentAttr = sourceField.equals(attr.getFieldName());
                     boolean isDefaultValues = Utils.CL.isNotEmpty(lookupValuesConfig.getDefaultValues());

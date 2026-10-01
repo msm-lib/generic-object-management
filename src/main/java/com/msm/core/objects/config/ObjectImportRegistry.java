@@ -53,7 +53,7 @@ public class ObjectImportRegistry {
 
     @Data
     public static class ReferenceDetailConfig {
-        private List<LookupValuesConfig> lookups = Utils.CL.newArrayList(new LookupValuesConfig());
+        private List<LookupValuesConfig> lookups;
         private List<String> fields = Utils.CL.newArrayList("id", "code", "name");
         private Map<String, String> mappingValues = new HashMap<>();
     }
