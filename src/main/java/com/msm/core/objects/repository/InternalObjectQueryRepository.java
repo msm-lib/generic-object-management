@@ -112,7 +112,7 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         return returnObject;
     }
 
-    public List<Map<String, Object>> save(String objectName, List<Map<String, Object>> payload) {
+    public List<Map<String, Object>> saveAll(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         payload.forEach(objectMap -> {
             applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
@@ -135,7 +135,7 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         return internalQueryService.updateById(objectMetadata, id, oldData);
     }
 
-    public int[] update(String objectName, List<Map<String, Object>> newDataList) {
+    public int[] updateAll(String objectName, List<Map<String, Object>> newDataList) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         Attribute idAttribute = objectMetadata.getIdAttribute();
         String idFieldName = idAttribute.getFieldName();
@@ -170,7 +170,7 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
         return returnValueUpdated;
     }
 
-    public List<Map<String, Object>> updateReturning(String objectName, List<Map<String, Object>> newDataList) {
+    public List<Map<String, Object>> updateAllReturning(String objectName, List<Map<String, Object>> newDataList) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         Attribute idAttribute = objectMetadata.getIdAttribute();
         String idFieldName = idAttribute.getFieldName();

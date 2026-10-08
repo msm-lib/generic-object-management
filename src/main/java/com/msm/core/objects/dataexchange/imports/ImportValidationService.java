@@ -54,7 +54,7 @@ public class ImportValidationService {
             ).collect(Collectors.toList());
 
             //insert batch error
-            internalObjectQueryRepository.save(
+            internalObjectQueryRepository.saveAll(
                     ImportErrorMeta.OBJECT_NAME,
                     errorMap
             );

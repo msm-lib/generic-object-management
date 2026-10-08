@@ -49,7 +49,7 @@ public class GenericObjectHandler {
     @Handler(action = Constants.Action.BULK_CREATE)
     public List<Map<String, Object>> bulkCreateHandler(ActionContext<List<Map<String, Object>>> actionContext) {
         createCodeIfNull(actionContext.getResource(), actionContext.getPayload());
-        return getGenericObjectQueryRepository(actionContext).save(actionContext.getResource(), actionContext.getPayload());
+        return getGenericObjectQueryRepository(actionContext).saveAll(actionContext.getResource(), actionContext.getPayload());
     }
 
     @Handler(action = Constants.Action.UPDATE)
@@ -60,7 +60,7 @@ public class GenericObjectHandler {
 
     @Handler(action = Constants.Action.BULK_UPDATE)
     public List<Map<String, Object>> bulkUpdateHandler(ActionContext<List<Map<String, Object>>> actionContext) {
-        return getGenericObjectQueryRepository(actionContext).updateReturning(actionContext.getResource(), actionContext.getPayload());
+        return getGenericObjectQueryRepository(actionContext).updateAllReturning(actionContext.getResource(), actionContext.getPayload());
     }
 
     @Handler(action = Constants.Action.DELETE)

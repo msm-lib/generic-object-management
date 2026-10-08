@@ -32,16 +32,13 @@ public interface ObjectQueryRepository {
     Map<String, Object> findById(ActionContext<ObjectFilterRequest> request);
 
     Map<String, Object> save(String objectName, Map<String, Object> payload);
-
-    List<Map<String, Object>> save(String objectName, List<Map<String, Object>> payload);
+    List<Map<String, Object>> saveAll(String objectName, List<Map<String, Object>> payload);
 
     int update(String objectName, Object id, Map<String, Object> newData);
-
-    int[] update(String objectName, List<Map<String, Object>> newDataList);
+    int[] updateAll(String objectName, List<Map<String, Object>> newDataList);
 
     Map<String, Object> updateReturning(String objectName, Object id, Map<String, Object> newData);
-
-    List<Map<String, Object>> updateReturning(String objectName, List<Map<String, Object>> newDataList);
+    List<Map<String, Object>> updateAllReturning(String objectName, List<Map<String, Object>> newDataList);
 
     int delete(String objectName, Object id, Map<String, Object> payload);
 

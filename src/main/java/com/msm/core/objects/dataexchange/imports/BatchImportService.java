@@ -88,7 +88,7 @@ public class BatchImportService {
 
         if(!updatedData.isEmpty()) {
             try {
-                internalObjectQueryRepository.update(
+                internalObjectQueryRepository.updateAll(
                         objectMetadata.getName(),
                         updatedData.stream().map(dataRecord -> dataRecord.get(ImportStagingMeta.DATA)).collect(Collectors.toList())
                 );
