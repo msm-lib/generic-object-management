@@ -254,12 +254,13 @@ imports:
 
 - **Override từng bước:** mỗi bước (đọc file, map dòng, map ô, resolve reference, insert theo lô) là một named action trong `ObjectActionNamed`, nên có thể override bằng handler.
 - **Transaction:** mỗi lô và mỗi lần đổi trạng thái chạy trong `REQUIRES_NEW`. Lô lỗi được chạy lại từng dòng một.
+- **Import lỗi:** job chuyển sang `FAILED`, kèm `errorMessage` và `completedAt`.
 
 ### Export
 
 Trạng thái: `PENDING_EXPORT → EXPORTING → COMPLETED | FAILED`.
 
-- Gọi `POST /generic/objects/exportjob` với body `{ objectName, filterCriteria }`. File được tạo từ template Excel trên S3 (`exports.template` hoặc `exports.objects.<obj>.template`), rồi stream lên S3.
+- Gọi `POST /generic/objects/exportjob` với body `{ objectName, filterCriteria }`. File được tạo từ template Excel trên S3 (`exports.template` hoặc `exports.objects.<obj>.template`), rồi stream lên S3. Export chạy bất đồng bộ trên executor `dataExchangeTaskExecutor`, nên service cần bật `@EnableAsync`.
 - `GET /generic/objects/exportjob/{id}` trả về `downloadUrl` (presigned).
 
 **Đường dẫn file trên S3:** `{tenantCode}/{aws.s3.sub-folder}/{objectName}/{yyyyMMdd}/{uuid}_{epochMillis}.{ext}`.
@@ -296,8 +297,6 @@ Trạng thái: `PENDING_EXPORT → EXPORTING → COMPLETED | FAILED`.
 
 ## Hạn chế đã biết
 
-- `ExportExcelService` dùng `@Async("importExportDataTaskExecutor")`, nhưng bean được đăng ký với tên `dataExchangeTaskExecutor`.
-- `ImportExcelService` gọi `finishImport` trong `finally`, nên import lỗi vẫn kết thúc ở trạng thái COMPLETED.
 - `MasterDataApiService` và chế độ chạy localhost có URL viết cứng trong code.
 - `ExportJobMeta.TABLE` dùng schema `"bhc"`, trong khi các Meta khác không có schema.
 - Chưa có test tự động.
