@@ -156,9 +156,12 @@ public class ImportExcelService {
             return finishImport(objectImportContext.jobId());
         } catch (Exception e) {
             log.error("Import failed", e);
+            try {
+                importJobService.makeJobFailed(objectImportContext.jobId(), e.getMessage());
+            } catch (Exception statusError) {
+                log.error("Failed to mark import job {} as FAILED", objectImportContext.jobId(), statusError);
+            }
             throw Lombok.sneakyThrow(e);
-        } finally {
-            finishImport(objectImportContext.jobId());
         }
     }
 
