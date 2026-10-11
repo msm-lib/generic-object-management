@@ -118,4 +118,18 @@ public class ImportJobService {
                         .getValues()
         );
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void makeJobFailed(UUID importId, String errorMessage) {
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                importId,
+                DataRecord
+                        .of()
+                        .with(ImportJobMeta.STATUS, ImportStatus.FAILED.name())
+                        .with(ImportJobMeta.ERROR_MESSAGE, errorMessage)
+                        .with(ImportJobMeta.COMPLETED_AT, Instant.now())
+                        .getValues()
+        );
+    }
 }

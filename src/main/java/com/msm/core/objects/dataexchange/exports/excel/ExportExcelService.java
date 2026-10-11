@@ -67,7 +67,7 @@ public class ExportExcelService {
     private static final String MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 
-    @Async("importExportDataTaskExecutor")
+    @Async("dataExchangeTaskExecutor")
     public void exportExcelData(String schemaFolder, Map<String, Object> exportJobMap) {
         DataRecord exportJobRecord = DataRecord.ofNullable(exportJobMap);
         exportJobTransactionService.markExporting(exportJobRecord);
