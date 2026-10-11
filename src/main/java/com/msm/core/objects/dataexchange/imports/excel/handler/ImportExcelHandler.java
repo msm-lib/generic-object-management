@@ -52,6 +52,7 @@ public class ImportExcelHandler {
                 readActionContext.importObjectName(),
                 readActionContext.importId(),
                 readActionContext.fileUrl(),
+                importConfigService.getSheet(actionContext.getResource()),
                 objectConfig.getBufferSize(),
                 objectConfig.getBatchSize(),
                 readActionContext.rowConsumer()

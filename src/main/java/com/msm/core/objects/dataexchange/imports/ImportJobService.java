@@ -2,6 +2,7 @@ package com.msm.core.objects.dataexchange.imports;
 
 import com.msm.core.action.annotations.action.CreateHandler;
 import com.msm.core.action.context.ActionContext;
+import com.msm.core.commons.Utils;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.ImportJobDtoMeta;
@@ -15,11 +16,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
 public class ImportJobService {
+    public static final String PARENT_IMPORT_JOB_ID = "parentImportJobId";
+
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3FileUtils s3FileUtils;
 
@@ -86,6 +90,27 @@ public class ImportJobService {
         dataJobImport.remove(ImportJobMeta.FILE_INFO);
 
         return dataJobImport.getValues();
+    }
+
+    /**
+     * Creates the job of another sheet of the parent's workbook: same uploaded file, different object.
+     * The parent job id is kept in {@code fileInfo.parentImportJobId}.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Map<String, Object> createSheetJob(Map<String, Object> parentJob, String objectName) {
+        DataRecord parentRecord = DataRecord.of(parentJob);
+        Map<String, Object> fileInfo = new HashMap<>(Utils.CL.emptyIfNull(parentRecord.get(ImportJobMeta.FILE_INFO)));
+        fileInfo.put(PARENT_IMPORT_JOB_ID, parentRecord.get(ImportJobMeta.ID));
+
+        DataRecord sheetJobRecord = DataRecord.of()
+                .with(ImportJobMeta.ID, UUID.randomUUID())
+                .with(ImportJobMeta.OBJECT_NAME_FIELD, objectName)
+                .with(ImportJobMeta.ORIGINAL_FILE_NAME, parentRecord.get(ImportJobMeta.ORIGINAL_FILE_NAME))
+                .with(ImportJobMeta.FILE_NAME, parentRecord.get(ImportJobMeta.FILE_NAME))
+                .with(ImportJobMeta.STATUS, ImportStatus.UPLOADING.name())
+                .with(ImportJobMeta.FILE_INFO, fileInfo)
+                .with(ImportJobMeta.STARTED_AT, Instant.now());
+        return internalObjectQueryRepository.save(ImportJobMeta.OBJECT_NAME, sheetJobRecord.getValues());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

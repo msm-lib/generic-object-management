@@ -217,10 +217,14 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
+    /**
+     * Validates then imports the file of the job (see {@code ImportFileService}). Not transactional on purpose:
+     * validation and every import batch commit on their own, and an Excel dependent sheet needs its parent committed.
+     */
     public Map<String, Object> importFileByFileId(String objectName, UUID importJob, String type, Map<String, Object> request) {
-        String actionName = ObjectActionNamed.Csv.IMPORT_DATA;
+        String actionName = ObjectActionNamed.Csv.IMPORT_FILE;
         if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {
-            actionName = ObjectActionNamed.Excel.IMPORT_DATA;
+            actionName = ObjectActionNamed.Excel.IMPORT_FILE;
         }
 
         ActionContext<ObjectImportContext> actionRequest = ActionContext
@@ -232,6 +236,10 @@ public class GenericObjectService {
         return actionExecutor.execute(actionRequest);
     }
 
+    /**
+     * @deprecated the import API validates by itself; use {@link #importFileByFileId}
+     */
+    @Deprecated
     public Map<String, Object> validateImportFileByFileId(String objectName, String type, Map<String, Object> request) {
         String actionName = ObjectActionNamed.Csv.VALIDATION;
         if(Objects.equals(type, ObjectActionNamed.Excel.NAME)) {

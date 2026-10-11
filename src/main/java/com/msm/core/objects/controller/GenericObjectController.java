@@ -219,7 +219,9 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.objectActionBulkUpdate(objectName, actionName, request));
     }
 
-    @Operation(summary = "Import object", description = "Returns http status")
+    @Operation(summary = "Import object",
+            description = "Validates then imports the uploaded file. A validation with errors leaves the job VALIDATION_FAILED and imports nothing. "
+                    + "Excel: then imports the sheets of the objects whose imports config depends-on objectName (response field sheetJobs).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}/imports/{type}/{importJob}")
@@ -231,7 +233,12 @@ public class GenericObjectController {
         return ResponseEntity.ok(genericObjectService.importFileByFileId(objectName, importJob, importType, request));
     }
 
-    @Operation(summary = "Import object", description = "Returns http status")
+    /**
+     * @deprecated the import API validates by itself
+     */
+    @Deprecated
+    @Operation(summary = "Validate import file", deprecated = true,
+            description = "Deprecated: POST /generic/objects/{objectName}/imports/{type}/{importJob} validates then imports")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}/imports/{type}/validate")

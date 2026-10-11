@@ -3,6 +3,8 @@ package com.msm.core.objects.dataexchange.imports.s3;
 import com.msm.core.commons.Utils;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.connector.GenericObjectInternalService;
+import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
@@ -39,6 +41,7 @@ public class ExcelOriginalMultipartAsyncService {
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3Client s3Client;
     private final S3FileUtils s3FileUtils;
+    private final ImportConfigService importConfigService;
 
 //    @Async
     @Transactional(readOnly = true)
@@ -83,7 +86,8 @@ public class ExcelOriginalMultipartAsyncService {
                 S3MultipartOutputStream0 s3Out = new S3MultipartOutputStream0(s3Client, bucketName, fileKey, uploadId, completedParts)
         ) {
 
-            Sheet originalSheet = targetWorkbook.getXSSFWorkbook().getSheetAt(0);
+            String sheetName = importConfigService.getSheet(importJobRecord.get(ImportJobMeta.OBJECT_NAME_FIELD));
+            Sheet originalSheet = FileReaderService.getSheet(targetWorkbook.getXSSFWorkbook(), sheetName);
 
             int errorColumnIndex = -1;
             Row headerRow = originalSheet.getRow(0);

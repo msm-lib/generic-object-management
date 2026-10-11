@@ -8,6 +8,8 @@ public final class ObjectActionNamed {
         //Main handler from user
         public static final String VALIDATION = "csv_import_validation_processing";
         public static final String IMPORT_DATA = "csv_import_data_processing";
+        // validate then import (entry point of the import API)
+        public static final String IMPORT_FILE = "csv_import_file_processing";
         public static final String READ_FILE = "csv_read_processing";
         public static final String DETECT_COLUMN_HEADER_MAPPING = "csv_detect_column_mapping_processing";
         public static final String ROW_MAPPING = "csv_row_mapping_processing";
@@ -21,6 +23,8 @@ public final class ObjectActionNamed {
         //Main handler from user
         public static final String VALIDATION = "excel_import_validation_processing";
         public static final String IMPORT_DATA = "excel_import_data_processing";
+        // validate then import the object's sheet, then the sheets of the objects that depend on it (entry point of the import API)
+        public static final String IMPORT_FILE = "excel_import_file_processing";
 
 
         public static final String READ_FILE = "excel_read_processing";

@@ -228,10 +228,12 @@ Trạng thái: `UPLOADING → VALIDATING → VALIDATED | VALIDATION_FAILED → I
 
 1. Gọi `POST /generic/objects/importjob` với body `{ objectName, service, fileName, originalFileName, mimeType, contentLength }`. API trả về job kèm `uploadUrl`.
 2. Client upload file thẳng lên S3 bằng `uploadUrl` (presigned PUT).
-3. Gọi `POST /generic/objects/{obj}/imports/{excel|csv}/validate` với id của job.
-   - Dữ liệu được đọc theo lô `imports.processing.batch-size` (mặc định 100).
-   - Dòng hợp lệ vào `import_staging`, dòng lỗi vào `import_error`.
-4. Gọi `POST /generic/objects/{obj}/imports/{type}/{importJobId}` để ghi dữ liệu staging vào bảng thật theo từng lô.
+3. Gọi `POST /generic/objects/{obj}/imports/{excel|csv}/{importJobId}`. API này **validate rồi import luôn**:
+   - Validate: dữ liệu được đọc theo lô `imports.processing.batch-size` (mặc định 100). Dòng hợp lệ vào `import_staging`, dòng lỗi vào `import_error`.
+   - Có dòng lỗi thì job chuyển sang `VALIDATION_FAILED`, **không import dòng nào**, và API trả về job đó. Lỗi hệ thống khi validate thì job `VALIDATION_FAILED` và API trả lỗi.
+   - Validate không lỗi (`VALIDATED`) thì ghi dữ liệu staging vào bảng thật theo từng lô. API trả về job ở trạng thái `COMPLETED`, `COMPLETED_WITH_ERRORS` hoặc lỗi `FAILED`.
+   - Chỉ nhận job `UPLOADING`, hoặc `VALIDATED` (đã validate bằng API cũ: chỉ import). Job ở trạng thái khác bị từ chối.
+4. `POST /generic/objects/{obj}/imports/{type}/validate` đã **deprecated**; không cần gọi nữa.
 5. Tải file lỗi bằng `GET .../{importJobId}/download-errors`, hoặc file gốc bằng `.../download-file`.
 
 Cấu hình cho từng object, đặt trong `imports.objects.<object>`:
@@ -240,7 +242,13 @@ Cấu hình cho từng object, đặt trong `imports.objects.<object>`:
 imports:
   processing: { batch-size: 100 }
   objects:
+    category:
+      identity: { fields: [code] }
     product:
+      source:
+        sheet: Products         # tên sheet Excel; bỏ trống thì đọc sheet đầu tiên
+        header: { mode: FIXED, row: 0 }   # AUTO | FIXED; bỏ trống thì dùng imports.header
+      depends-on: [category]    # object phải được import trước product
       identity:
         fields: [code]          # khóa nhận diện bản ghi
         strategy: UPSERT        # UPSERT | LOOKUP | NONE
@@ -252,9 +260,38 @@ imports:
           fields: [id, code, name]
 ```
 
+- **`source.sheet`:** áp dụng cho cả bước đọc file Excel lẫn bước ghi cột lỗi vào file gốc. File **chỉ có 1 sheet** thì luôn đọc sheet đó dù tên khác (file mẫu một sheet cũ vẫn dùng được) và không xử lý sheet phụ thuộc. Tên sheet so sánh **không phân biệt hoa thường** (`Contact` khớp sheet `contact`). File nhiều sheet mà không có sheet trùng tên thì ném `ImportConfigurationException`.
+- **`imports.objects.<obj>.header`** (cách khai báo cũ) vẫn dùng được, nhưng đã deprecated; hãy chuyển sang `source.header`.
+- **`depends-on`:** `ImportConfigService.resolveOrder()` trả về thứ tự import của mọi object đã cấu hình, object phụ thuộc đứng sau các object nó phụ thuộc vào; các object độc lập xếp theo tên. Cấu hình được kiểm tra **khi khởi động**: object trong `depends-on` chưa được khai báo, hoặc phụ thuộc vòng (`a -> b -> a`), sẽ ném `ImportConfigurationException` và ứng dụng không chạy lên. Với Excel, API import dùng `depends-on` để import nhiều sheet trong một file (xem bên dưới).
 - **Override từng bước:** mỗi bước (đọc file, map dòng, map ô, resolve reference, insert theo lô) là một named action trong `ObjectActionNamed`, nên có thể override bằng handler.
 - **Transaction:** mỗi lô và mỗi lần đổi trạng thái chạy trong `REQUIRES_NEW`. Lô lỗi được chạy lại từng dòng một.
 - **Import lỗi:** job chuyển sang `FAILED`, kèm `errorMessage` và `completedAt`.
+
+### Import nhiều sheet trong một file Excel
+
+Ví dụ một file có sheet `Order` và `OrderItem`:
+
+```yaml
+imports:
+  objects:
+    v2order:
+      source: { sheet: Order }
+    v2orderitem:
+      source: { sheet: OrderItem }
+      depends-on: [v2order]
+```
+
+Tạo job với `objectName` là object gốc (`v2order`), upload file và gọi API import như bình thường: `POST /generic/objects/v2order/imports/excel/{importJobId}`.
+
+Cách chạy:
+
+- Sheet của `v2order` được validate và import như một object đơn. Nếu job của nó **`COMPLETED`**, thư viện xử lý tiếp các object có `depends-on` tới `v2order` (trực tiếp hoặc gián tiếp), theo thứ tự phụ thuộc. Object phụ thuộc **bắt buộc** có `source.sheet`.
+- Mỗi object được validate **và import xong** rồi mới tới object sau, vì sheet con tra mã của dòng cha trong database.
+- Mỗi object phụ thuộc có một job riêng trên **cùng file S3** (`fileInfo.parentImportJobId` trỏ về job gốc), nên có trạng thái, dòng staging và lỗi riêng; tải file lỗi theo job của từng sheet như cũ. Các job dùng chung một file, nên file lỗi cuối cùng có cột `Result` trên mọi sheet đã tải.
+- Sheet chưa `COMPLETED` (validate lỗi, import có lỗi hoặc lỗi hệ thống) dừng cả lượt: các sheet sau bị `SKIPPED`. Sheet của object phụ thuộc không có trong file cũng bị `SKIPPED`.
+- Response là job của `v2order`, thêm `sheetJobs: [{ objectName, sheet, importJobId, status, totalRows, validRows, successRows, errorRows, errorMessage }]`. Lỗi của sheet phụ thuộc nằm trong `sheetJobs`, không làm API trả lỗi.
+- API chạy đồng bộ trong request và không có `@PreAuthorize`, giống trước đây.
+- Có thể override toàn bộ luồng bằng handler cho action `ObjectActionNamed.Excel.IMPORT_FILE` / `Csv.IMPORT_FILE` (mặc định: `ImportFileService`).
 
 ### Export
 
@@ -299,4 +336,4 @@ Trạng thái: `PENDING_EXPORT → EXPORTING → COMPLETED | FAILED`.
 
 - `MasterDataApiService` và chế độ chạy localhost có URL viết cứng trong code.
 - `ExportJobMeta.TABLE` dùng schema `"bhc"`, trong khi các Meta khác không có schema.
-- Chưa có test tự động.
+- Test tự động mới chỉ có cho phần cấu hình import, `ImportFileService` và `FileReaderService.getSheetNames` (`./gradlew test`).

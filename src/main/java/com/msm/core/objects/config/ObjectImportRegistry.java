@@ -37,10 +37,26 @@ public class ObjectImportRegistry {
 
     @Data
     public static class ObjectConfig {
-        private HeaderConfig header;
         private ProcessingConfig processing;
+        private SourceConfig source = new SourceConfig();
         private IdentityConfig identity = new IdentityConfig();
         private Map<String, ReferenceDetailConfig> references = new HashMap<>();
+        private List<String> dependsOn = new ArrayList<>();
+
+        /**
+         * @deprecated use {@code source.header}; kept so {@code imports.objects.<obj>.header} still binds.
+         */
+        @Deprecated
+        public void setHeader(HeaderConfig header) {
+            source.setHeader(header);
+        }
+    }
+
+    @Data
+    public static class SourceConfig {
+        // Excel sheet name; blank = first sheet
+        private String sheet;
+        private HeaderConfig header;
     }
 
     @Data

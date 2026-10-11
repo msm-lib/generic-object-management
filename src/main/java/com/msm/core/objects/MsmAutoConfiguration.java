@@ -52,6 +52,7 @@ import com.msm.core.objects.dataexchange.exports.excel.ExportExcelTemplateServic
 import com.msm.core.objects.dataexchange.exports.excel.handler.ExportExcelHandler;
 import com.msm.core.objects.dataexchange.imports.BatchImportService;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.ImportFileService;
 import com.msm.core.objects.dataexchange.imports.ImportDataProcessor;
 import com.msm.core.objects.dataexchange.imports.ImportDataService;
 import com.msm.core.objects.dataexchange.imports.ImportDataTransactionExecutor;
@@ -886,9 +887,12 @@ public class MsmAutoConfiguration {
     public ImportConfigService importConfigService(
             ObjectImportRegistry objectImportRegistry
     ) {
-        return new ImportConfigService(
+        ImportConfigService importConfigService = new ImportConfigService(
                 objectImportRegistry
         );
+        // fail at startup on unknown or circular imports.objects.*.depends-on
+        importConfigService.validate();
+        return importConfigService;
     }
 
     @Bean("exportConfigService")
@@ -914,13 +918,15 @@ public class MsmAutoConfiguration {
             GenericObjectInternalService genericObjectInternalService,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             S3Client s3Client,
-            S3FileUtils s3FileUtils
+            S3FileUtils s3FileUtils,
+            ImportConfigService importConfigService
     ) {
         return new ExcelOriginalMultipartAsyncService(
                 genericObjectInternalService,
                 internalObjectQueryRepository,
                 s3Client,
-                s3FileUtils
+                s3FileUtils,
+                importConfigService
         );
     }
 
@@ -955,6 +961,25 @@ public class MsmAutoConfiguration {
                 importDataExecutor,
                 importJobService,
                 importErrorService
+        );
+    }
+
+    @Bean("importFileService")
+    public ImportFileService importFileService(
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ActionExecutor actionExecutor,
+            ImportConfigService importConfigService,
+            ImportJobService importJobService,
+            FileReaderService fileReaderService,
+            S3FileUtils s3FileUtils
+    ) {
+        return new ImportFileService(
+                internalObjectQueryRepository,
+                actionExecutor,
+                importConfigService,
+                importJobService,
+                fileReaderService,
+                s3FileUtils
         );
     }
 

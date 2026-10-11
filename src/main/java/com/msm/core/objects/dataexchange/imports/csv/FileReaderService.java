@@ -3,11 +3,13 @@ package com.msm.core.objects.dataexchange.imports.csv;
 import com.github.pjfanning.xlsx.StreamingReader;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
+import com.msm.core.commons.Utils;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.dataexchange.FileType;
 import com.msm.core.objects.dataexchange.imports.model.FileProcessStatus;
 import com.msm.core.objects.dataexchange.imports.model.FileProcessedEventContext;
 import com.msm.core.objects.dataexchange.imports.model.RawRow;
+import com.msm.core.objects.exception.ImportConfigurationException;
 import lombok.Lombok;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +36,9 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -118,6 +122,13 @@ public class FileReaderService {
 
 
     public void readExcelStream(String importObjectName, UUID importId, String fileUrl, int bufferSize, int batchSize, Consumer<RawRow<Row>> consumer) {
+        readExcelStream(importObjectName, importId, fileUrl, null, bufferSize, batchSize, consumer);
+    }
+
+    /**
+     * @param sheetName sheet to read; blank reads the first sheet
+     */
+    public void readExcelStream(String importObjectName, UUID importId, String fileUrl, String sheetName, int bufferSize, int batchSize, Consumer<RawRow<Row>> consumer) {
         Workbook workbook = null;
         InputStream inputStream = null;
         try {
@@ -128,7 +139,7 @@ public class FileReaderService {
                     .bufferSize(bufferSize)            // Buffer size of InputStream (Bytes)
                     .open(inputStream);
 
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = getSheet(workbook, sheetName);
             for (Row row : sheet) {
                 if(isRowEmpty(row)) continue;
                 consumer.accept(
@@ -153,6 +164,40 @@ public class FileReaderService {
                 }
             }
         }
+    }
+
+    /** Names of all sheets in the workbook at {@code fileUrl}, in workbook order. */
+    public List<String> getSheetNames(String fileUrl, int bufferSize) {
+        try (
+                InputStream inputStream = URI.create(fileUrl).toURL().openStream();
+                Workbook workbook = StreamingReader.builder().bufferSize(bufferSize).open(inputStream)
+        ) {
+            List<String> sheetNames = new ArrayList<>();
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                sheetNames.add(workbook.getSheetName(i));
+            }
+            return sheetNames;
+        } catch (IOException e) {
+            throw Lombok.sneakyThrow(e);
+        }
+    }
+
+    /**
+     * Returns the sheet with the given name, or the first sheet when the name is blank.
+     * A workbook with a single sheet is read whatever its name, so single-sheet templates keep working
+     * after {@code source.sheet} is configured.
+     *
+     * @throws ImportConfigurationException if a multi-sheet workbook has no sheet with that name
+     */
+    public static Sheet getSheet(Workbook workbook, String sheetName) {
+        if (Utils.STR.isBlank(sheetName) || workbook.getNumberOfSheets() == 1) {
+            return workbook.getSheetAt(0);
+        }
+        Sheet sheet = workbook.getSheet(sheetName);
+        if (sheet == null) {
+            throw new ImportConfigurationException("Sheet [" + sheetName + "] not found in the import file");
+        }
+        return sheet;
     }
 
     private void finishFileProcess(String importObjectName, UUID importId, FileType fileType, FileProcessStatus status) {

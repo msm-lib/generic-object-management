@@ -93,6 +93,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
 //    implementation(files("/Users/danhnh/Infomation/Development/Lib/common/build/libs/commons-1.0.0.jar"))
     implementation("com.github.msm-lib:commons:${msmCommonVersion}") { exclude(group = "org.slf4j") }
