@@ -358,7 +358,7 @@ public class InternalObjectQueryRepository implements ObjectQueryRepository {
             mapTo(objectMetadata, objectMap);
         });
 
-        return internalQueryService.insert(objectMetadata, payload);
+        return internalQueryService.batchInsert(objectMetadata, payload);
     }
 
     @Override

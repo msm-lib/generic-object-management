@@ -352,7 +352,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
     @Override
     public int[] insertBatch(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        return defaultQueryService.insert(objectMetadata, payload);
+        return defaultQueryService.batchInsert(objectMetadata, payload);
     }
 
     @Override
