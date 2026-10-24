@@ -6,5 +6,5 @@ public class ErrorType {
     public static String IMPORT_DATA_ERROR = "IMPORT_DATA_ERROR";
 
     public static String ROW_MAPPING_ERROR = "ROW_MAPPING_ERROR";
-    public static String CELL_MAPPING_ERROR = "ROW_MAPPING_ERROR";
+    public static String CELL_MAPPING_ERROR = "CELL_MAPPING_ERROR";
 }

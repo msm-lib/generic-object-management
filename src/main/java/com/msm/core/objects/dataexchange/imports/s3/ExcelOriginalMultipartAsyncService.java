@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +45,7 @@ public class ExcelOriginalMultipartAsyncService {
     private final S3Client s3Client;
     private final S3FileUtils s3FileUtils;
     private static final String SHEET = "sheet";
+    private static final String ERROR_SEPARATOR = "; ";
 
     private final ImportConfigService importConfigService;
 
@@ -128,7 +130,8 @@ public class ExcelOriginalMultipartAsyncService {
         return List.of(new SheetRun(sheetName, importJobRecord.get(ImportJobMeta.ID)));
     }
 
-    private Map<Long, DataRecord> errorsByRow(UUID importId) {
+    /** Errors of an import id by Excel row; several errors of one row (e.g. cell mapping and validation) share its cell. */
+    Map<Long, DataRecord> errorsByRow(UUID importId) {
         List<Map<String, Object>> errors = internalObjectQueryRepository.findByCondition(
                 ImportErrorMeta.OBJECT_NAME,
                 ImportErrorMeta.IMPORT_ID.getField().eq(importId)
@@ -136,8 +139,25 @@ public class ExcelOriginalMultipartAsyncService {
         return Utils.D.groupBy(
                 errors,
                 objectMap -> ((Number) objectMap.get(ImportErrorMeta.ROW_NUMBER.getFieldName())).longValue(),
-                DataRecord::ofNullable
+                DataRecord::ofNullable,
+                this::mergeErrors
         );
+    }
+
+    private DataRecord mergeErrors(DataRecord first, DataRecord second) {
+        String firstMessage = first.get(ImportErrorMeta.ERROR_MESSAGE);
+        String secondMessage = second.get(ImportErrorMeta.ERROR_MESSAGE);
+        if (Utils.STR.isBlank(secondMessage)) {
+            return first;
+        }
+        if (Utils.STR.isBlank(firstMessage)) {
+            return second;
+        }
+        if (Arrays.asList(firstMessage.split(ERROR_SEPARATOR)).contains(secondMessage)) {
+            return first;
+        }
+        String message = firstMessage + ERROR_SEPARATOR + secondMessage;
+        return DataRecord.of().with(ImportErrorMeta.ERROR_MESSAGE, message);
     }
 
     /**
