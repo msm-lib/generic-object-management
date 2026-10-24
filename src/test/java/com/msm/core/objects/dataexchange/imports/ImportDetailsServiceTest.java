@@ -17,6 +17,8 @@ import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.exception.PayloadInvalidException;
 import com.msm.core.objects.repository.ObjectQueryRepository;
+import com.msm.core.security.annotations.SecuredPermissionAction;
+import com.msm.core.security.enums.PermissionAction;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -213,6 +215,15 @@ class ImportDetailsServiceTest {
         assertThat(values.getValue().get(ImportJobMeta.STATUS.getFieldName())).isEqualTo(ImportStatus.COMPLETED_WITH_ERRORS.name());
         assertThat((String) values.getValue().get(ImportJobMeta.ERROR_MESSAGE.getFieldName()))
                 .startsWith("Rows imported, but updating the testorder failed");
+    }
+
+    @Test
+    void routeNeedsUpdateOnTheHeader() throws NoSuchMethodException {
+        SecuredPermissionAction permission = ImportDetailsService.class.getMethod("importDetails", ActionContext.class)
+                .getAnnotation(SecuredPermissionAction.class);
+
+        assertThat(permission).isNotNull();
+        assertThat(permission.anyOf()).containsExactly(PermissionAction.UPDATE);
     }
 
     private void assertPayloadInvalid() {

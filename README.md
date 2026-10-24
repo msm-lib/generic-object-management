@@ -325,7 +325,7 @@ imports:
 Gọi:
 
 1. `POST /generic/objects/importjob` với `objectName` = object detail (`v2orderitem`), upload file Excel lên `uploadUrl` (như mọi import).
-2. `PUT /generic/objects/v2order/{orderId}/import_details` với `{ "importJobId": "…", "version": <version header đang hiển thị>, "mode": "APPEND" }`. Route kiểm quyền action `import_details` trên object header (`canProcessAction`).
+2. `PUT /generic/objects/v2order/{orderId}/import_details` với `{ "importJobId": "…", "version": <version header đang hiển thị>, "mode": "APPEND" }`. Route kiểm quyền action `import_details` trên object header (`canProcessAction`): user cần quyền `UPDATE` trên object header.
 3. Response `{ "job": …, "parent": … }` (header đọc lại sau import); có lỗi thì tải file lỗi theo `jobId` như thường.
 
 Thư viện (`ImportDetailsService`):

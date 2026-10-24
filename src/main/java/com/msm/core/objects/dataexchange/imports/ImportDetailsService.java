@@ -27,6 +27,8 @@ import com.msm.core.objects.dataexchange.imports.model.ObjectImportContext;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.exception.ObjectErrors;
 import com.msm.core.objects.repository.ObjectQueryRepository;
+import com.msm.core.security.annotations.SecuredPermissionAction;
+import com.msm.core.security.enums.PermissionAction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +51,8 @@ import java.util.UUID;
  *       id and snapshot, the identity is within the header, APPEND refuses rows the header already has;</li>
  *   <li>dispatches {@code import_parent_completed} once when rows were written, e.g. to recompute the header.</li>
  * </ol>
- * The route checks the permission of the action on the header ({@code canProcessAction(header, import_details)}).
+ * The route checks the permission of the action on the header ({@code canProcessAction(header, import_details)}): the
+ * user needs UPDATE on the header object.
  * Response: {@code {job, parent}} (the header read again).
  */
 @Slf4j
@@ -69,6 +72,7 @@ public class ImportDetailsService {
     private final ImportJobService importJobService;
 
     @Handler(action = ObjectActionNamed.ImportDetails.IMPORT_DETAILS)
+    @SecuredPermissionAction(anyOf = PermissionAction.UPDATE)
     public Map<String, Object> importDetails(ActionContext<Map<String, Object>> actionContext) {
         String headerObject = actionContext.getResource();
         UUID headerId = actionContext.getObjectIdAs(UUID.class);
