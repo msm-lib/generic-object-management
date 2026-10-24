@@ -7,6 +7,7 @@ import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.ImportJobDtoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
+import com.msm.core.objects.dataexchange.imports.model.ImportContext;
 import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
 import com.msm.core.objects.dataexchange.imports.s3.S3FileUtils;
 import com.msm.core.objects.entity.metadata.ImportJobMeta;
@@ -27,14 +28,19 @@ public class ImportJobService {
     /** {@code fileInfo.sheets}: one summary per sheet of a workbook import, see ImportFileService. */
     public static final String SHEETS = "sheets";
     public static final String RUN_ID = "runId";
+    /** {@code fileInfo.context}: the header a job imports details into, see {@link ImportContext}. */
+    public static final String CONTEXT = "context";
 
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3FileUtils s3FileUtils;
     /**
-     * Sheet runs in progress: run id → id of the workbook's job. The steps of a sheet run use the run id as import id,
-     * so its staging and error rows stay apart from the other sheets; counters and status go to the job.
+     * Sheet runs in progress, by run id. The steps of a sheet run use the run id as import id, so its staging and error
+     * rows stay apart from the other sheets; counters and status go to the job.
      */
-    private final Map<UUID, UUID> sheetRunJobs = new ConcurrentHashMap<>();
+    private final Map<UUID, SheetRun> sheetRuns = new ConcurrentHashMap<>();
+
+    /** A sheet run: its workbook's job and the job's error rows when the run started (the errors of earlier sheets). */
+    private record SheetRun(UUID jobId, long errorRowsBefore) { }
 
 
 
@@ -104,17 +110,52 @@ public class ImportJobService {
     /** Starts a run of another sheet of the job's workbook; the run id is the import id of that sheet's steps. */
     public UUID startSheetRun(UUID jobId) {
         UUID runId = UUID.randomUUID();
-        sheetRunJobs.put(runId, jobId);
+        Object errorRows = Utils.CL.emptyIfNull(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId))
+                .get(ImportJobMeta.ERROR_ROWS.getFieldName());
+        sheetRuns.put(runId, new SheetRun(jobId, errorRows instanceof Number number ? number.longValue() : 0L));
         return runId;
     }
 
     public void endSheetRun(UUID runId) {
-        sheetRunJobs.remove(runId);
+        sheetRuns.remove(runId);
     }
 
     /** The job an import id belongs to: the workbook's job for a sheet run, the id itself otherwise. */
     public UUID jobIdOf(UUID importId) {
-        return importId == null ? null : sheetRunJobs.getOrDefault(importId, importId);
+        SheetRun run = importId == null ? null : sheetRuns.get(importId);
+        return run == null ? importId : run.jobId();
+    }
+
+    /**
+     * The job's error rows that are not this import id's: those of the earlier sheets for a sheet run, none otherwise.
+     * A step has errors of its own when the job's error rows exceed this.
+     */
+    public long errorRowsBefore(UUID importId) {
+        SheetRun run = importId == null ? null : sheetRuns.get(importId);
+        return run == null ? 0L : run.errorRowsBefore();
+    }
+
+    /** The header the job of an import id writes details into, or null when it imports rows on their own. */
+    public ImportContext contextOf(UUID importId) {
+        if (importId == null) {
+            return null;
+        }
+        Map<String, Object> job = internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobIdOf(importId));
+        Map<String, Object> fileInfo = Utils.CL.emptyIfNull(DataRecord.ofNullable(job).get(ImportJobMeta.FILE_INFO));
+        return ImportContext.from(fileInfo.get(CONTEXT));
+    }
+
+    /** Stores the header of the job in {@code fileInfo.context}; committed on its own so it stays when the import fails. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveContext(UUID jobId, ImportContext context) {
+        Map<String, Object> job = internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
+        Map<String, Object> fileInfo = new HashMap<>(Utils.CL.emptyIfNull(DataRecord.ofNullable(job).get(ImportJobMeta.FILE_INFO)));
+        fileInfo.put(CONTEXT, context.toMap());
+        internalObjectQueryRepository.update(
+                ImportJobMeta.OBJECT_NAME,
+                jobId,
+                DataRecord.of().with(ImportJobMeta.FILE_INFO, fileInfo).getValues()
+        );
     }
 
     /**

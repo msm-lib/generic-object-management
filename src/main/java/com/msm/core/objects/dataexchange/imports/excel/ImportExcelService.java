@@ -15,6 +15,7 @@ import com.msm.core.objects.dataexchange.DataHelper;
 import com.msm.core.objects.dataexchange.ErrorHelper;
 import com.msm.core.objects.dataexchange.imports.ErrorType;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.ImportParentRows;
 import com.msm.core.objects.dataexchange.imports.ImportErrorService;
 import com.msm.core.objects.dataexchange.imports.ImportJobService;
 import com.msm.core.objects.dataexchange.imports.ReferenceProcessService;
@@ -22,6 +23,7 @@ import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
 import com.msm.core.objects.dataexchange.imports.model.BatchInsertDataResult;
 import com.msm.core.objects.dataexchange.imports.model.DownloadFileContext;
+import com.msm.core.objects.dataexchange.imports.model.ImportContext;
 import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
 import com.msm.core.objects.dataexchange.imports.model.ImportValidation;
@@ -46,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -99,6 +102,7 @@ public class ImportExcelService {
     private final ImportJobService importJobService;
     private final ImportErrorService importErrorService;
     private final Map<UUID, Map<Integer, String>> ATTRIBUTE_HEADER_CACHE = new ConcurrentHashMap<>();
+    private final ImportParentRows importParentRows = new ImportParentRows();
 
 
     @Handler(action = ObjectActionNamed.Excel.IMPORT_DATA)
@@ -175,7 +179,7 @@ public class ImportExcelService {
                 Map.of(
                         ImportJobMeta.STATUS.getFieldName(),
                         DSL.choose()
-                                .when(ImportJobMeta.ERROR_ROWS.getField().gt(0L), ImportStatus.COMPLETED_WITH_ERRORS.name())
+                                .when(ImportJobMeta.ERROR_ROWS.getField().gt(importJobService.errorRowsBefore(importId)), ImportStatus.COMPLETED_WITH_ERRORS.name())
                                 .otherwise(ImportStatus.COMPLETED.name()),
                         ImportJobMeta.COMPLETED_AT.getFieldName(), Instant.now()
                 )
@@ -204,6 +208,11 @@ public class ImportExcelService {
             ObjectImportRegistry.HeaderConfig header = importConfigService.getHeader(actionContext.getResource());
             int batchSize = importConfigService.getProcessingConfig(actionContext.getResource()).getBatchSize();
             List<ImportRow> batchBuffer = new ArrayList<>();
+            // Import into one header (action import_details): every row gets the header, the file holds at most max-rows
+            ImportContext parentContext = importJobService.contextOf(importId);
+            ObjectImportRegistry.ParentConfig parentConfig = parentContext == null ? null : importConfigService.getParent(actionContext.getResource());
+            AtomicInteger dataRows = new AtomicInteger();
+            AtomicInteger parentErrors = new AtomicInteger();
             Consumer<RawRow<Row>> rowConsumer = rowRawRow -> {
 
                 Map<Integer, String> attributeHeader = getAttributeHeader(importId, objectMetadata, header, rowRawRow);
@@ -215,6 +224,18 @@ public class ImportExcelService {
                 Map<String, Object> rowData = applyRowMapping(importId, attributeHeader, rowRawRow, errors);
 
                 if(Utils.CL.isNotEmpty(rowData)) {
+
+                    if (parentConfig != null) {
+                        if (parentConfig.getMaxRows() > 0 && dataRows.incrementAndGet() > parentConfig.getMaxRows()) {
+                            throw new IllegalArgumentException("The file has more than " + parentConfig.getMaxRows() + " rows");
+                        }
+                        String mismatch = importParentRows.fill(rowData, parentContext, parentConfig, objectMetadata);
+                        if (mismatch != null) {
+                            errors.add(parentError(importId, rowRawRow.rowNumber(), parentConfig.getField(), mismatch, rowData));
+                            parentErrors.incrementAndGet();
+                            return;
+                        }
+                    }
 
                     applyCellMapping(importId, rowRawRow, attributeHeader, rowData, errors);
 
@@ -243,6 +264,14 @@ public class ImportExcelService {
 
             if(!errors.isEmpty()) {
                 importErrorService.insertErrorsIgnoreDuplicate(errors);
+            }
+            if (parentErrors.get() > 0) {
+                // rows given another header fail the validation like any other row in error
+                internalObjectQueryRepository.updateWithExpressions(
+                        ImportJobMeta.OBJECT_NAME,
+                        ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importId)),
+                        Map.of(ImportJobMeta.ERROR_ROWS.getFieldName(), ImportJobMeta.ERROR_ROWS.getField().add(parentErrors.get()))
+                );
             }
 
             return finishValidation(importValidation.importId());
@@ -275,6 +304,18 @@ public class ImportExcelService {
             );
             return null;
         }
+    }
+
+    private DataRecord parentError(UUID importId, long rowNumber, String field, String message, Map<String, Object> rowData) {
+        return DataRecord
+                .of()
+                .with(ImportErrorMeta.IMPORT_ID, importId)
+                .with(ImportErrorMeta.ROW_NUMBER, rowNumber)
+                .with(ImportErrorMeta.ERROR_TYPE, ErrorType.VALIDATION_ERROR)
+                .with(ImportErrorMeta.FIELD_NAME, field)
+                .with(ImportErrorMeta.ERROR_MESSAGE, message)
+                .with(ImportErrorMeta.ERROR_CODE, ImportParentRows.PARENT_MISMATCH)
+                .with(ImportErrorMeta.DATA, rowData);
     }
 
     private void applyCellMapping(UUID importId, RawRow<Row> row,  Map<Integer, String> attributeHeader, Map<String, Object> rowDataParsed, List<DataRecord> errors) {
@@ -357,7 +398,7 @@ public class ImportExcelService {
                 Map.of(
                         ImportJobMeta.STATUS.getFieldName(),
                         DSL.choose()
-                                .when(ImportJobMeta.ERROR_ROWS.getField().gt(0L), ImportStatus.VALIDATION_FAILED.name())
+                                .when(ImportJobMeta.ERROR_ROWS.getField().gt(importJobService.errorRowsBefore(importId)), ImportStatus.VALIDATION_FAILED.name())
                                 .otherwise(ImportStatus.VALIDATED.name())
                 )
         );

@@ -5,6 +5,7 @@ import com.msm.core.objects.entity.metadata.ImportJobMeta;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ImportJobServiceTest {
 
@@ -28,6 +30,17 @@ class ImportJobServiceTest {
         assertThat(service.jobIdOf(runId)).isEqualTo(jobId);
         service.endSheetRun(runId);
         assertThat(service.jobIdOf(runId)).isEqualTo(runId);
+    }
+
+    @Test
+    void sheetRunKeepsTheErrorRowsOfEarlierSheets() {
+        UUID jobId = UUID.randomUUID();
+        when(repository.findById(ImportJobMeta.OBJECT_NAME, jobId)).thenReturn(Map.of(ImportJobMeta.ERROR_ROWS.getFieldName(), 3L));
+
+        UUID runId = service.startSheetRun(jobId);
+
+        assertThat(service.errorRowsBefore(runId)).isEqualTo(3L);
+        assertThat(service.errorRowsBefore(jobId)).isZero();
     }
 
     @Test

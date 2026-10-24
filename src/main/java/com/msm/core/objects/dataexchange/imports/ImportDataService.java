@@ -33,6 +33,7 @@ public class ImportDataService {
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ImportConfigService importConfigService;
     private final ImportDataProcessor importDataProcessor;
+    private final ImportJobService importJobService;
 
     public BatchInsertDataResult batchInsertDataProcessing(
             UUID importId,
@@ -42,6 +43,8 @@ public class ImportDataService {
 
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(importObjectName);
         ObjectImportRegistry.ObjectConfig objectConfig = importConfigService.getObject(objectMetadata.getName());
+        // within the header when the job imports details of one header
+        List<String> identityFields = importConfigService.getIdentityFields(objectMetadata.getName(), importJobService.contextOf(importId));
         Attribute versionAttr = objectMetadata.getVersionAttribute();
         Attribute idAttr = objectMetadata.getIdAttribute();
 
@@ -81,7 +84,7 @@ public class ImportDataService {
             try {
                 existingData = findExistingData(
                         objectMetadata,
-                        objectConfig.getIdentity().getFields(),
+                        identityFields,
                         statingData
                 );
             } catch (Exception e) {
@@ -110,7 +113,7 @@ public class ImportDataService {
 
             Map<String, Map<String, Object>> existingByIdentity = Utils.D.groupBy(
                     existingData,
-                    objectMap -> IdentityKeyGenerator.generate(objectMap, objectConfig.getIdentity().getFields()).key(),
+                    objectMap -> IdentityKeyGenerator.generate(objectMap, identityFields).key(),
                     Function.identity(),
                     (old, newData) -> old
             );

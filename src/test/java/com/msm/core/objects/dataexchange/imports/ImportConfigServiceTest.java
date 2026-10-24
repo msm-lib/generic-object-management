@@ -1,6 +1,8 @@
 package com.msm.core.objects.dataexchange.imports;
 
 import com.msm.core.objects.config.ObjectImportRegistry;
+import com.msm.core.objects.dataexchange.imports.model.ImportContext;
+import com.msm.core.objects.dataexchange.imports.model.ImportMode;
 import com.msm.core.objects.exception.ImportConfigurationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -8,6 +10,7 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -96,5 +99,39 @@ class ImportConfigServiceTest {
         assertThatThrownBy(() -> service.getWorkbookObjects("v2order"))
                 .isInstanceOf(ImportConfigurationException.class)
                 .hasMessageContaining("[v2orderitem] depends on [v2order] but has no source.sheet");
+    }
+
+    @Test
+    void identityIsWithinTheHeaderOnlyForAnImportIntoAHeader() {
+        ImportConfigService service = ImportDetailsTestData.config(Map.of(
+                "imports.objects.testorderitem.identity.fields[0]", "orderId",
+                "imports.objects.testorderitem.identity.fields[1]", "soLine"));
+        ImportContext context = new ImportContext("testorder", UUID.randomUUID(), "DH.0001", 1L,
+                ImportMode.APPEND, Map.of());
+
+        assertThat(service.getIdentityFields("testorderitem", null)).containsExactly("orderId", "soLine");
+        assertThat(service.getIdentityFields("testorderitem", context)).containsExactly("orderId", "productId", "unitId");
+        assertThat(service.getParent("testorderitem").getDefaultMode())
+                .isEqualTo(ImportMode.APPEND);
+    }
+
+    @Test
+    void parentDefaultModeMustBeOneOfItsModes() {
+        ImportConfigService service = ImportDetailsTestData.config(Map.of(
+                "imports.objects.testorderitem.parent.default-mode", "UPSERT",
+                "imports.objects.testorderitem.parent.modes[1]", "APPEND"));
+
+        assertThatThrownBy(service::validate)
+                .isInstanceOf(ImportConfigurationException.class)
+                .hasMessageContaining("default-mode");
+    }
+
+    @Test
+    void parentNeedsObjectAndField() {
+        ImportConfigService service = service(Map.of("imports.objects.item.parent.object", "order"));
+
+        assertThatThrownBy(service::validate)
+                .isInstanceOf(ImportConfigurationException.class)
+                .hasMessageContaining("object and field");
     }
 }

@@ -7,6 +7,7 @@ import com.msm.core.commons.Utils;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.metadata.typesafe.TypedAttribute;
 import com.msm.core.objects.ObjectActionNamed;
+import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
 import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
@@ -41,9 +42,11 @@ import java.util.UUID;
  * ({@link ImportConfigService#getWorkbookObjects}) are processed the same way, one after another, in the <b>same job</b>:
  * each sheet is a run ({@link ImportJobService#startSheetRun}) whose id keys its staging and error rows, while the
  * counters and the status are the job's. A sheet must be imported before the next one is validated, because a child
- * sheet looks up its parent rows (by code) in the database. The first sheet that is not {@code COMPLETED} stops the run;
- * a dependent sheet missing from the file is skipped. A dependent sheet that fails leaves the job
- * {@code COMPLETED_WITH_ERRORS} (the sheets before it are already imported), its error message prefixed with the sheet.
+ * sheet looks up its parent rows (by code) in the database. A sheet whose validation or import fails
+ * ({@code VALIDATION_FAILED}, {@code FAILED}) stops the run; a sheet imported with rows in error
+ * ({@code COMPLETED_WITH_ERRORS}) does not. A dependent sheet missing from the file is skipped. Once the root sheet is
+ * imported, a dependent sheet with errors leaves the job {@code COMPLETED_WITH_ERRORS}, its error message listing the
+ * sheets.
  * <p>
  * The job keeps one summary per sheet in {@code fileInfo.sheets} ({@code objectName}, {@code sheet}, {@code runId},
  * status, row counts, error message). Response: the job, plus {@code sheets} when there are dependents
@@ -93,8 +96,7 @@ public class ImportFileService {
         Set<String> sheetNames = getSheetNames(objectName, job);
         List<Map<String, Object>> sheets = new ArrayList<>();
         sheets.add(sheetSummary(objectName, importConfigService.getSheet(objectName), jobId, Map.of(), job));
-        boolean stopped = !ImportStatus.COMPLETED.name().equals(DataRecord.of(job).get(ImportJobMeta.STATUS));
-        String failure = null;
+        boolean stopped = !canContinue(DataRecord.of(job).get(ImportJobMeta.STATUS));
         for (String dependent : dependents) {
             String sheet = importConfigService.getSheet(dependent);
             // a single-sheet file is read as the object's own sheet whatever its name (FileReaderService.getSheet)
@@ -114,14 +116,11 @@ public class ImportFileService {
                 Map<String, Object> summary = sheetSummary(dependent, sheet, runId, before, after);
                 sheets.add(summary);
                 String status = DataRecord.of(after).get(ImportJobMeta.STATUS);
-                stopped = !ImportStatus.COMPLETED.name().equals(status);
-                if (isFailed(status)) {
-                    failure = sheet + ": " + failureMessage(summary);
-                }
+                stopped = !canContinue(status);
             }
         }
 
-        Map<String, Object> response = new LinkedHashMap<>(finishWorkbook(jobId, sheets, failure));
+        Map<String, Object> response = new LinkedHashMap<>(finishWorkbook(jobId, sheets));
         response.put(SHEETS, sheets);
         response.put(SHEET_JOBS, sheets.subList(1, sheets.size()).stream().map(sheetSummary -> legacySheetJob(sheetSummary, jobId)).toList());
         return response;
@@ -191,17 +190,24 @@ public class ImportFileService {
     }
 
     /**
-     * Stores the sheet summaries in {@code fileInfo.sheets}; a failed dependent sheet leaves the job
-     * {@code COMPLETED_WITH_ERRORS}, since the sheets before it are already imported.
+     * Stores the sheet summaries in {@code fileInfo.sheets} and sets the status of the workbook: when the root sheet was
+     * imported, any sheet with errors (rows in error, or a dependent sheet whose validation or import failed) leaves the
+     * job {@code COMPLETED_WITH_ERRORS}, its error message listing those sheets. A root sheet that was not imported keeps
+     * its own status.
      */
-    private Map<String, Object> finishWorkbook(UUID jobId, List<Map<String, Object>> sheets, String failure) {
+    private Map<String, Object> finishWorkbook(UUID jobId, List<Map<String, Object>> sheets) {
         Map<String, Object> job = internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
         Map<String, Object> fileInfo = new HashMap<>(Utils.CL.emptyIfNull(DataRecord.of(job).get(ImportJobMeta.FILE_INFO)));
         fileInfo.put(SHEETS, sheets);
         DataRecord values = DataRecord.of().with(ImportJobMeta.FILE_INFO, fileInfo);
-        if (failure != null) {
+        String rootStatus = (String) sheets.getFirst().get(ImportJobMeta.STATUS.getFieldName());
+        List<String> sheetErrors = sheets.stream()
+                .filter(sheet -> hasErrors((String) sheet.get(ImportJobMeta.STATUS.getFieldName())))
+                .map(sheet -> sheet.get(SHEET) + ": " + errorMessage(sheet))
+                .toList();
+        if (canContinue(rootStatus) && !sheetErrors.isEmpty()) {
             values.with(ImportJobMeta.STATUS, ImportStatus.COMPLETED_WITH_ERRORS.name())
-                    .with(ImportJobMeta.ERROR_MESSAGE, failure)
+                    .with(ImportJobMeta.ERROR_MESSAGE, String.join("; ", sheetErrors))
                     .with(ImportJobMeta.COMPLETED_AT, Instant.now());
         }
         internalObjectQueryRepository.update(ImportJobMeta.OBJECT_NAME, jobId, values.getValues());
@@ -216,6 +222,13 @@ public class ImportFileService {
         if (!objectName.equals(DataRecord.of(job).get(ImportJobMeta.OBJECT_NAME_FIELD))) {
             throw ObjectErrors.payloadInvalidException(ImportJobMeta.OBJECT_NAME,
                     "Import job " + jobId + " does not belong to object " + objectName, null);
+        }
+        ObjectImportRegistry.ParentConfig parent = importConfigService.getParent(objectName);
+        if (parent != null && parent.isRequired() && importJobService.contextOf(jobId) == null) {
+            // rows of this object are imported only into a header, through PUT /{header}/{id}/import_details
+            throw ObjectErrors.payloadInvalidException(ImportJobMeta.OBJECT_NAME,
+                    "Import of " + objectName + " is done from a " + parent.getObject() + " (action "
+                            + ObjectActionNamed.ImportDetails.IMPORT_DETAILS + ")", null);
         }
         return job;
     }
@@ -250,11 +263,20 @@ public class ImportFileService {
         return value instanceof Number number ? number.longValue() : 0L;
     }
 
-    private static boolean isFailed(String status) {
-        return ImportStatus.VALIDATION_FAILED.name().equals(status) || ImportStatus.FAILED.name().equals(status);
+    /**
+     * A sheet imported, with or without rows in error, lets the next sheets run; a failed validation or import stops them.
+     */
+    private static boolean canContinue(String status) {
+        return ImportStatus.COMPLETED.name().equals(status) || ImportStatus.COMPLETED_WITH_ERRORS.name().equals(status);
     }
 
-    private static String failureMessage(Map<String, Object> summary) {
+    private static boolean hasErrors(String status) {
+        return ImportStatus.COMPLETED_WITH_ERRORS.name().equals(status)
+                || ImportStatus.VALIDATION_FAILED.name().equals(status)
+                || ImportStatus.FAILED.name().equals(status);
+    }
+
+    private static String errorMessage(Map<String, Object> summary) {
         Object message = summary.get(ImportJobMeta.ERROR_MESSAGE.getFieldName());
         if (message != null && Utils.STR.isNotBlank(message.toString())) {
             return message.toString();

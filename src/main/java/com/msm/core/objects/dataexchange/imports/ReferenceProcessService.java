@@ -17,6 +17,7 @@ import com.msm.core.objects.dataexchange.imports.model.ImportRow;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 public class ReferenceProcessService {
     private final ActionExecutor actionExecutor;
     protected final ImportConfigService importConfigService;
+    private final ImportJobService importJobService;
 
 //    public void batchRefProcessing(UUID importId, String importObjectName, List<ImportRow> rows) {
 //        List<Map<String, Object>> items = rows.stream().map(ImportRow::rowData).collect(Collectors.toList());
@@ -64,7 +66,12 @@ public class ReferenceProcessService {
         ObjectMetadata objectMetadata = ObjectMetadataFactory.getObjectMetadataByName(importObjectName);
 
         //Find all attribute reference
-        List<Attribute> refs = objectMetadata.getAttributeRefs();
+        List<Attribute> refs = new ArrayList<>(objectMetadata.getAttributeRefs());
+        // import into one header: the header field and its reference are already filled from the header
+        ObjectImportRegistry.ParentConfig parent = importConfigService.getParent(importObjectName);
+        if (parent != null && importJobService.contextOf(jobId) != null) {
+            refs.removeIf(ref -> ref.getFieldName().equals(parent.getField()));
+        }
         //Group by field name
         Map<String, Attribute> attributeReferenceMap = Utils.D.groupBy(
                 refs,

@@ -51,6 +51,16 @@ public final class ObjectActionNamed {
 
     }
 
+    /** Import of the details of one header (action on the header: PUT /{header}/{id}/import_details). */
+    public static final class ImportDetails {
+        private ImportDetails() {
+        }
+
+        public static final String IMPORT_DETAILS = "import_details";
+        public static final String PARENT_CHECK = "import_parent_check_processing";
+        public static final String PARENT_COMPLETED = "import_parent_completed_processing";
+    }
+
     public static final class IntegrationLog {
         public static final String NAME = "excel";
     }

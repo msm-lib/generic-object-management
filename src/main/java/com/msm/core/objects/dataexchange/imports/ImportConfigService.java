@@ -3,6 +3,7 @@ package com.msm.core.objects.dataexchange.imports;
 import com.msm.core.commons.Utils;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.objects.config.ObjectImportRegistry;
+import com.msm.core.objects.dataexchange.imports.model.ImportContext;
 import com.msm.core.objects.exception.ImportConfigurationException;
 import lombok.RequiredArgsConstructor;
 
@@ -71,6 +72,25 @@ public class ImportConfigService {
                 .collect(Collectors.toList());
     }
 
+    /** Import of the object's rows as details of one header, or null when the object has no {@code parent} config. */
+    public ObjectImportRegistry.ParentConfig getParent(String objectName) {
+        return getObject(objectName).getParent();
+    }
+
+    /**
+     * Identity of a row: within the header ({@code parent.field} then {@code parent.identity}) when the job imports
+     * details of one header, the object's {@code identity} otherwise.
+     */
+    public List<String> getIdentityFields(String objectName, ImportContext context) {
+        ObjectImportRegistry.ParentConfig parent = getParent(objectName);
+        if (context == null || parent == null) {
+            return getObject(objectName).getIdentity().getFields();
+        }
+        List<String> fields = new ArrayList<>(List.of(parent.getField()));
+        parent.getIdentity().stream().filter(field -> !field.equals(parent.getField())).forEach(fields::add);
+        return fields;
+    }
+
     public String getSheet(String objectName) {
         return getObject(objectName).getSource().getSheet();
     }
@@ -116,9 +136,25 @@ public class ImportConfigService {
         return result;
     }
 
-    /** Fails fast on an invalid {@code dependsOn} configuration. */
+    /** Fails fast on an invalid {@code dependsOn} or {@code parent} configuration. */
     public void validate() {
         resolveOrder();
+        properties.getObjects().forEach((objectName, config) -> validateParent(objectName, config.getParent()));
+    }
+
+    private void validateParent(String objectName, ObjectImportRegistry.ParentConfig parent) {
+        if (parent == null) {
+            return;
+        }
+        if (Utils.STR.isBlank(parent.getObject()) || Utils.STR.isBlank(parent.getField())) {
+            throw new ImportConfigurationException("Import object [" + objectName + "] parent needs object and field");
+        }
+        if (Utils.CL.isEmpty(parent.getModes()) || parent.getDefaultMode() == null || !parent.getModes().contains(parent.getDefaultMode())) {
+            throw new ImportConfigurationException("Import object [" + objectName + "] parent default-mode must be one of its modes");
+        }
+        if (parent.getMaxRows() < 0) {
+            throw new ImportConfigurationException("Import object [" + objectName + "] parent max-rows must not be negative");
+        }
     }
 
     private void visit(

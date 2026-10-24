@@ -288,16 +288,66 @@ Tạo job với `objectName` là object gốc (`v2order`), upload file và gọi
 
 Cách chạy:
 
-- Sheet của `v2order` được validate và import như một object đơn. Nếu job của nó **`COMPLETED`**, thư viện xử lý tiếp các object có `depends-on` tới `v2order` (trực tiếp hoặc gián tiếp), theo thứ tự phụ thuộc. Object phụ thuộc **bắt buộc** có `source.sheet`.
+- Sheet của `v2order` được validate và import như một object đơn. Nếu nó được import (`COMPLETED` hoặc `COMPLETED_WITH_ERRORS`), thư viện xử lý tiếp các object có `depends-on` tới `v2order` (trực tiếp hoặc gián tiếp), theo thứ tự phụ thuộc. Object phụ thuộc **bắt buộc** có `source.sheet`.
 - Mỗi object được validate **và import xong** rồi mới tới object sau, vì sheet con tra mã của dòng cha trong database.
 - **Cả file là một job** (job của `v2order`). Mỗi sheet là một lượt chạy (`ImportJobService.startSheetRun`) có `runId` riêng: dòng staging và lỗi của sheet mang `import_id = runId` (sheet gốc dùng chính `jobId`), còn bộ đếm (`totalRows`, `validRows`, `successRows`, `errorRows`) và trạng thái cộng dồn vào job. Handler của service chạy với `resource` là object của sheet và nhận `runId` làm `jobId`; cần job thì gọi `ImportJobService.jobIdOf(runId)`.
 - Job lưu tóm tắt từng sheet ở `fileInfo.sheets: [{ objectName, sheet, runId, status, totalRows, validRows, successRows, errorRows, errorMessage }]` (số dòng là phần của riêng sheet đó).
-- Sheet chưa `COMPLETED` (validate lỗi, import có lỗi hoặc lỗi hệ thống) dừng cả lượt: các sheet sau bị `SKIPPED`. Sheet của object phụ thuộc không có trong file cũng bị `SKIPPED`.
-- Sheet phụ thuộc lỗi (`VALIDATION_FAILED` / `FAILED`): job `COMPLETED_WITH_ERRORS`, `errorMessage = "<sheet>: <lỗi>"`. Các sheet trước nó **đã được ghi** (mỗi sheet commit riêng).
+- **Lỗi khi validate thì dừng, lỗi khi import thì chạy tiếp:** sheet `VALIDATION_FAILED` (hoặc `FAILED`, lỗi hệ thống cả bước import) dừng cả lượt, các sheet sau bị `SKIPPED`; sheet `COMPLETED_WITH_ERRORS` (một số dòng lỗi lúc ghi) không dừng. Sheet của object phụ thuộc không có trong file cũng bị `SKIPPED`. Mỗi lượt so số dòng lỗi của job với lúc lượt bắt đầu (`ImportJobService.errorRowsBefore`), nên lỗi của sheet trước không làm sheet sau thành `VALIDATION_FAILED`.
+- Sheet gốc đã được import mà có sheet nào lỗi: job `COMPLETED_WITH_ERRORS`, `errorMessage` liệt kê `"<sheet>: <lỗi>"`. Các sheet trước sheet lỗi **đã được ghi** (mỗi sheet commit riêng).
 - Tải file lỗi theo job: lỗi của từng sheet ghi vào cột `Result` của **đúng sheet đó** trong một lần ghi file. Lấy lỗi một sheet trên màn hình: lọc `importerror` theo `importId = runId`.
 - Response là job của `v2order`, thêm `sheets` (như `fileInfo.sheets`). `sheetJobs` (chỉ các sheet phụ thuộc, `importJobId` = job của file) còn giữ cho client cũ. Lỗi của sheet phụ thuộc nằm trong job, không làm API trả lỗi.
 - API chạy đồng bộ trong request và không có `@PreAuthorize`, giống trước đây.
 - Có thể override toàn bộ luồng bằng handler cho action `ObjectActionNamed.Excel.IMPORT_FILE` / `Csv.IMPORT_FILE` (mặc định: `ImportFileService`).
+
+### Import detail cho một header (`import_details`)
+
+Người dùng đang ở một header (ví dụ một đơn hàng) và import các dòng detail của **đúng header đó**; file không cần cột khóa cha.
+
+Cấu hình trên object detail:
+
+```yaml
+imports:
+  objects:
+    v2orderitem:
+      source: { sheet: OrderItem }
+      depends-on: [v2order]                  # import header + detail trong một file (mục trên), không bắt buộc
+      parent:
+        object: v2order                      # object header
+        field: orderId                       # khóa cha trên detail; thư viện tự điền
+        reference-fields: [id, code, name]   # snapshot <field>Reference (field phải có attributeRef), lấy từ header
+        required: true                       # detail chỉ import được qua header
+        identity: [productId, unitId]        # identity trong phạm vi một header (field khóa cha tự đứng đầu)
+        modes: [APPEND, UPSERT]              # APPEND = chỉ thêm; UPSERT = thêm hoặc sửa trong phạm vi header
+        default-mode: APPEND
+        max-rows: 2000                       # 0 = không giới hạn
+```
+
+Gọi:
+
+1. `POST /generic/objects/importjob` với `objectName` = object detail (`v2orderitem`), upload file Excel lên `uploadUrl` (như mọi import).
+2. `PUT /generic/objects/v2order/{orderId}/import_details` với `{ "importJobId": "…", "version": <version header đang hiển thị>, "mode": "APPEND" }`. Route kiểm quyền action `import_details` trên object header (`canProcessAction`).
+3. Response `{ "job": …, "parent": … }` (header đọc lại sau import); có lỗi thì tải file lỗi theo `jobId` như thường.
+
+Thư viện (`ImportDetailsService`):
+
+- Đọc header bằng repository có data scope của user (không thấy → 404), so `version` (lệch → 409); kiểm job (`UPLOADING`, object có `parent.object` = header, chưa gắn header khác, file Excel) và `mode` → 400.
+- Gọi `import_parent_check` (`resource` = object detail) để service từ chối nếu header không còn sửa được, rồi lưu header vào `fileInfo.context` của job (`ImportContext`).
+- Validate: mọi dòng được điền `field` = id header và `<field>Reference` = snapshot; file có cột khóa cha khác header → lỗi dòng `PARENT_MISMATCH`; identity trong phạm vi header, trùng trong file → `DUPLICATE_IN_FILE`; `APPEND` và dòng trùng detail sẵn có của header → `DUPLICATE_IN_PARENT`; quá `max-rows` → job `VALIDATION_FAILED`. Có lỗi thì không ghi gì.
+- Import như thường (mỗi lô một transaction, lô lỗi thử lại từng dòng; hook `bulk_*` của service vẫn chạy). `UPSERT` sửa đúng detail của header.
+- Có dòng được ghi → gọi `import_parent_completed` **một lần** (`resource` = object detail) để service tính lại header; handler lỗi → job `COMPLETED_WITH_ERRORS`.
+- `required: true`: `POST /generic/objects/{detail}/imports/{type}/{jobId}` không qua header bị từ chối (400). Sheet detail của file header + detail vẫn chạy (là lượt của job header).
+
+Điểm mở rộng của service (theo kiểu `@ImportRowMappingHandler`):
+
+```java
+@ImportParentCheckHandler(resource = "v2orderitem")
+public void checkOrder(ActionContext<ImportParentContext> context) { /* throw để từ chối */ }
+
+@ImportParentCompletedHandler(resource = "v2orderitem")
+public void recomputeOrder(ActionContext<ImportParentResult> context) { /* tính lại tổng, lịch sử… */ }
+```
+
+Trong các handler / hook khác, `ImportJobService.contextOf(importId)` trả header của job (null khi import thường).
 
 ### Export
 

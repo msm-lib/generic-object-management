@@ -52,6 +52,7 @@ import com.msm.core.objects.dataexchange.exports.excel.ExportExcelTemplateServic
 import com.msm.core.objects.dataexchange.exports.excel.handler.ExportExcelHandler;
 import com.msm.core.objects.dataexchange.imports.BatchImportService;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.ImportDetailsService;
 import com.msm.core.objects.dataexchange.imports.ImportFileService;
 import com.msm.core.objects.dataexchange.imports.ImportDataProcessor;
 import com.msm.core.objects.dataexchange.imports.ImportDataService;
@@ -786,11 +787,13 @@ public class MsmAutoConfiguration {
     @Bean("referenceProcessService")
     public ReferenceProcessService referenceProcessService(
             ActionExecutor actionExecutor,
-            ImportConfigService importConfigService
+            ImportConfigService importConfigService,
+            ImportJobService importJobService
     ) {
         return new ReferenceProcessService(
                 actionExecutor,
-                importConfigService
+                importConfigService,
+                importJobService
         );
     }
 
@@ -985,6 +988,21 @@ public class MsmAutoConfiguration {
         );
     }
 
+    @Bean("importDetailsService")
+    public ImportDetailsService importDetailsService(
+            ActionExecutor actionExecutor,
+            @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
+            ImportConfigService importConfigService,
+            ImportJobService importJobService
+    ) {
+        return new ImportDetailsService(
+                actionExecutor,
+                internalObjectQueryRepository,
+                importConfigService,
+                importJobService
+        );
+    }
+
     @Bean("excelImportHandlerService")
     public ImportExcelHandler excelImportHandlerService(
             ImportValidationService processValidationBatch,
@@ -1113,13 +1131,15 @@ public class MsmAutoConfiguration {
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportErrorService importErrorService,
             ImportConfigService importConfigService,
-            ImportDataProcessor importDataProcessor
+            ImportDataProcessor importDataProcessor,
+            ImportJobService importJobService
     ) {
         return new ImportDataService(
                 importErrorService,
                 internalObjectQueryRepository,
                 importConfigService,
-                importDataProcessor
+                importDataProcessor,
+                importJobService
         );
     }
     //ProcessInsertUpdateBatch

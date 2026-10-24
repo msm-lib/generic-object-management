@@ -1,6 +1,7 @@
 package com.msm.core.objects.config;
 
 import com.msm.core.commons.Utils;
+import com.msm.core.objects.dataexchange.imports.model.ImportMode;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -42,6 +43,8 @@ public class ObjectImportRegistry {
         private IdentityConfig identity = new IdentityConfig();
         private Map<String, ReferenceDetailConfig> references = new HashMap<>();
         private List<String> dependsOn = new ArrayList<>();
+        /** Import of this object's rows as details of one header (action import_details on the header); null = none. */
+        private ParentConfig parent;
 
         /**
          * @deprecated use {@code source.header}; kept so {@code imports.objects.<obj>.header} still binds.
@@ -50,6 +53,24 @@ public class ObjectImportRegistry {
         public void setHeader(HeaderConfig header) {
             source.setHeader(header);
         }
+    }
+
+    @Data
+    public static class ParentConfig {
+        /** Header object. */
+        private String object;
+        /** Field of this object holding the header id; the import fills it. */
+        private String field;
+        /** Fields of the header copied into the reference of {@link #field} (its attributeRef) on every row. */
+        private List<String> referenceFields = Utils.CL.newArrayList("id", "code", "name");
+        /** True: rows of this object are imported only through a header (import_details), never on their own. */
+        private boolean required;
+        /** Identity of a row among the header's details; {@link #field} is put first. */
+        private List<String> identity = new ArrayList<>();
+        private List<ImportMode> modes = Utils.CL.newArrayList(ImportMode.APPEND);
+        private ImportMode defaultMode = ImportMode.APPEND;
+        /** Most rows a file may have; 0 = no limit. */
+        private int maxRows;
     }
 
     @Data

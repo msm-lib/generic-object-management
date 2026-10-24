@@ -7,6 +7,8 @@ import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.config.ObjectImportRegistry;
 import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
+import com.msm.core.objects.dataexchange.imports.model.ImportContext;
+import com.msm.core.objects.dataexchange.imports.model.ImportMode;
 import com.msm.core.objects.dataexchange.imports.model.ImportStatus;
 import com.msm.core.objects.dataexchange.imports.model.ObjectImportContext;
 import com.msm.core.objects.dataexchange.imports.s3.S3FileUtils;
@@ -161,6 +163,29 @@ class ImportFileServiceTest {
     }
 
     @Test
+    void orderRowsInErrorDoNotStopTheOrderItemSheet() {
+        importStatus.put("v2order", ImportStatus.COMPLETED_WITH_ERRORS.name());
+
+        Map<String, Object> result = importExcel("v2order", newJob("v2order", ImportStatus.UPLOADING));
+
+        assertThat(executed).containsExactly("v2order:validate", "v2order:import", "v2orderitem:validate", "v2orderitem:import");
+        assertThat(sheetStatuses(result)).containsExactly(ImportStatus.COMPLETED_WITH_ERRORS.name(), ImportStatus.COMPLETED.name());
+        assertThat(result.get(STATUS)).isEqualTo(ImportStatus.COMPLETED_WITH_ERRORS.name());
+        assertThat((String) result.get(ImportJobMeta.ERROR_MESSAGE.getFieldName())).startsWith("Order: ");
+    }
+
+    @Test
+    void orderItemRowsInErrorLeaveTheJobCompletedWithErrors() {
+        importStatus.put("v2orderitem", ImportStatus.COMPLETED_WITH_ERRORS.name());
+
+        Map<String, Object> result = importExcel("v2order", newJob("v2order", ImportStatus.UPLOADING));
+
+        assertThat(executed).containsExactly("v2order:validate", "v2order:import", "v2orderitem:validate", "v2orderitem:import");
+        assertThat(result.get(STATUS)).isEqualTo(ImportStatus.COMPLETED_WITH_ERRORS.name());
+        assertThat((String) result.get(ImportJobMeta.ERROR_MESSAGE.getFieldName())).startsWith("OrderItem: ");
+    }
+
+    @Test
     void failingOrderItemStepIsReportedInTheJob() {
         doAnswer(inv -> {
             ActionContext<?> ctx = inv.getArgument(0);
@@ -220,6 +245,34 @@ class ImportFileServiceTest {
 
         assertThat(executed).containsExactly("v2orderitem:import");
         assertThat(result).doesNotContainKey(ImportFileService.SHEET_JOBS).doesNotContainKey(ImportFileService.SHEETS);
+    }
+
+    @Test
+    void detailImportedOnlyThroughItsHeaderWhenRequired() {
+        ObjectImportRegistry registry = new Binder(new MapConfigurationPropertySource(Map.of(
+                "imports.processing.buffer-size", "1024",
+                "imports.objects.v2order.source.sheet", "Order",
+                "imports.objects.v2orderitem.source.sheet", "OrderItem",
+                "imports.objects.v2orderitem.depends-on[0]", "v2order",
+                "imports.objects.v2orderitem.parent.object", "v2order",
+                "imports.objects.v2orderitem.parent.field", "orderId",
+                "imports.objects.v2orderitem.parent.required", "true"
+        ))).bindOrCreate("imports", ObjectImportRegistry.class);
+        service = new ImportFileService(repository, actionExecutor, new ImportConfigService(registry),
+                importJobService, fileReaderService, s3FileUtils);
+        Map<String, Object> outside = newJob("v2orderitem", ImportStatus.UPLOADING);
+        Map<String, Object> throughHeader = newJob("v2orderitem", ImportStatus.UPLOADING);
+        when(importJobService.contextOf((UUID) throughHeader.get(ImportJobMeta.ID.getFieldName()))).thenReturn(
+                new ImportContext("v2order", UUID.randomUUID(), "DH.0001", 1L, ImportMode.APPEND, Map.of()));
+
+        assertThatThrownBy(() -> importExcel("v2orderitem", outside)).isInstanceOf(GenericBaseException.class)
+                .hasMessageContaining("import_details");
+        importExcel("v2orderitem", throughHeader);
+        // the OrderItem sheet of a header + detail workbook is a run of the order's job, not an import of v2orderitem
+        importExcel("v2order", newJob("v2order", ImportStatus.UPLOADING));
+
+        assertThat(executed).containsExactly("v2orderitem:validate", "v2orderitem:import",
+                "v2order:validate", "v2order:import", "v2orderitem:validate", "v2orderitem:import");
     }
 
     @Test
