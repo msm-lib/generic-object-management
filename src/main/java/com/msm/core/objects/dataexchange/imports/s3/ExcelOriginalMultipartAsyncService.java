@@ -4,6 +4,7 @@ import com.msm.core.commons.Utils;
 import com.msm.core.metadata.typesafe.DataRecord;
 import com.msm.core.objects.connector.GenericObjectInternalService;
 import com.msm.core.objects.dataexchange.imports.ImportConfigService;
+import com.msm.core.objects.dataexchange.imports.ImportJobService;
 import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
 import com.msm.core.objects.dataexchange.imports.metadata.S3FileInfoMeta;
 import com.msm.core.objects.entity.metadata.ImportErrorMeta;
@@ -15,6 +16,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,8 @@ public class ExcelOriginalMultipartAsyncService {
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3Client s3Client;
     private final S3FileUtils s3FileUtils;
+    private static final String SHEET = "sheet";
+
     private final ImportConfigService importConfigService;
 
 //    @Async
@@ -66,16 +70,9 @@ public class ExcelOriginalMultipartAsyncService {
         String uploadId = createResponse.uploadId();
         List<CompletedPart> completedParts = new ArrayList<>();
 
-        List<Map<String, Object>> errors = internalObjectQueryRepository.findByCondition(
-                ImportErrorMeta.OBJECT_NAME,
-                ImportErrorMeta.IMPORT_ID.getField().eq(importHistoryId)
-        );
-
-        Map<Long, DataRecord> dataError = Utils.D.groupBy(
-                errors,
-                objectMap -> (Long) objectMap.get(ImportErrorMeta.ROW_NUMBER.getFieldName()),
-                DataRecord::ofNullable
-        );
+        List<SheetErrors> sheetErrors = sheetRuns(importJobRecord).stream()
+                .map(run -> new SheetErrors(run.sheet(), errorsByRow(run.runId())))
+                .toList();
         GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(bucketName).key(fileKey).build();
 
         try (
@@ -86,43 +83,7 @@ public class ExcelOriginalMultipartAsyncService {
                 S3MultipartOutputStream0 s3Out = new S3MultipartOutputStream0(s3Client, bucketName, fileKey, uploadId, completedParts)
         ) {
 
-            String sheetName = importConfigService.getSheet(importJobRecord.get(ImportJobMeta.OBJECT_NAME_FIELD));
-            Sheet originalSheet = FileReaderService.getSheet(targetWorkbook.getXSSFWorkbook(), sheetName);
-
-            int errorColumnIndex = -1;
-            Row headerRow = originalSheet.getRow(0);
-            if (headerRow != null) {
-                int totalCols = headerRow.getLastCellNum();
-                for (int i = 0; i < totalCols; i++) {
-                    Cell cell = headerRow.getCell(i);
-                    if (cell != null && "Result".equalsIgnoreCase(cell.getStringCellValue())) {
-                        errorColumnIndex = i;
-                        break;
-                    }
-                }
-                if (errorColumnIndex == -1) {
-                    errorColumnIndex = totalCols;
-                }
-            }
-
-            if (errorColumnIndex != -1) {
-                int lastRowIndex = originalSheet.getLastRowNum();
-
-                for (int excelRowIndex = 1; excelRowIndex <= lastRowIndex; excelRowIndex++) {
-                    Row row = originalSheet.getRow(excelRowIndex);
-                    if (row == null) continue;
-
-                    String errorMessage = "";
-                    DataRecord dataRecord = dataError.get((long)excelRowIndex);
-
-                    if (dataRecord != null) {
-                        errorMessage = dataRecord.get(ImportErrorMeta.ERROR_MESSAGE);
-                    }
-
-                    Cell errorCell = getOrCreate(row, errorColumnIndex);
-                    errorCell.setCellValue(errorMessage);
-                }
-            }
+            writeErrors(targetWorkbook.getXSSFWorkbook(), sheetErrors);
 
             // ==========================================
             // Write excel to multipart
@@ -139,6 +100,94 @@ public class ExcelOriginalMultipartAsyncService {
             log.error("Error while process multipart upload to s3: {}", e.getMessage(), e);
             s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
                     .bucket(bucketName).key(fileKey).uploadId(uploadId).build());
+        }
+    }
+
+    /** Error messages of one sheet, by Excel row index. */
+    public record SheetErrors(String sheet, Map<Long, DataRecord> errorsByRow) { }
+
+    private record SheetRun(String sheet, UUID runId) { }
+
+    /**
+     * The sheets of the job and the import id of their rows: {@code fileInfo.sheets} for a workbook import (skipped
+     * sheets have no run), otherwise the sheet of the job's object with the job id.
+     */
+    private List<SheetRun> sheetRuns(DataRecord importJobRecord) {
+        DataRecord fileInfo = DataRecord.ofNullable(importJobRecord.get(ImportJobMeta.FILE_INFO));
+        Object sheets = fileInfo.getValues().get(ImportJobService.SHEETS);
+        if (sheets instanceof List<?> sheetList && !sheetList.isEmpty()) {
+            List<SheetRun> runs = new ArrayList<>();
+            for (Object entry : sheetList) {
+                if (entry instanceof Map<?, ?> sheet && sheet.get(ImportJobService.RUN_ID) != null) {
+                    runs.add(new SheetRun((String) sheet.get(SHEET), UUID.fromString(sheet.get(ImportJobService.RUN_ID).toString())));
+                }
+            }
+            return runs;
+        }
+        String sheetName = importConfigService.getSheet(importJobRecord.get(ImportJobMeta.OBJECT_NAME_FIELD));
+        return List.of(new SheetRun(sheetName, importJobRecord.get(ImportJobMeta.ID)));
+    }
+
+    private Map<Long, DataRecord> errorsByRow(UUID importId) {
+        List<Map<String, Object>> errors = internalObjectQueryRepository.findByCondition(
+                ImportErrorMeta.OBJECT_NAME,
+                ImportErrorMeta.IMPORT_ID.getField().eq(importId)
+        );
+        return Utils.D.groupBy(
+                errors,
+                objectMap -> ((Number) objectMap.get(ImportErrorMeta.ROW_NUMBER.getFieldName())).longValue(),
+                DataRecord::ofNullable
+        );
+    }
+
+    /**
+     * Writes the error message of each row in the "Result" column (added after the last column when missing) of its own
+     * sheet. A sheet without errors is left as it is; the first sheet of the job is always written, as before.
+     */
+    public void writeErrors(Workbook workbook, List<SheetErrors> sheetErrors) {
+        for (int i = 0; i < sheetErrors.size(); i++) {
+            SheetErrors errors = sheetErrors.get(i);
+            if (i > 0 && errors.errorsByRow().isEmpty()) {
+                continue;
+            }
+            writeResultColumn(FileReaderService.getSheet(workbook, errors.sheet()), errors.errorsByRow());
+        }
+    }
+
+    private void writeResultColumn(Sheet originalSheet, Map<Long, DataRecord> dataError) {
+        int errorColumnIndex = -1;
+        Row headerRow = originalSheet.getRow(0);
+        if (headerRow != null) {
+            int totalCols = headerRow.getLastCellNum();
+            for (int i = 0; i < totalCols; i++) {
+                Cell cell = headerRow.getCell(i);
+                if (cell != null && "Result".equalsIgnoreCase(cell.getStringCellValue())) {
+                    errorColumnIndex = i;
+                    break;
+                }
+            }
+            if (errorColumnIndex == -1) {
+                errorColumnIndex = totalCols;
+            }
+        }
+
+        if (errorColumnIndex != -1) {
+            int lastRowIndex = originalSheet.getLastRowNum();
+
+            for (int excelRowIndex = 1; excelRowIndex <= lastRowIndex; excelRowIndex++) {
+                Row row = originalSheet.getRow(excelRowIndex);
+                if (row == null) continue;
+
+                String errorMessage = "";
+                DataRecord dataRecord = dataError.get((long) excelRowIndex);
+
+                if (dataRecord != null) {
+                    errorMessage = dataRecord.get(ImportErrorMeta.ERROR_MESSAGE);
+                }
+
+                Cell errorCell = getOrCreate(row, errorColumnIndex);
+                errorCell.setCellValue(errorMessage);
+            }
         }
     }
 

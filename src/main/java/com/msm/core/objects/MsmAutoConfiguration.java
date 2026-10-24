@@ -799,13 +799,15 @@ public class MsmAutoConfiguration {
             @Qualifier("importValidationService0") com.msm.core.objects.dataexchange.imports.validation.ImportValidationService importValidationService0,
             ActionExecutor actionExecutor,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
-            ImportConfigService importConfigService
+            ImportConfigService importConfigService,
+            ImportJobService importJobService
     ) {
         return new ImportValidationService(
                 importValidationService0,
                 actionExecutor,
                 internalObjectQueryRepository,
-                importConfigService
+                importConfigService,
+                importJobService
         );
     }
 

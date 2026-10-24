@@ -26,6 +26,7 @@ public class ImportValidationService {
     private final ActionExecutor actionExecutor;
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ImportConfigService importConfigService;
+    private final ImportJobService importJobService;
 
 
     public void processValidate(UUID importJobId, ObjectMetadata metadata, List<ImportRow> rows) {
@@ -62,7 +63,7 @@ public class ImportValidationService {
             //incrementError
             internalObjectQueryRepository.updateWithExpressions(
                     ImportJobMeta.OBJECT_NAME,
-                    ImportJobMeta.ID.getField().eq(importJobId),
+                    ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importJobId)),
                     Map.of(
                             ImportJobMeta.ERROR_ROWS.getFieldName(),
                             ImportJobMeta.ERROR_ROWS.getField().add(errors.size())
@@ -75,7 +76,7 @@ public class ImportValidationService {
         //incrementValid
         internalObjectQueryRepository.updateWithExpressions(
                 ImportJobMeta.OBJECT_NAME,
-                ImportJobMeta.ID.getField().eq(importJobId),
+                ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importJobId)),
                 Map.of(
                         ImportJobMeta.VALID_ROWS.getFieldName(),
                         ImportJobMeta.VALID_ROWS.getField().add(validRows)

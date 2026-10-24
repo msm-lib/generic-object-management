@@ -290,9 +290,12 @@ Cách chạy:
 
 - Sheet của `v2order` được validate và import như một object đơn. Nếu job của nó **`COMPLETED`**, thư viện xử lý tiếp các object có `depends-on` tới `v2order` (trực tiếp hoặc gián tiếp), theo thứ tự phụ thuộc. Object phụ thuộc **bắt buộc** có `source.sheet`.
 - Mỗi object được validate **và import xong** rồi mới tới object sau, vì sheet con tra mã của dòng cha trong database.
-- Mỗi object phụ thuộc có một job riêng trên **cùng file S3** (`fileInfo.parentImportJobId` trỏ về job gốc), nên có trạng thái, dòng staging và lỗi riêng; tải file lỗi theo job của từng sheet như cũ. Các job dùng chung một file, nên file lỗi cuối cùng có cột `Result` trên mọi sheet đã tải.
+- **Cả file là một job** (job của `v2order`). Mỗi sheet là một lượt chạy (`ImportJobService.startSheetRun`) có `runId` riêng: dòng staging và lỗi của sheet mang `import_id = runId` (sheet gốc dùng chính `jobId`), còn bộ đếm (`totalRows`, `validRows`, `successRows`, `errorRows`) và trạng thái cộng dồn vào job. Handler của service chạy với `resource` là object của sheet và nhận `runId` làm `jobId`; cần job thì gọi `ImportJobService.jobIdOf(runId)`.
+- Job lưu tóm tắt từng sheet ở `fileInfo.sheets: [{ objectName, sheet, runId, status, totalRows, validRows, successRows, errorRows, errorMessage }]` (số dòng là phần của riêng sheet đó).
 - Sheet chưa `COMPLETED` (validate lỗi, import có lỗi hoặc lỗi hệ thống) dừng cả lượt: các sheet sau bị `SKIPPED`. Sheet của object phụ thuộc không có trong file cũng bị `SKIPPED`.
-- Response là job của `v2order`, thêm `sheetJobs: [{ objectName, sheet, importJobId, status, totalRows, validRows, successRows, errorRows, errorMessage }]`. Lỗi của sheet phụ thuộc nằm trong `sheetJobs`, không làm API trả lỗi.
+- Sheet phụ thuộc lỗi (`VALIDATION_FAILED` / `FAILED`): job `COMPLETED_WITH_ERRORS`, `errorMessage = "<sheet>: <lỗi>"`. Các sheet trước nó **đã được ghi** (mỗi sheet commit riêng).
+- Tải file lỗi theo job: lỗi của từng sheet ghi vào cột `Result` của **đúng sheet đó** trong một lần ghi file. Lấy lỗi một sheet trên màn hình: lọc `importerror` theo `importId = runId`.
+- Response là job của `v2order`, thêm `sheets` (như `fileInfo.sheets`). `sheetJobs` (chỉ các sheet phụ thuộc, `importJobId` = job của file) còn giữ cho client cũ. Lỗi của sheet phụ thuộc nằm trong job, không làm API trả lỗi.
 - API chạy đồng bộ trong request và không có `@PreAuthorize`, giống trước đây.
 - Có thể override toàn bộ luồng bằng handler cho action `ObjectActionNamed.Excel.IMPORT_FILE` / `Csv.IMPORT_FILE` (mặc định: `ImportFileService`).
 

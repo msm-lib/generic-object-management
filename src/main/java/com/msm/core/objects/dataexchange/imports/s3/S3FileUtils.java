@@ -100,9 +100,12 @@ public class S3FileUtils {
                 fileInfo.get(S3FileInfoMeta.S3_FILE_NAME)
         );
 
+        // The key the file was uploaded to: rebuilding it from the object name and today's date misses the file of another
+        // sheet's object (workbook import) or of a job created on another day
+        String s3Key = fileInfo.get(S3FileInfoMeta.S3_KEY);
         String downloadUrl = createGetObjectUrl(
                 getBucketName(),
-                getS3Key(objectName, fileInfo.get(S3FileInfoMeta.S3_FILE_NAME)),
+                Utils.STR.isNotBlank(s3Key) ? s3Key : getS3Key(objectName, fileInfo.get(S3FileInfoMeta.S3_FILE_NAME)),
                 contentDisposition,
                 null,
                 signatureDuration

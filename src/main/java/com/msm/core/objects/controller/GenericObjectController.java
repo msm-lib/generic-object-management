@@ -221,7 +221,7 @@ public class GenericObjectController {
 
     @Operation(summary = "Import object",
             description = "Validates then imports the uploaded file. A validation with errors leaves the job VALIDATION_FAILED and imports nothing. "
-                    + "Excel: then imports the sheets of the objects whose imports config depends-on objectName (response field sheetJobs).")
+                    + "Excel: then imports, in the same job, the sheets of the objects whose imports config depends-on objectName (response field sheets).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successful operation", content = @Content(schema = @Schema(implementation = Object.class)))})
     @PostMapping("/generic/objects/{objectName}/imports/{type}/{importJob}")

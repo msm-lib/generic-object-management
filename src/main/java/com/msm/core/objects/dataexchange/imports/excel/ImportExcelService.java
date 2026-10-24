@@ -140,7 +140,7 @@ public class ImportExcelService {
 
                 internalObjectQueryRepository.updateWithExpressions(
                         ImportJobMeta.OBJECT_NAME,
-                        ImportJobMeta.ID.getField().eq(objectImportContext.jobId()),
+                        ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(objectImportContext.jobId())),
                         Map.of(
                                 ImportJobMeta.SUCCESS_ROWS.getFieldName(),
                                 ImportJobMeta.SUCCESS_ROWS.getField().add(result.successCount()),
@@ -171,7 +171,7 @@ public class ImportExcelService {
         // COMPLETED hoặc COMPLETED_WITH_ERRORS
         internalObjectQueryRepository.updateWithExpressions(
                 ImportJobMeta.OBJECT_NAME,
-                ImportJobMeta.ID.getField().eq(importId),
+                ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importId)),
                 Map.of(
                         ImportJobMeta.STATUS.getFieldName(),
                         DSL.choose()
@@ -182,7 +182,7 @@ public class ImportExcelService {
         );
 
 
-        return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importId);
+        return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importJobService.jobIdOf(importId));
 
     }
 
@@ -192,7 +192,7 @@ public class ImportExcelService {
         UUID importId = DataRecord.of(actionContext.getPayload()).get(IMPORT_JOB_ID_NAME, UUID.class);
         List<DataRecord> errors = new ArrayList<>();
         try {
-            DataRecord importJobRecord = DataRecord.of(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importId));
+            DataRecord importJobRecord = DataRecord.of(internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importJobService.jobIdOf(importId)));
             DataRecord attachmentRecord = DataRecord.of(s3FileUtils.getDownloadInfo(importJobRecord.asMap()));
             log.info("Processing file: {}", attachmentRecord.get(AttachmentInfoMeta.FILE_NAME));
             String fileUrl = attachmentRecord.get(AttachmentInfoMeta.DOWNLOAD_URL);
@@ -353,7 +353,7 @@ public class ImportExcelService {
 
         internalObjectQueryRepository.updateWithExpressions(
                 ImportJobMeta.OBJECT_NAME,
-                ImportJobMeta.ID.getField().eq(importId),
+                ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importId)),
                 Map.of(
                         ImportJobMeta.STATUS.getFieldName(),
                         DSL.choose()
@@ -363,13 +363,13 @@ public class ImportExcelService {
         );
 
 
-        return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importId);
+        return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importJobService.jobIdOf(importId));
     }
 
     private void trackingRowProcessing(UUID importId, long rowCount) {
         internalObjectQueryRepository.updateWithExpressions(
                 ImportJobMeta.OBJECT_NAME,
-                ImportJobMeta.ID.getField().eq(importId),
+                ImportJobMeta.ID.getField().eq(importJobService.jobIdOf(importId)),
                 Map.of(ImportJobMeta.TOTAL_ROWS.getFieldName(), ImportJobMeta.TOTAL_ROWS.getField().add(rowCount))
         );
     }

@@ -19,13 +19,22 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
 public class ImportJobService {
     public static final String PARENT_IMPORT_JOB_ID = "parentImportJobId";
+    /** {@code fileInfo.sheets}: one summary per sheet of a workbook import, see ImportFileService. */
+    public static final String SHEETS = "sheets";
+    public static final String RUN_ID = "runId";
 
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final S3FileUtils s3FileUtils;
+    /**
+     * Sheet runs in progress: run id → id of the workbook's job. The steps of a sheet run use the run id as import id,
+     * so its staging and error rows stay apart from the other sheets; counters and status go to the job.
+     */
+    private final Map<UUID, UUID> sheetRunJobs = new ConcurrentHashMap<>();
 
 
 
@@ -92,10 +101,29 @@ public class ImportJobService {
         return dataJobImport.getValues();
     }
 
+    /** Starts a run of another sheet of the job's workbook; the run id is the import id of that sheet's steps. */
+    public UUID startSheetRun(UUID jobId) {
+        UUID runId = UUID.randomUUID();
+        sheetRunJobs.put(runId, jobId);
+        return runId;
+    }
+
+    public void endSheetRun(UUID runId) {
+        sheetRunJobs.remove(runId);
+    }
+
+    /** The job an import id belongs to: the workbook's job for a sheet run, the id itself otherwise. */
+    public UUID jobIdOf(UUID importId) {
+        return importId == null ? null : sheetRunJobs.getOrDefault(importId, importId);
+    }
+
     /**
      * Creates the job of another sheet of the parent's workbook: same uploaded file, different object.
      * The parent job id is kept in {@code fileInfo.parentImportJobId}.
+     *
+     * @deprecated a workbook is one job; its other sheets run with {@link #startSheetRun}
      */
+    @Deprecated
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Map<String, Object> createSheetJob(Map<String, Object> parentJob, String objectName) {
         DataRecord parentRecord = DataRecord.of(parentJob);
@@ -117,7 +145,7 @@ public class ImportJobService {
     public void makeJobValidating(UUID importId) {
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
-                importId,
+                jobIdOf(importId),
                 DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.VALIDATING.name()).getValues()
         );
     }
@@ -126,7 +154,7 @@ public class ImportJobService {
     public void makeJobImporting(UUID importId) {
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
-                importId,
+                jobIdOf(importId),
                 DataRecord.of().with(ImportJobMeta.STATUS, ImportStatus.IMPORTING.name()).getValues()
         );
     }
@@ -135,7 +163,7 @@ public class ImportJobService {
     public void makeJobValidateFailed(UUID importId, String errorMessage) {
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
-                importId,
+                jobIdOf(importId),
                 DataRecord
                         .of()
                         .with(ImportJobMeta.STATUS, ImportStatus.VALIDATION_FAILED.name())
@@ -148,7 +176,7 @@ public class ImportJobService {
     public void makeJobFailed(UUID importId, String errorMessage) {
         internalObjectQueryRepository.update(
                 ImportJobMeta.OBJECT_NAME,
-                importId,
+                jobIdOf(importId),
                 DataRecord
                         .of()
                         .with(ImportJobMeta.STATUS, ImportStatus.FAILED.name())

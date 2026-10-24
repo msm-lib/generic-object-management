@@ -3,7 +3,9 @@ package com.msm.core.objects.dataexchange.imports;
 import com.msm.core.action.annotations.action.Handler;
 import com.msm.core.action.context.ActionContext;
 import com.msm.core.action.executor.ActionExecutor;
+import com.msm.core.commons.Utils;
 import com.msm.core.metadata.typesafe.DataRecord;
+import com.msm.core.metadata.typesafe.TypedAttribute;
 import com.msm.core.objects.ObjectActionNamed;
 import com.msm.core.objects.dataexchange.imports.csv.FileReaderService;
 import com.msm.core.objects.dataexchange.imports.metadata.AttachmentInfoMeta;
@@ -16,6 +18,7 @@ import com.msm.core.objects.repository.ObjectQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,22 +38,31 @@ import java.util.UUID;
  *   <li>Any other status: rejected, the job was already processed.</li>
  * </ul>
  * Excel only: once the object's sheet is {@code COMPLETED}, the sheets of the objects that depend on it
- * ({@link ImportConfigService#getWorkbookObjects}) are processed the same way, one after another, each in its own job
- * on the same file. A sheet must be imported before the next one is validated, because a child sheet looks up its
- * parent rows (by code) in the database. The first sheet that is not {@code COMPLETED} stops the run; a dependent
- * sheet missing from the file is skipped.
+ * ({@link ImportConfigService#getWorkbookObjects}) are processed the same way, one after another, in the <b>same job</b>:
+ * each sheet is a run ({@link ImportJobService#startSheetRun}) whose id keys its staging and error rows, while the
+ * counters and the status are the job's. A sheet must be imported before the next one is validated, because a child
+ * sheet looks up its parent rows (by code) in the database. The first sheet that is not {@code COMPLETED} stops the run;
+ * a dependent sheet missing from the file is skipped. A dependent sheet that fails leaves the job
+ * {@code COMPLETED_WITH_ERRORS} (the sheets before it are already imported), its error message prefixed with the sheet.
  * <p>
- * Response: the object's job, plus {@code sheetJobs} (one summary per dependent sheet) when there are dependents.
+ * The job keeps one summary per sheet in {@code fileInfo.sheets} ({@code objectName}, {@code sheet}, {@code runId},
+ * status, row counts, error message). Response: the job, plus {@code sheets} when there are dependents
+ * ({@code sheetJobs}, the dependent sheets only, is kept for older clients).
  */
 @Slf4j
 @RequiredArgsConstructor
 public class ImportFileService {
+    /** @deprecated the dependent sheets of {@link #SHEETS}, kept for clients of the job-per-sheet import */
+    @Deprecated
     public static final String SHEET_JOBS = "sheetJobs";
+    public static final String SHEETS = ImportJobService.SHEETS;
     public static final String SKIPPED = "SKIPPED";
 
     private static final String IMPORT_JOB_ID_NAME = "importJobId";
     private static final String SHEET = "sheet";
     private static final String MESSAGE = "message";
+    private static final List<TypedAttribute<Long>> COUNTERS = List.of(
+            ImportJobMeta.TOTAL_ROWS, ImportJobMeta.VALID_ROWS, ImportJobMeta.SUCCESS_ROWS, ImportJobMeta.ERROR_ROWS);
 
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ActionExecutor actionExecutor;
@@ -77,25 +89,41 @@ public class ImportFileService {
             return job;
         }
 
+        UUID jobId = DataRecord.of(job).get(ImportJobMeta.ID);
         Set<String> sheetNames = getSheetNames(objectName, job);
+        List<Map<String, Object>> sheets = new ArrayList<>();
+        sheets.add(sheetSummary(objectName, importConfigService.getSheet(objectName), jobId, Map.of(), job));
         boolean stopped = !ImportStatus.COMPLETED.name().equals(DataRecord.of(job).get(ImportJobMeta.STATUS));
-        List<Map<String, Object>> sheetJobs = new ArrayList<>();
+        String failure = null;
         for (String dependent : dependents) {
             String sheet = importConfigService.getSheet(dependent);
             // a single-sheet file is read as the object's own sheet whatever its name (FileReaderService.getSheet)
             if (sheetNames.size() < 2 || !sheetNames.contains(sheet.toLowerCase(Locale.ROOT))) {
-                sheetJobs.add(skipped(dependent, sheet, "Sheet not found in the file"));
+                sheets.add(skipped(dependent, sheet, "Sheet not found in the file"));
             } else if (stopped) {
-                sheetJobs.add(skipped(dependent, sheet, "Skipped because a previous sheet is not completed"));
+                sheets.add(skipped(dependent, sheet, "Skipped because a previous sheet is not completed"));
             } else {
-                Map<String, Object> sheetJob = importSheet(dependent, importJobService.createSheetJob(job, dependent), context.param());
-                sheetJobs.add(summary(sheetJob, sheet));
-                stopped = !ImportStatus.COMPLETED.name().equals(DataRecord.of(sheetJob).get(ImportJobMeta.STATUS));
+                Map<String, Object> before = internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
+                UUID runId = importJobService.startSheetRun(jobId);
+                Map<String, Object> after;
+                try {
+                    after = runSheet(dependent, runId, context.param());
+                } finally {
+                    importJobService.endSheetRun(runId);
+                }
+                Map<String, Object> summary = sheetSummary(dependent, sheet, runId, before, after);
+                sheets.add(summary);
+                String status = DataRecord.of(after).get(ImportJobMeta.STATUS);
+                stopped = !ImportStatus.COMPLETED.name().equals(status);
+                if (isFailed(status)) {
+                    failure = sheet + ": " + failureMessage(summary);
+                }
             }
         }
 
-        Map<String, Object> response = new LinkedHashMap<>(job);
-        response.put(SHEET_JOBS, sheetJobs);
+        Map<String, Object> response = new LinkedHashMap<>(finishWorkbook(jobId, sheets, failure));
+        response.put(SHEETS, sheets);
+        response.put(SHEET_JOBS, sheets.subList(1, sheets.size()).stream().map(sheetSummary -> legacySheetJob(sheetSummary, jobId)).toList());
         return response;
     }
 
@@ -135,16 +163,49 @@ public class ImportFileService {
                 .build());
     }
 
-    /** Like {@link #importObject} for a dependent sheet, but a failure is reported in its job instead of thrown. */
-    private Map<String, Object> importSheet(String objectName, Map<String, Object> sheetJob, Map<String, Object> param) {
-        UUID jobId = DataRecord.of(sheetJob).get(ImportJobMeta.ID);
+    /**
+     * Validates then imports a dependent sheet as a run of the workbook's job: the run id is the import id of both steps.
+     * Returns the job; a failure is reported in the job (the steps marked it VALIDATION_FAILED / FAILED) instead of thrown.
+     */
+    private Map<String, Object> runSheet(String objectName, UUID runId, Map<String, Object> param) {
         try {
-            return importObject(objectName, sheetJob, param, Steps.EXCEL);
+            Map<String, Object> job = actionExecutor.execute(ActionContext
+                    .<Map<String, Object>>builder()
+                    .resource(objectName)
+                    .action(Steps.EXCEL.validation())
+                    .payload(new HashMap<>(Map.of(IMPORT_JOB_ID_NAME, runId)))
+                    .build());
+            if (!ImportStatus.VALIDATED.name().equals(DataRecord.of(job).get(ImportJobMeta.STATUS))) {
+                return job;
+            }
+            return actionExecutor.execute(ActionContext
+                    .<ObjectImportContext>builder()
+                    .resource(objectName)
+                    .action(Steps.EXCEL.importData())
+                    .payload(ObjectImportContext.of(objectName, runId, param))
+                    .build());
         } catch (Exception e) {
-            // the validate/import handlers already marked the job VALIDATION_FAILED / FAILED
-            log.error("Import of sheet object [{}] job [{}] failed", objectName, jobId, e);
-            return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
+            log.error("Import of sheet object [{}] run [{}] failed", objectName, runId, e);
+            return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, importJobService.jobIdOf(runId));
         }
+    }
+
+    /**
+     * Stores the sheet summaries in {@code fileInfo.sheets}; a failed dependent sheet leaves the job
+     * {@code COMPLETED_WITH_ERRORS}, since the sheets before it are already imported.
+     */
+    private Map<String, Object> finishWorkbook(UUID jobId, List<Map<String, Object>> sheets, String failure) {
+        Map<String, Object> job = internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
+        Map<String, Object> fileInfo = new HashMap<>(Utils.CL.emptyIfNull(DataRecord.of(job).get(ImportJobMeta.FILE_INFO)));
+        fileInfo.put(SHEETS, sheets);
+        DataRecord values = DataRecord.of().with(ImportJobMeta.FILE_INFO, fileInfo);
+        if (failure != null) {
+            values.with(ImportJobMeta.STATUS, ImportStatus.COMPLETED_WITH_ERRORS.name())
+                    .with(ImportJobMeta.ERROR_MESSAGE, failure)
+                    .with(ImportJobMeta.COMPLETED_AT, Instant.now());
+        }
+        internalObjectQueryRepository.update(ImportJobMeta.OBJECT_NAME, jobId, values.getValues());
+        return internalObjectQueryRepository.findById(ImportJobMeta.OBJECT_NAME, jobId);
     }
 
     private Map<String, Object> getJob(String objectName, UUID jobId) {
@@ -168,19 +229,45 @@ public class ImportFileService {
         return sheetNames;
     }
 
-    private static Map<String, Object> summary(Map<String, Object> job, String sheet) {
-        DataRecord jobRecord = DataRecord.of(job);
+    /** Summary of one sheet run: the status the run left the job in, and the job's counters it added. */
+    private static Map<String, Object> sheetSummary(String objectName, String sheet, UUID runId,
+                                                    Map<String, Object> before, Map<String, Object> after) {
+        DataRecord jobRecord = DataRecord.of(after);
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put(ImportJobMeta.OBJECT_NAME_FIELD.getFieldName(), jobRecord.get(ImportJobMeta.OBJECT_NAME_FIELD));
+        summary.put(ImportJobMeta.OBJECT_NAME_FIELD.getFieldName(), objectName);
         summary.put(SHEET, sheet);
-        summary.put(IMPORT_JOB_ID_NAME, jobRecord.get(ImportJobMeta.ID));
+        summary.put(ImportJobService.RUN_ID, runId);
         summary.put(ImportJobMeta.STATUS.getFieldName(), jobRecord.get(ImportJobMeta.STATUS));
-        summary.put(ImportJobMeta.TOTAL_ROWS.getFieldName(), jobRecord.get(ImportJobMeta.TOTAL_ROWS));
-        summary.put(ImportJobMeta.VALID_ROWS.getFieldName(), jobRecord.get(ImportJobMeta.VALID_ROWS));
-        summary.put(ImportJobMeta.SUCCESS_ROWS.getFieldName(), jobRecord.get(ImportJobMeta.SUCCESS_ROWS));
-        summary.put(ImportJobMeta.ERROR_ROWS.getFieldName(), jobRecord.get(ImportJobMeta.ERROR_ROWS));
+        for (TypedAttribute<Long> counter : COUNTERS) {
+            summary.put(counter.getFieldName(), count(after, counter) - count(before, counter));
+        }
         summary.put(ImportJobMeta.ERROR_MESSAGE.getFieldName(), jobRecord.get(ImportJobMeta.ERROR_MESSAGE));
         return summary;
+    }
+
+    private static long count(Map<String, Object> job, TypedAttribute<Long> counter) {
+        Object value = Utils.CL.emptyIfNull(job).get(counter.getFieldName());
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    private static boolean isFailed(String status) {
+        return ImportStatus.VALIDATION_FAILED.name().equals(status) || ImportStatus.FAILED.name().equals(status);
+    }
+
+    private static String failureMessage(Map<String, Object> summary) {
+        Object message = summary.get(ImportJobMeta.ERROR_MESSAGE.getFieldName());
+        if (message != null && Utils.STR.isNotBlank(message.toString())) {
+            return message.toString();
+        }
+        return summary.get(ImportJobMeta.ERROR_ROWS.getFieldName()) + " row(s) with errors";
+    }
+
+    /** A sheet summary in the shape of the former sheet job; importJobId is the workbook's job. */
+    private static Map<String, Object> legacySheetJob(Map<String, Object> sheetSummary, UUID jobId) {
+        Map<String, Object> legacy = new LinkedHashMap<>(sheetSummary);
+        legacy.remove(ImportJobService.RUN_ID);
+        legacy.put(IMPORT_JOB_ID_NAME, jobId);
+        return legacy;
     }
 
     private static Map<String, Object> skipped(String objectName, String sheet, String message) {
