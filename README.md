@@ -67,7 +67,10 @@ Thư viện **không** gắn header auth hay tenant vào request gọi service k
 objects:
   executor: { core: 5, max: 20 }
   api-config:
-    base-url: https://api.example.com      # bắt buộc khi gọi sang service khác
+    base-url: https://api.example.com      # bắt buộc khi gọi sang service khác (service không có trong service-urls)
+    service-urls:                          # tùy chọn: host nội bộ theo service, lib nối thêm "/<service>"
+      user: ${USER_SERVICE_URL:}           # trống (biến không set) thì dùng base-url
+      master-data: ${MASTER_DATA_SERVICE_URL:}
 
 aws:
   s3:
@@ -304,8 +307,10 @@ Trạng thái: `PENDING_EXPORT → EXPORTING → COMPLETED | FAILED`.
 
 ## Gọi service khác
 
-- **`GenericObjectInternalService`:** gọi API nội bộ của service khác tại `objects.api-config.base-url + "/" + <service>`.
-  - Service đích được tra trong `ObjectServiceFactory`. **Object mới gọi chéo service phải được thêm vào map này** với key viết thường; nếu không, URL sẽ thành `.../null`.
+- **`GenericObjectInternalService`:** gọi API nội bộ của service khác tại `objects.api-config.service-urls.<service> + "/" + <service>`; service không khai báo (hoặc giá trị trống) thì dùng `objects.api-config.base-url + "/" + <service>`.
+  - Key của `service-urls` là tên service trong `ObjectServiceFactory`: `user`, `customer`, `order`, `inventory`, `master-data`, `catalog`.
+  - Đường dẫn `/internal` thường bị gateway công khai chặn: trỏ `service-urls` vào host nội bộ của từng service.
+  - Service đích được tra trong `ObjectServiceFactory`. **Object mới gọi chéo service phải được thêm vào map này** với key viết thường; nếu không, lời gọi ném `IllegalStateException` có tên object.
 - **`ObjectClientService`:** class trừu tượng. Kế thừa class này và implement `getBaseUrl()` để có sẵn các hàm filter / getById / query / conversion tới `/api/v1/internal`.
 - **Tích hợp hệ thống ngoài:** dùng `integrationClient.connector(<name>)` với cấu hình `integration.connectors.<name>`.
   - OAuth token được cache trong Redis.

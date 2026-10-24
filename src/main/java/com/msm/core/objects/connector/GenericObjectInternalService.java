@@ -90,12 +90,21 @@ public class GenericObjectInternalService {
 
 
     String getBaseUrl(String objectName) {
-        String baseUrl = genericObjectConfigProperties.getApiConfig().getBaseUrl();
         String serviceName = ObjectServiceFactory.getServiceName(objectName);
-        if(isLocalhost(baseUrl)) {
+        if (Utils.STR.isBlank(serviceName)) {
+            // was "<base>/null": fail with the object name instead of an HTTP error on a wrong URL
+            throw new IllegalStateException("No service registered for object [" + objectName + "]");
+        }
+        GenericObjectConfigProperties.ApiConfig apiConfig = genericObjectConfigProperties.getApiConfig();
+        String serviceUrl = apiConfig.getServiceUrls().get(serviceName);
+        if (Utils.STR.isNotBlank(serviceUrl)) {
+            // internal host of the service (USER_SERVICE_URL…): used as configured, no localhost shortcut
+            return GenericObjectUtils.normalizeUrl(serviceUrl) + "/" + serviceName;
+        }
+        String baseUrl = apiConfig.getBaseUrl();
+        if (isLocalhost(baseUrl)) {
             baseUrl = localhost(serviceName);
         }
-
         return GenericObjectUtils.normalizeUrl(baseUrl) + "/" + serviceName;
     }
 
