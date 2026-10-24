@@ -265,6 +265,7 @@ imports:
 
 - **`source.sheet`:** áp dụng cho cả bước đọc file Excel lẫn bước ghi cột lỗi vào file gốc. File **chỉ có 1 sheet** thì luôn đọc sheet đó dù tên khác (file mẫu một sheet cũ vẫn dùng được) và không xử lý sheet phụ thuộc. Tên sheet so sánh **không phân biệt hoa thường** (`Contact` khớp sheet `contact`). File nhiều sheet mà không có sheet trùng tên thì ném `ImportConfigurationException`.
 - **`imports.objects.<obj>.header`** (cách khai báo cũ) vẫn dùng được, nhưng đã deprecated; hãy chuyển sang `source.header`.
+- **Dòng tiêu đề hợp lệ** khi có ít nhất một cột trùng field của object và số cột được nhận (kể cả cột mà handler `@ImportDetectHeaderHandler` của service map sang tên không phải field, ví dụ mỗi KPI một cột) chiếm ít nhất một nửa số cột của dòng.
 - **`depends-on`:** `ImportConfigService.resolveOrder()` trả về thứ tự import của mọi object đã cấu hình, object phụ thuộc đứng sau các object nó phụ thuộc vào; các object độc lập xếp theo tên. Cấu hình được kiểm tra **khi khởi động**: object trong `depends-on` chưa được khai báo, hoặc phụ thuộc vòng (`a -> b -> a`), sẽ ném `ImportConfigurationException` và ứng dụng không chạy lên. Với Excel, API import dùng `depends-on` để import nhiều sheet trong một file (xem bên dưới).
 - **Override từng bước:** mỗi bước (đọc file, map dòng, map ô, resolve reference, insert theo lô) là một named action trong `ObjectActionNamed`, nên có thể override bằng handler.
 - **Transaction:** mỗi lô và mỗi lần đổi trạng thái chạy trong `REQUIRES_NEW`. Lô lỗi được chạy lại từng dòng một.

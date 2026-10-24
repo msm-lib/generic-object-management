@@ -89,8 +89,11 @@ public final class DataHelper {
                 .map(Attribute::getFieldName)
                 .filter(columnNames::contains)
                 .count();
+        // A service's own header handler may map columns that are not attributes (one column per KPI target…):
+        // they are recognised columns too, so a wide sheet with few attribute columns still has a header
+        long mappedColumns = columnHeaders.values().stream().filter(Utils.STR::isNotBlank).count();
 
-        return count >= (totalColumn / 2);
+        return count > 0 && mappedColumns >= (totalColumn / 2);
     }
 
     public static boolean isColumnHeaderValid(ObjectMetadata objectMetadata, Map<Integer, String> columnHeaders, double requiredPercentage) {
