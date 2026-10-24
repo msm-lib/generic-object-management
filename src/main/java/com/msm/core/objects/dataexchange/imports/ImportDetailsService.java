@@ -29,8 +29,10 @@ import com.msm.core.objects.exception.ObjectErrors;
 import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.security.annotations.SecuredPermissionAction;
 import com.msm.core.security.enums.PermissionAction;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -53,10 +55,12 @@ import java.util.UUID;
  * </ol>
  * The route checks the permission of the action on the header ({@code canProcessAction(header, import_details)}): the
  * user needs UPDATE on the header object.
+ * <p>The action route runs in a transaction ({@code GenericObjectService.objectAction}); the import suspends it, like
+ * {@code POST /{object}/imports/...} which has none: the job is updated in transactions of its own while rows are written,
+ * which would wait forever on a job row locked by the route's transaction. The completion runs in a transaction of its own.
  * Response: {@code {job, parent}} (the header read again).
  */
 @Slf4j
-@RequiredArgsConstructor
 public class ImportDetailsService {
     public static final String JOB = "job";
     public static final String PARENT = "parent";
@@ -70,10 +74,29 @@ public class ImportDetailsService {
     private final ObjectQueryRepository internalObjectQueryRepository;
     private final ImportConfigService importConfigService;
     private final ImportJobService importJobService;
+    private final TransactionTemplate withoutTransaction;
+    private final TransactionTemplate newTransaction;
+
+    public ImportDetailsService(ActionExecutor actionExecutor, ObjectQueryRepository internalObjectQueryRepository,
+                                ImportConfigService importConfigService, ImportJobService importJobService,
+                                PlatformTransactionManager transactionManager) {
+        this.actionExecutor = actionExecutor;
+        this.internalObjectQueryRepository = internalObjectQueryRepository;
+        this.importConfigService = importConfigService;
+        this.importJobService = importJobService;
+        this.withoutTransaction = new TransactionTemplate(transactionManager);
+        this.withoutTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+        this.newTransaction = new TransactionTemplate(transactionManager);
+        this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     @Handler(action = ObjectActionNamed.ImportDetails.IMPORT_DETAILS)
     @SecuredPermissionAction(anyOf = PermissionAction.UPDATE)
     public Map<String, Object> importDetails(ActionContext<Map<String, Object>> actionContext) {
+        return withoutTransaction.execute(transaction -> importDetailsOutsideTransaction(actionContext));
+    }
+
+    private Map<String, Object> importDetailsOutsideTransaction(ActionContext<Map<String, Object>> actionContext) {
         String headerObject = actionContext.getResource();
         UUID headerId = actionContext.getObjectIdAs(UUID.class);
         DataRecord request = DataRecord.ofNullable(actionContext.getPayload());
@@ -206,12 +229,12 @@ public class ImportDetailsService {
             return;
         }
         try {
-            actionExecutor.execute(ActionContext.<ImportParentResult>builder()
+            newTransaction.executeWithoutResult(transaction -> actionExecutor.execute(ActionContext.<ImportParentResult>builder()
                     .resource(detailObject)
                     .action(ObjectActionNamed.ImportDetails.PARENT_COMPLETED)
                     .payload(ImportParentResult.of(jobId, detailObject, context, header, successRows,
                             imported.getOrDefault(ImportJobMeta.ERROR_ROWS, 0L)))
-                    .build());
+                    .build()));
         } catch (Exception e) {
             log.error("Completing the {} {} after import job {} failed", context.parentObject(), context.parentId(), jobId, e);
             internalObjectQueryRepository.update(ImportJobMeta.OBJECT_NAME, jobId, DataRecord.of()

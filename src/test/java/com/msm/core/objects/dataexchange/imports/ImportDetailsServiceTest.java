@@ -23,6 +23,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +42,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,6 +53,7 @@ class ImportDetailsServiceTest {
     private final ActionExecutor actionExecutor = mock(ActionExecutor.class);
     private final ObjectQueryRepository repository = mock(ObjectQueryRepository.class);
     private final ImportJobService importJobService = mock(ImportJobService.class);
+    private final PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
     private final List<String> actions = new ArrayList<>();
     private final Map<String, Object> job = new HashMap<>();
     private Map<String, Object> header;
@@ -65,7 +69,8 @@ class ImportDetailsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ImportDetailsService(actionExecutor, repository, ImportDetailsTestData.config(Map.of()), importJobService);
+        service = new ImportDetailsService(actionExecutor, repository, ImportDetailsTestData.config(Map.of()), importJobService,
+                transactionManager);
         header = new HashMap<>(Map.of("id", orderId, "code", "DH.0001", "name", "Đơn 1", "version", 4L));
         job.put(ImportJobMeta.ID.getFieldName(), jobId);
         job.put(ImportJobMeta.OBJECT_NAME_FIELD.getFieldName(), DETAIL);
@@ -224,6 +229,16 @@ class ImportDetailsServiceTest {
 
         assertThat(permission).isNotNull();
         assertThat(permission.anyOf()).containsExactly(PermissionAction.UPDATE);
+    }
+
+    @Test
+    void importRunsOutsideTheRouteTransactionAndCompletesInItsOwn() {
+        service.importDetails(request(Map.of("importJobId", jobId.toString(), "version", 4)));
+
+        ArgumentCaptor<TransactionDefinition> definitions = ArgumentCaptor.forClass(TransactionDefinition.class);
+        verify(transactionManager, times(2)).getTransaction(definitions.capture());
+        assertThat(definitions.getAllValues()).extracting(TransactionDefinition::getPropagationBehavior)
+                .containsExactly(TransactionDefinition.PROPAGATION_NOT_SUPPORTED, TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     private void assertPayloadInvalid() {

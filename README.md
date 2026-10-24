@@ -334,6 +334,7 @@ Thư viện (`ImportDetailsService`):
 - Gọi `import_parent_check` (`resource` = object detail) để service từ chối nếu header không còn sửa được, rồi lưu header vào `fileInfo.context` của job (`ImportContext`).
 - Validate: mọi dòng được điền `field` = id header và `<field>Reference` = snapshot; file có cột khóa cha khác header → lỗi dòng `PARENT_MISMATCH`; identity trong phạm vi header, trùng trong file → `DUPLICATE_IN_FILE`; `APPEND` và dòng trùng detail sẵn có của header → `DUPLICATE_IN_PARENT`; quá `max-rows` → job `VALIDATION_FAILED`. Có lỗi thì không ghi gì.
 - Import như thường (mỗi lô một transaction, lô lỗi thử lại từng dòng; hook `bulk_*` của service vẫn chạy). `UPSERT` sửa đúng detail của header.
+- Route action chạy trong transaction (`GenericObjectService.objectAction`); `import_details` tạm dừng transaction đó (`NOT_SUPPORTED`) như đường `POST /{object}/imports/...`, vì job được cập nhật trong các transaction riêng khi ghi lô. `import_parent_completed` chạy trong một transaction riêng (`REQUIRES_NEW`).
 - Có dòng được ghi → gọi `import_parent_completed` **một lần** (`resource` = object detail) để service tính lại header; handler lỗi → job `COMPLETED_WITH_ERRORS`.
 - `required: true`: `POST /generic/objects/{detail}/imports/{type}/{jobId}` không qua header bị từ chối (400). Sheet detail của file header + detail vẫn chạy (là lượt của job header).
 

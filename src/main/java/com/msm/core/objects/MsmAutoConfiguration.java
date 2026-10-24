@@ -167,6 +167,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -993,13 +994,15 @@ public class MsmAutoConfiguration {
             ActionExecutor actionExecutor,
             @Qualifier("internalObjectQueryRepository") ObjectQueryRepository internalObjectQueryRepository,
             ImportConfigService importConfigService,
-            ImportJobService importJobService
+            ImportJobService importJobService,
+            PlatformTransactionManager transactionManager
     ) {
         return new ImportDetailsService(
                 actionExecutor,
                 internalObjectQueryRepository,
                 importConfigService,
-                importJobService
+                importJobService,
+                transactionManager
         );
     }
 
