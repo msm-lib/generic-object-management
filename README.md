@@ -263,6 +263,7 @@ create table if not exists audit_log_outbox (
     tenant_code      varchar(60),
     source_service   varchar(60),
     tx_id            varchar(60),
+    original_tx_id   varchar(60),  -- reserved, not written yet
     action           varchar(60)  not null,
     entity_type      varchar(60)  not null,
     entity_id        varchar(60),

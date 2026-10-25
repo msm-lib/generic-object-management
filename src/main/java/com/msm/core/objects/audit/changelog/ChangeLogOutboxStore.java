@@ -36,6 +36,8 @@ public class ChangeLogOutboxStore {
     public static final String STATUS_FAILED = "FAILED";
 
     private static final int INSERT_CHUNK = 500;
+    /** Size of the text columns of the README migration: longer values are cut so the log never fails a write. */
+    static final int TEXT_LENGTH = 60;
 
     private static final Table<Record> TABLE = DSL.table(DSL.name("audit_log_outbox"));
     private static final Field<UUID> ID = DSL.field(DSL.name("id"), SQLDataType.UUID);
@@ -82,8 +84,9 @@ public class ChangeLogOutboxStore {
                     TX_ID, ACTION, ENTITY_TYPE, ENTITY_ID, ENTITY_PARENT_ID, ENTITY_CODE, ACTOR, CHANGED_FIELDS, METADATA, STATUS,
                     ATTEMPTS));
             for (ChangeLogEntry entry : chunk) {
-                insert = insert.values(entry.id(), time(entry.timestamp()), entry.tenantCode(), entry.sourceService(), entry.txId(),
-                        entry.action(), entry.entityType(), entry.entityId(), entry.entityParentId(), entry.entityCode(),
+                insert = insert.values(entry.id(), time(entry.timestamp()), text(entry.tenantCode()), text(entry.sourceService()),
+                        text(entry.txId()), text(entry.action()), text(entry.entityType()), text(entry.entityId()),
+                        text(entry.entityParentId()), text(entry.entityCode()),
                         json(entry.actor()), json(entry.changedFields()), json(entry.metadata()), STATUS_PENDING, 0);
             }
             insert.execute();
@@ -159,6 +162,11 @@ public class ChangeLogOutboxStore {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Cannot read audit_log_outbox json: " + e.getOriginalMessage(), e);
         }
+    }
+
+    /** A client-sent trace id or a long code must not make the outbox insert, and so the write, fail. */
+    private String text(String value) {
+        return value == null || value.length() <= TEXT_LENGTH ? value : value.substring(0, TEXT_LENGTH);
     }
 
     private JSONB json(Object value) {

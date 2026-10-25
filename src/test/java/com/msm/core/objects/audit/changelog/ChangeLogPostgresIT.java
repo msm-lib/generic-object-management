@@ -84,6 +84,7 @@ class ChangeLogPostgresIT {
                 tenant_code      varchar(60),
                 source_service   varchar(60),
                 tx_id            varchar(60),
+    original_tx_id   varchar(60),  -- reserved, not written yet
                 action           varchar(60)  not null,
                 entity_type      varchar(60)  not null,
                 entity_id        varchar(60),
@@ -206,6 +207,17 @@ class ChangeLogPostgresIT {
         assertThat(fields(outbox.get(1))).containsExactly(Map.of("name", "note", "before", "a", "after", "b", "dataType", "text"));
         assertThat(json(outbox.get(1).get("actor"))).containsEntry("type", "SYSTEM");
         assertThat(outbox.get(0).get("tx_id")).isNotEqualTo(outbox.get(1).get("tx_id"));
+    }
+
+    @Test
+    void longCodeIsCutToTheColumnSize() {
+        String code = "C".repeat(80);
+        dsl.execute("alter table test_order alter column code type varchar(100)");
+
+        tx.execute(status -> repository.save(ORDER, row("code", code)));
+
+        assertThat(outbox()).singleElement().satisfies(entry ->
+                assertThat(entry.get("entity_code")).isEqualTo(code.substring(0, ChangeLogOutboxStore.TEXT_LENGTH)));
     }
 
     @Test
