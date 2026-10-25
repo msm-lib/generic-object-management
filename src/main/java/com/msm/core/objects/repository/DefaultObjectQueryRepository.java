@@ -13,25 +13,74 @@ import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.audit.AuditAction;
 import com.msm.core.objects.audit.AuditStrategy;
+import com.msm.core.objects.audit.changelog.ChangeLogDiff;
+import com.msm.core.objects.audit.changelog.ChangeLogRecorder;
+import com.msm.core.objects.audit.changelog.UniqueConstraintColumns;
 import com.msm.core.objects.converter.CustomValueMappingStrategy;
 import com.msm.core.objects.exception.ObjectErrors;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.msm.core.strategy.StrategyResolver;
-import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
+import org.jooq.impl.DSL;
 
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@RequiredArgsConstructor
+/**
+ * Reads and writes generic objects with an {@link ObjectQuery}: the secured one for {@code objectQueryRepository}, the
+ * internal one for {@code internalObjectQueryRepository} (same class, two beans).
+ *
+ * <p>Every write of an object with a change log ({@link ChangeLogRecorder#isEnabled}) is recorded with the row before and
+ * after it. The rows a write touches without reading them first (update / delete by condition, upsert, delete by ids)
+ * are read before and after it with {@code changeLogQuery}, which has no data-scope filter, so a row outside the
+ * caller's scope is logged too.
+ */
 public class DefaultObjectQueryRepository implements ObjectQueryRepository {
     private final ObjectQuery defaultQueryService;
     private final GenericObjectMetadataService genericObjectMetadataService;
     private final StrategyResolver<String, AuditStrategy> auditStrategyFactory;
     private final StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory;
+    private final ChangeLogRecorder changeLogRecorder;
+    private final ObjectQuery changeLogQuery;
+    private final UniqueConstraintColumns uniqueConstraintColumns;
+    private final ChangeLogDiff changeLogDiff = new ChangeLogDiff();
+
+    public DefaultObjectQueryRepository(ObjectQuery defaultQueryService,
+                                        GenericObjectMetadataService genericObjectMetadataService,
+                                        StrategyResolver<String, AuditStrategy> auditStrategyFactory,
+                                        StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory,
+                                        ChangeLogRecorder changeLogRecorder,
+                                        ObjectQuery changeLogQuery,
+                                        UniqueConstraintColumns uniqueConstraintColumns) {
+        this.defaultQueryService = defaultQueryService;
+        this.genericObjectMetadataService = genericObjectMetadataService;
+        this.auditStrategyFactory = auditStrategyFactory;
+        this.objectMappingStrategyFactory = objectMappingStrategyFactory;
+        this.changeLogRecorder = changeLogRecorder;
+        this.changeLogQuery = changeLogQuery;
+        this.uniqueConstraintColumns = uniqueConstraintColumns;
+    }
+
+    /** Without change log. */
+    public DefaultObjectQueryRepository(ObjectQuery defaultQueryService,
+                                        GenericObjectMetadataService genericObjectMetadataService,
+                                        StrategyResolver<String, AuditStrategy> auditStrategyFactory,
+                                        StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory) {
+        this(defaultQueryService, genericObjectMetadataService, auditStrategyFactory, objectMappingStrategyFactory,
+                ChangeLogRecorder.DISABLED, defaultQueryService, null);
+    }
 
     public PageResponse<Map<String, Object>> lookup(ActionContext<ObjectFilterRequest> request) {
         ObjectMetadata objectMetadata = getObjectMetadata(request.getResource());
@@ -84,7 +133,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
                 objectMetadata,
                 request,
                 fetchSize,
-                consumer.andThen(objectMap -> mapFrom(objectMetadata, objectMap))
+                mappedConsumer
         );
     }
 
@@ -108,6 +157,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         mapTo(objectMetadata, payload);
         Map<String, Object> returnObject = defaultQueryService.insertReturning(objectMetadata, payload);
         mapFrom(objectMetadata, returnObject);
+        changeLogRecorder.recordCreate(objectMetadata, nonNull(returnObject));
         return returnObject;
     }
 
@@ -120,6 +170,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
         List<Map<String, Object>> returnObjects = defaultQueryService.insertReturning(objectMetadata, payload);
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+        changeLogRecorder.recordCreate(objectMetadata, returnObjects);
 
         return returnObjects;
     }
@@ -130,8 +181,12 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         if (oldData == null) {
             throw ObjectErrors.notFound(objectMetadata.getName());
         }
-        updateData(objectMetadata, oldData, newData);
-        return defaultQueryService.updateById(objectMetadata, id, oldData);
+        RowChange change = updateData(objectMetadata, oldData, newData);
+        int rows = defaultQueryService.updateById(objectMetadata, id, oldData);
+        if (rows > 0 && change != null) {
+            changeLogRecorder.recordUpdate(objectMetadata, List.of(change.before()), List.of(change.after()));
+        }
+        return rows;
     }
 
     public int[] updateAll(String objectName, List<Map<String, Object>> newDataList) {
@@ -149,12 +204,26 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
         Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(idFieldName), dataValue -> dataValue);
 
+        Map<Map<String, Object>, RowChange> changes = new IdentityHashMap<>();
         newDataList.forEach(newObjectMap -> {
             Object id = newObjectMap.get(idFieldName);
             Map<String, Object> oldData = oldDataListMapById.get(idAttribute.cast(id));
-            updateData(objectMetadata, oldData, newObjectMap);
+            changes.put(oldData, updateData(objectMetadata, oldData, newObjectMap));
         });
-        return defaultQueryService.batchUpdate(objectMetadata, oldDataList);
+        int[] counts = defaultQueryService.batchUpdate(objectMetadata, oldDataList);
+        if (changeLogRecorder.isEnabled(objectMetadata)) {
+            List<Map<String, Object>> befores = new ArrayList<>();
+            List<Map<String, Object>> afters = new ArrayList<>();
+            for (int i = 0; i < oldDataList.size(); i++) {
+                RowChange change = changes.get(oldDataList.get(i));
+                if (change != null && written(counts, i)) {
+                    befores.add(change.before());
+                    afters.add(change.after());
+                }
+            }
+            changeLogRecorder.recordUpdate(objectMetadata, befores, afters);
+        }
+        return counts;
     }
 
     public Map<String, Object> updateReturning(String objectName, Object id, Map<String, Object> newData) {
@@ -163,9 +232,12 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         if (oldData == null) {
             throw ObjectErrors.notFound(objectMetadata.getName());
         }
-        updateData(objectMetadata, oldData, newData);
+        RowChange change = updateData(objectMetadata, oldData, newData);
         Map<String, Object> returnValueUpdated = defaultQueryService.updateByIdReturning(objectMetadata, id, oldData);
         mapFrom(objectMetadata, returnValueUpdated);
+        if (change != null) {
+            changeLogRecorder.recordUpdate(objectMetadata, List.of(change.before()), nonNull(returnValueUpdated));
+        }
         return returnValueUpdated;
     }
 
@@ -183,37 +255,60 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         }
         Map<Object, Map<String, Object>> oldDataListMapById = Utils.CL.toMap(oldDataList, dataKey -> dataKey.get(idFieldName), dataValue -> dataValue);
 
+        List<Map<String, Object>> befores = new ArrayList<>();
         newDataList.forEach(newObjectMap -> {
             Object id = newObjectMap.get(idFieldName);
             Map<String, Object> oldData = oldDataListMapById.get(idAttribute.cast(id));
-            updateData(objectMetadata, oldData, newObjectMap);
+            RowChange change = updateData(objectMetadata, oldData, newObjectMap);
+            if (change != null) {
+                befores.add(change.before());
+            }
         });
 
         List<Map<String, Object>> dataUpdatedList =  defaultQueryService.updateReturning(objectMetadata, oldDataList);
 
         Utils.CL.emptyIfNull(dataUpdatedList).forEach(dataUpdated -> mapFrom(objectMetadata, dataUpdated));
+        if (!befores.isEmpty()) {
+            changeLogRecorder.recordUpdate(objectMetadata, befores, Utils.CL.emptyIfNull(dataUpdatedList));
+        }
 
         return dataUpdatedList;
     }
 
-    private void updateData(ObjectMetadata objectMetadata, Map<String, Object> oldData, Map<String, Object> newData) {
+    /**
+     * Merges {@code newData} into {@code oldData} (the row as read) and fills the update audit columns. With a change log,
+     * returns copies of the row before and after the merge, in field-name form; otherwise {@code null}.
+     */
+    private RowChange updateData(ObjectMetadata objectMetadata, Map<String, Object> oldData, Map<String, Object> newData) {
+        boolean logged = changeLogRecorder.isEnabled(objectMetadata);
         mapFrom(objectMetadata, oldData);
+        Map<String, Object> before = logged ? changeLogDiff.copy(oldData) : null;
         try {
             Utils.O.updateValues(oldData, newData);
         } catch (JsonMappingException e) {
             throw ObjectErrors.payloadInvalidException(objectMetadata.getName(), e.getMessage(), e);
         }
         applyAudit(objectMetadata, AuditAction.UPDATE, oldData);
+        Map<String, Object> after = logged ? changeLogDiff.copy(oldData) : null;
         mapTo(objectMetadata, oldData);
+        return logged ? new RowChange(before, after) : null;
     }
 
     public int delete(String objectName, Object id, Map<String, Object> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        if(!isSoftDeleted(objectMetadata)) {
-            return defaultQueryService.forceDeleteById(objectMetadata, id);
+        boolean soft = isSoftDeleted(objectMetadata);
+        List<Map<String, Object>> befores = rowsBefore(objectMetadata, List.of(id));
+        int rows;
+        if (!soft) {
+            rows = defaultQueryService.forceDeleteById(objectMetadata, id);
+        } else {
+            applyAudit(objectMetadata, AuditAction.DELETE, payload);
+            rows = defaultQueryService.deleteById(objectMetadata, id, payload);
         }
-        applyAudit(objectMetadata, AuditAction.DELETE, payload);
-        return defaultQueryService.deleteById(objectMetadata, id, payload);
+        if (rows > 0) {
+            changeLogRecorder.recordDelete(objectMetadata, befores, soft);
+        }
+        return rows;
     }
 
     public int delete(String objectName, Object id, Long version) {
@@ -222,20 +317,34 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
     public int delete(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        if(!isSoftDeleted(objectMetadata)) {
-            return defaultQueryService.forceDeleteByIds(objectMetadata, payload.stream().map(map -> map.get(Constants.OBJECT_PK)).collect(Collectors.toList()));
+        List<Object> ids = payload.stream().map(map -> map.get(Constants.OBJECT_PK)).collect(Collectors.toList());
+        boolean soft = isSoftDeleted(objectMetadata);
+        List<Map<String, Object>> befores = rowsBefore(objectMetadata, ids);
+        int rows;
+        if(!soft) {
+            rows = defaultQueryService.forceDeleteByIds(objectMetadata, ids);
+        } else {
+            Utils.CL.emptyIfNull(payload).forEach(objectMap -> applyAudit(objectMetadata, AuditAction.DELETE, objectMap));
+            rows = defaultQueryService.delete(objectMetadata, payload);
         }
-        Utils.CL.emptyIfNull(payload).forEach(objectMap -> applyAudit(objectMetadata, AuditAction.DELETE, objectMap));
-        return defaultQueryService.delete(objectMetadata, payload);
+        recordDeleted(objectMetadata, befores, soft);
+        return rows;
     }
 
     public int[] batchDelete(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        if(!isSoftDeleted(objectMetadata)) {
-            return defaultQueryService.batchForceDeleteByIds(objectMetadata, payload.stream().map(map -> map.get(Constants.OBJECT_PK)).collect(Collectors.toList()));
+        List<Object> ids = payload.stream().map(map -> map.get(Constants.OBJECT_PK)).collect(Collectors.toList());
+        boolean soft = isSoftDeleted(objectMetadata);
+        List<Map<String, Object>> befores = rowsBefore(objectMetadata, ids);
+        int[] rows;
+        if(!soft) {
+            rows = defaultQueryService.batchForceDeleteByIds(objectMetadata, ids);
+        } else {
+            Utils.CL.emptyIfNull(payload).forEach(objectMap -> applyAudit(objectMetadata, AuditAction.DELETE, objectMap));
+            rows = defaultQueryService.batchDelete(objectMetadata, payload);
         }
-        Utils.CL.emptyIfNull(payload).forEach(objectMap -> applyAudit(objectMetadata, AuditAction.DELETE, objectMap));
-        return defaultQueryService.batchDelete(objectMetadata, payload);
+        recordDeleted(objectMetadata, befores, soft);
+        return rows;
     }
 
     public Map<String, Object> findById(String objectName, Object id, List<String> returnFields) {
@@ -302,6 +411,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
         List<Map<String, Object>> returnObjects = defaultQueryService.insertReturningInsertedRows(objectMetadata, request, conflictOnConstraintName);
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+        changeLogRecorder.recordCreate(objectMetadata, returnObjects);
 
         return returnObjects;
     }
@@ -312,11 +422,15 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         mapTo(objectMetadata, request);
         Map<String, Object> returnObject = defaultQueryService.insertReturningInsertedRow(objectMetadata, request, conflictOnConstraintName);
         mapFrom(objectMetadata, returnObject);
+        changeLogRecorder.recordCreate(objectMetadata, nonNull(returnObject));
         return returnObject;
     }
 
     public List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, String conflictOnConstraintName) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        List<Map<String, Object>> befores = changeLogRecorder.isEnabled(objectMetadata)
+                ? rowsWithKeys(objectMetadata, request, constraintFields(objectMetadata, conflictOnConstraintName))
+                : List.of();
         request.forEach(objectMap -> {
             applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
             mapTo(objectMetadata, objectMap);
@@ -324,12 +438,16 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
         List<Map<String, Object>> returnObjects = defaultQueryService.upsertReturning(objectMetadata, request, conflictOnConstraintName);
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+        changeLogRecorder.recordUpdate(objectMetadata, befores, returnObjects);
 
         return returnObjects;
     }
 
     public List<Map<String, Object>> bulkUpsertReturning(String objectName, List<Map<String, Object>> request, List<String> conflictFields) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        List<Map<String, Object>> befores = changeLogRecorder.isEnabled(objectMetadata)
+                ? rowsWithKeys(objectMetadata, request, attributes(objectMetadata, conflictFields))
+                : List.of();
         request.forEach(objectMap -> {
             applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
             mapTo(objectMetadata, objectMap);
@@ -337,6 +455,7 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
 
         List<Map<String, Object>> returnObjects = defaultQueryService.upsertReturning(objectMetadata, request, conflictFields);
         returnObjects.forEach(returnObject -> mapFrom(objectMetadata, returnObject));
+        changeLogRecorder.recordUpdate(objectMetadata, befores, returnObjects);
 
         return returnObjects;
     }
@@ -344,25 +463,38 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
     @Override
     public int upsert(String objectName, Map<String, Object> payload, List<String> conflictOnConstraintNames, Condition condition) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        boolean logged = changeLogRecorder.isEnabled(objectMetadata);
+        List<Attribute> keys = logged ? attributes(objectMetadata, conflictOnConstraintNames) : List.of();
+        Condition keyCondition = logged ? keyCondition(keys, List.of(payload)) : null;
+        List<Map<String, Object>> befores = keyCondition == null ? List.of() : rowsMatching(objectMetadata, keyCondition);
         applyAudit(objectMetadata, AuditAction.CREATE, payload);
         mapTo(objectMetadata, payload);
-        return defaultQueryService.upsert(objectMetadata, payload, conflictOnConstraintNames, condition);
+        int rows = defaultQueryService.upsert(objectMetadata, payload, conflictOnConstraintNames, condition);
+        if (rows > 0 && keyCondition != null) {
+            changeLogRecorder.recordUpdate(objectMetadata, befores, rowsMatching(objectMetadata, keyCondition));
+        }
+        return rows;
     }
 
     @Override
     public int[] insertBatch(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
-        return defaultQueryService.batchInsert(objectMetadata, payload);
+        List<Map<String, Object>> afters = prepareInsert(objectMetadata, payload);
+        int[] counts = defaultQueryService.batchInsert(objectMetadata, payload);
+        recordInserted(objectMetadata, afters, counts);
+        return counts;
     }
 
     @Override
     public int updateWithCondition(String objectName, Condition condition, Map<String, Object> newData) {
-        return defaultQueryService.update(getObjectMetadata(objectName), newData, condition);
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        return updateLogged(objectMetadata, condition, () -> defaultQueryService.update(objectMetadata, newData, condition));
     }
 
     @Override
     public int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData) {
-        return defaultQueryService.updateWithExpressions(getObjectMetadata(objectName), newData, condition);
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        return updateLogged(objectMetadata, condition, () -> defaultQueryService.updateWithExpressions(objectMetadata, newData, condition));
     }
 
     @Override
@@ -377,11 +509,171 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
     @Override
     public int[] insertBatchIgnoreDuplicate(String objectName, List<Map<String, Object>> payload) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        List<Map<String, Object>> afters = prepareInsert(objectMetadata, payload);
+        int[] counts = defaultQueryService.insertBatchIgnoreDuplicate(objectMetadata, payload);
+        recordInserted(objectMetadata, afters, counts);
+        return counts;
+    }
+
+    /**
+     * Fills the create audit columns and maps the rows for the insert. With a change log, gives each row without id a
+     * new one (the insert returns nothing to read it back) and returns copies of the rows in field-name form.
+     */
+    private List<Map<String, Object>> prepareInsert(ObjectMetadata objectMetadata, List<Map<String, Object>> payload) {
+        boolean logged = changeLogRecorder.isEnabled(objectMetadata);
+        String idFieldName = objectMetadata.getIdAttribute().getFieldName();
+        List<Map<String, Object>> afters = new ArrayList<>();
         payload.forEach(objectMap -> {
             applyAudit(objectMetadata, AuditAction.CREATE, objectMap);
+            if (logged) {
+                objectMap.putIfAbsent(idFieldName, UUID.randomUUID());
+                afters.add(changeLogDiff.copy(objectMap));
+            }
             mapTo(objectMetadata, objectMap);
         });
-        return defaultQueryService.insertBatchIgnoreDuplicate(getObjectMetadata(objectName), payload);
+        return afters;
+    }
+
+    private void recordInserted(ObjectMetadata objectMetadata, List<Map<String, Object>> afters, int[] counts) {
+        if (afters.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> inserted = new ArrayList<>();
+        for (int i = 0; i < afters.size(); i++) {
+            if (written(counts, i)) {
+                inserted.add(afters.get(i));
+            }
+        }
+        changeLogRecorder.recordCreate(objectMetadata, inserted);
+    }
+
+    private int updateLogged(ObjectMetadata objectMetadata, Condition condition, Supplier<Integer> update) {
+        if (!changeLogRecorder.isEnabled(objectMetadata)) {
+            return update.get();
+        }
+        List<Map<String, Object>> befores = rowsMatching(objectMetadata, condition);
+        int rows = update.get();
+        if (rows > 0 && !befores.isEmpty()) {
+            changeLogRecorder.recordUpdate(objectMetadata, befores, rowsBefore(objectMetadata, ids(objectMetadata, befores)));
+        }
+        return rows;
+    }
+
+    /** Rows with the given ids, read for the change log; empty when the object has none. */
+    private List<Map<String, Object>> rowsBefore(ObjectMetadata objectMetadata, List<Object> ids) {
+        if (!changeLogRecorder.isEnabled(objectMetadata) || ids.isEmpty()) {
+            return List.of();
+        }
+        List<Object> nonNullIds = ids.stream().filter(Objects::nonNull).toList();
+        if (nonNullIds.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows = changeLogQuery.findByIds(objectMetadata, nonNullIds);
+        Utils.CL.emptyIfNull(rows).forEach(row -> mapFrom(objectMetadata, row));
+        return Utils.CL.emptyIfNull(rows);
+    }
+
+    private List<Map<String, Object>> rowsMatching(ObjectMetadata objectMetadata, Condition condition) {
+        List<Map<String, Object>> rows = changeLogQuery.findByCondition(objectMetadata, condition);
+        Utils.CL.emptyIfNull(rows).forEach(row -> mapFrom(objectMetadata, row));
+        return Utils.CL.emptyIfNull(rows);
+    }
+
+    /** Logs the rows of {@code befores} that a delete by ids removed (gone, or soft deleted, when read again). */
+    private void recordDeleted(ObjectMetadata objectMetadata, List<Map<String, Object>> befores, boolean soft) {
+        if (befores.isEmpty()) {
+            return;
+        }
+        String idFieldName = objectMetadata.getIdAttribute().getFieldName();
+        Set<String> kept = new HashSet<>();
+        for (Map<String, Object> row : rowsBefore(objectMetadata, ids(objectMetadata, befores))) {
+            if (!Boolean.TRUE.equals(row.get(Constants.IS_DELETED))) {
+                kept.add(String.valueOf(row.get(idFieldName)));
+            }
+        }
+        List<Map<String, Object>> deleted = befores.stream()
+                .filter(row -> !kept.contains(String.valueOf(row.get(idFieldName))))
+                .toList();
+        changeLogRecorder.recordDelete(objectMetadata, deleted, soft);
+    }
+
+    /** Existing rows with the same key values as the payload rows (the rows an upsert would update). */
+    private List<Map<String, Object>> rowsWithKeys(ObjectMetadata objectMetadata, List<Map<String, Object>> payload, List<Attribute> keys) {
+        Condition condition = keyCondition(keys, payload);
+        return condition == null ? List.of() : rowsMatching(objectMetadata, condition);
+    }
+
+    /** {@code (k1 = v1 and k2 = v2) or (…)} over the payload rows; rows with a null key value never conflict. */
+    private Condition keyCondition(List<Attribute> keys, List<Map<String, Object>> payload) {
+        if (keys.isEmpty()) {
+            return null;
+        }
+        List<Condition> rows = new ArrayList<>();
+        for (Map<String, Object> row : payload) {
+            List<Condition> parts = new ArrayList<>();
+            for (Attribute key : keys) {
+                Object value = row.get(key.getFieldName());
+                if (value == null) {
+                    parts = null;
+                    break;
+                }
+                Object keyValue = key.cast(value);
+                parts.add(DSL.field(DSL.name(key.getColumnName())).eq(keyValue));
+            }
+            if (parts != null) {
+                rows.add(DSL.and(parts));
+            }
+        }
+        return rows.isEmpty() ? null : DSL.or(rows);
+    }
+
+    /**
+     * Attributes of the columns of the constraint, for an object with a change log. Throws when they cannot be found:
+     * without them the rows the upsert updates cannot be read first and would be logged as CREATE.
+     */
+    private List<Attribute> constraintFields(ObjectMetadata objectMetadata, String constraintName) {
+        List<String> columns = uniqueConstraintColumns == null
+                ? List.of()
+                : uniqueConstraintColumns.columns(objectMetadata.getTableName(), constraintName);
+        List<Attribute> attributes = attributes(objectMetadata, columns);
+        if (attributes.isEmpty()) {
+            throw new IllegalStateException("Change log of " + objectMetadata.getName() + ": no columns found for constraint "
+                    + constraintName + " of table " + objectMetadata.getTableName() + " (columns " + columns
+                    + "); the upsert is refused so that it is not logged as CREATE");
+        }
+        return attributes;
+    }
+
+    /** Attributes for field or column names; empty when one is unknown, so no key condition is built from a part. */
+    private List<Attribute> attributes(ObjectMetadata objectMetadata, List<String> names) {
+        Map<String, Attribute> byColumn = new HashMap<>();
+        Utils.CL.emptyIfNull(objectMetadata.getAttributes()).forEach(attribute -> byColumn.put(attribute.getColumnName(), attribute));
+        List<Attribute> attributes = new ArrayList<>();
+        for (String name : Utils.CL.emptyIfNull(names)) {
+            Attribute attribute = objectMetadata.getAttributeByName(name);
+            if (attribute == null) {
+                attribute = byColumn.get(name);
+            }
+            if (attribute == null) {
+                return List.of();
+            }
+            attributes.add(attribute);
+        }
+        return attributes;
+    }
+
+    private List<Object> ids(ObjectMetadata objectMetadata, List<Map<String, Object>> rows) {
+        String idFieldName = objectMetadata.getIdAttribute().getFieldName();
+        return rows.stream().map(row -> row.get(idFieldName)).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /** JDBC batch count of row {@code i}: written when positive or SUCCESS_NO_INFO; counts missing: assumed written. */
+    private boolean written(int[] counts, int i) {
+        return counts == null || i >= counts.length || counts[i] > 0 || counts[i] == Statement.SUCCESS_NO_INFO;
+    }
+
+    private List<Map<String, Object>> nonNull(Map<String, Object> row) {
+        return row == null ? List.of() : List.of(row);
     }
 
     private ObjectMetadata getObjectMetadata(String objectName) {
@@ -414,5 +706,9 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
         Attribute deletedById = meta.getAttributeByName(Constants.DELETED_BY_ID);
         Attribute isDeleted = meta.getAttributeByName(Constants.IS_DELETED);
         return isDeleted != null || deletedAt != null || deletedBy != null || deletedById != null;
+    }
+
+    /** A row read before an update and the same row after it, in field-name form. */
+    private record RowChange(Map<String, Object> before, Map<String, Object> after) {
     }
 }

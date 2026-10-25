@@ -102,6 +102,7 @@ Thư viện thêm các JPA entity của nó vào persistence unit của service.
 - `data_job`
 - `integration_log`
 - `object_metadata`, nếu dùng metadata động
+- `audit_log_outbox`, nếu bật change log (không phải JPA entity, xem mục Change log)
 
 Các bảng job kế thừa `SoftDeleteEntity` → `BusinessProcessEntity` → `AuditingEntity`, nên phải có đủ các cột sau:
 
@@ -215,6 +216,7 @@ public final class ImportJobMeta {
 - **Repository:**
   - `objectQueryRepository` lọc theo data scope của user.
   - `internalObjectQueryRepository` **không** lọc. Code import/export dùng repository này.
+  - Hai bean cùng một class (`InternalObjectQueryRepository` chỉ là lớp con giữ tên cũ), khác nhau ở `ObjectQuery`.
 - **Thứ tự xử lý khi ghi:** audit (`AuditStrategy`), rồi đóng gói `customValues`, rồi insert/update. Khi đọc: trải phẳng `customValues` ra map gốc.
 - **Update:** gộp dữ liệu mới vào bản ghi hiện có rồi **ghi đè cả dòng**, không phải partial patch. Nếu object có `version`, payload phải gửi kèm `version`.
 - **Giá trị mặc định và chuẩn hóa text** (populate) chỉ chạy khi **create**.
@@ -222,6 +224,72 @@ public final class ImportJobMeta {
 - **`code` bị thiếu khi create:** tự sinh ngẫu nhiên. Nếu object có trong `ObjectConstants.PREFIX_OBJECT_CODE` thì sinh theo tiền tố.
 - **Nguồn metadata:** `ObjectMetadataFactory` (từ JPA) trước, sau đó đến bảng `object_metadata` (được cache).
 - **Người dùng và tenant:** luôn lấy từ `RequestContextHolder` của commons.
+
+## Change log (audit dữ liệu)
+
+Mỗi dòng ghi qua `objectQueryRepository` / `internalObjectQueryRepository` (route CRUD generic, import, code service gọi repository) của object **được bật** sinh một entry: ai, lúc nào, CREATE / UPDATE / DELETE, giá trị trước / sau của từng field đổi. Entry ghi vào bảng outbox `audit_log_outbox` của service **trong cùng transaction** với dòng dữ liệu, rồi một job đẩy sang `POST /notification/api/v1/internal/audit-logs/batch` (bảng `audit_logs` của notification, category `DATA_CHANGE`).
+
+```yaml
+objects:
+  api-config:
+    service-urls:
+      notification: ${NOTIFICATION_SERVICE_URL:}   # host nội bộ, không kèm /notification
+  change-log:
+    enabled: true
+    source-service: ORDER_SERVICE      # AuditServiceEnum của notification
+    default-tenant: bhc                # tenant của entry ghi ngoài request (job)
+    mask-fields: [password]            # thay giá trị bằng ***
+    objects: [v2order, v2orderitem, kpiallocate]   # chỉ object có tên ở đây mới được ghi log
+    object-options:                    # tùy chọn riêng, chỉ cho object cần
+      v2orderitem:
+        parent-field: orderId          # entityParentId
+      kpiallocate:
+        code-field: code               # entityCode (mặc định "code")
+        ignore-fields: [lastSyncAt]
+    relay:
+      interval: 30s
+      batch-size: 200
+      max-attempts: 10
+      retention: 7d                    # entry đã gửi bị xóa sau thời gian này
+```
+
+**Migration** (mỗi service bật change log tự tạo bảng, không có FK):
+
+```sql
+create table if not exists audit_log_outbox (
+    id               uuid primary key,
+    created_at       timestamptz  not null,
+    tenant_code      varchar(60),
+    source_service   varchar(60),
+    tx_id            varchar(100),
+    action           varchar(20)  not null,
+    entity_type      varchar(100) not null,
+    entity_id        varchar(100),
+    entity_parent_id varchar(100),
+    entity_code      varchar(255),
+    actor            jsonb,
+    changed_fields   jsonb,
+    metadata         jsonb,
+    status           varchar(20)  not null default 'PENDING',
+    attempts         integer      not null default 0,
+    next_attempt_at  timestamptz  not null default now(),
+    locked_until     timestamptz,
+    sent_at          timestamptz,
+    last_error       text
+);
+create index if not exists idx_audit_log_outbox_status on audit_log_outbox (status, next_attempt_at);
+create index if not exists idx_audit_log_outbox_entity on audit_log_outbox (entity_type, entity_id);
+```
+
+**Hành vi:**
+
+- **Ghi log hỏng thì việc ghi dữ liệu hỏng theo:** entry được insert trong `beforeCommit` của transaction đang chạy; insert lỗi thì cả transaction rollback, nên không có thay đổi nào được commit mà thiếu log. Không có transaction (route `NOT_SUPPORTED`, job) thì mỗi lệnh ghi tự commit và entry được insert ngay sau nó.
+- **Field so sánh** ở dạng field name (đã trải `customValues`): field của metadata trước, sau đó các key khác theo tên. Đổi từ `null` sang có giá trị cũng tính là thay đổi. Số so theo giá trị (`10` = `10.000`). Mặc định bỏ qua `version`, `created_*`, `updated_*`, `deleted_*`, `customValues`. Update không đổi field nào thì không có entry.
+- **CREATE** liệt kê mọi field có giá trị. **DELETE** (`metadata.deleteType` SOFT / HARD) liệt kê giá trị của dòng trước khi xóa. Update làm `isDeleted` thành `true` cũng là DELETE SOFT.
+- **Method không đọc dòng cũ** (`updateWithCondition`, `updateWithExpressions`, `upsert`, `bulkUpsertReturning`, `delete` / `batchDelete` theo danh sách): khi object được bật, repository đọc các dòng bị ảnh hưởng trước và sau khi ghi bằng `internalQueryService` (không lọc data scope). Upsert theo tên constraint tra cột của constraint trong `pg_constraint` (cache khi tìm thấy; không tìm thấy thì không cache và lần sau tra lại); không tra được cột (sai tên, constraint không thuộc bảng trong `search_path`, cột không có trong metadata) thì upsert bị từ chối bằng `IllegalStateException`, để không ghi nhầm thành CREATE. `insertBatch*` tự gán `id` cho dòng chưa có, vì insert không trả dòng về.
+- **Người ghi** lấy từ `RequestContextHolder`; không có user (job, lời gọi nội bộ) thì actor là `SYSTEM`. `txId` là trace id của request, không có thì là id chung của transaction.
+- **Relay** chạy trên thread riêng của lib (service không cần `@EnableScheduling`), nhiều instance chạy cùng lúc được (`FOR UPDATE SKIP LOCKED`). Batch bị notification từ chối (4xx) được gửi lại từng entry; entry lỗi thử lại với độ trễ tăng dần (tối đa 1 giờ), quá `max-attempts` thì ở trạng thái `FAILED` để xử lý tay. Giao **ít nhất một lần**: gửi thành công mà chưa kịp đánh dấu SENT thì lần sau gửi lại.
+- **Không được ghi log:** dòng ghi bằng JPA, jOOQ / SQL viết tay, `@Modifying` của service (không đi qua repository của lib).
 
 ## Import / Export
 

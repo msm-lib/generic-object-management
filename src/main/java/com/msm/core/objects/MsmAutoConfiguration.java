@@ -26,6 +26,14 @@ import com.msm.core.filter.EntityClassFactory;
 import com.msm.core.objects.audit.AuditStrategy;
 import com.msm.core.objects.audit.AuditStrategyResolverFactory;
 import com.msm.core.objects.audit.DefaultAuditStrategy;
+import com.msm.core.objects.audit.changelog.ChangeLogCollector;
+import com.msm.core.objects.audit.changelog.ChangeLogDiff;
+import com.msm.core.objects.audit.changelog.ChangeLogOutboxStore;
+import com.msm.core.objects.audit.changelog.ChangeLogProperties;
+import com.msm.core.objects.audit.changelog.ChangeLogRecorder;
+import com.msm.core.objects.audit.changelog.ChangeLogRelay;
+import com.msm.core.objects.audit.changelog.DefaultChangeLogRecorder;
+import com.msm.core.objects.audit.changelog.UniqueConstraintColumns;
 import com.msm.core.objects.cache.InMemoryCaches;
 import com.msm.core.objects.cache.RedisCacheOperator;
 import com.msm.core.objects.cache.RedisCacheOperatorService;
@@ -148,6 +156,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -184,7 +193,8 @@ import java.util.concurrent.ThreadPoolExecutor;
         IntegrationProperties.class,
         ObjectImportRegistry.class,
         ObjectExportRegistry.class,
-        S3PropConfig.class
+        S3PropConfig.class,
+        ChangeLogProperties.class
 })
 public class MsmAutoConfiguration {
 
@@ -524,14 +534,52 @@ public class MsmAutoConfiguration {
         return new MappingStrategyResolverFactory(objectMappingStrategies, defaultCustomValueMappingStrategy);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public ChangeLogOutboxStore changeLogOutboxStore(DSLContext dslContext) {
+        return new ChangeLogOutboxStore(dslContext);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChangeLogCollector changeLogCollector(ChangeLogOutboxStore changeLogOutboxStore) {
+        return new ChangeLogCollector(changeLogOutboxStore);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChangeLogRecorder changeLogRecorder(ChangeLogProperties changeLogProperties, ChangeLogCollector changeLogCollector) {
+        return new DefaultChangeLogRecorder(changeLogProperties, changeLogCollector, new ChangeLogDiff());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public UniqueConstraintColumns uniqueConstraintColumns(DSLContext dslContext) {
+        return new UniqueConstraintColumns(dslContext);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "objects.change-log", name = "enabled", havingValue = "true")
+    public ChangeLogRelay changeLogRelay(ChangeLogOutboxStore changeLogOutboxStore,
+                                         ChangeLogProperties changeLogProperties,
+                                         GenericObjectConfigProperties genericObjectConfigProperties,
+                                         RestClient.Builder restClientBuilder) {
+        return new ChangeLogRelay(changeLogOutboxStore, changeLogProperties, genericObjectConfigProperties, restClientBuilder.build());
+    }
+
     @Bean("objectQueryRepository")
     public ObjectQueryRepository defaultObjectQueryRepository(
             @Qualifier("defaultQueryService") ObjectQuery defaultQueryService,
+            @Qualifier("internalQueryService") ObjectQuery internalQueryService,
             GenericObjectMetadataService genericObjectMetadataService,
             StrategyResolver<String, AuditStrategy> auditStrategyFactory,
-            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory
+            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory,
+            ChangeLogRecorder changeLogRecorder,
+            UniqueConstraintColumns uniqueConstraintColumns
     ) {
-        return new DefaultObjectQueryRepository(defaultQueryService, genericObjectMetadataService, auditStrategyFactory, objectMappingStrategyFactory);
+        return new DefaultObjectQueryRepository(defaultQueryService, genericObjectMetadataService, auditStrategyFactory,
+                objectMappingStrategyFactory, changeLogRecorder, internalQueryService, uniqueConstraintColumns);
     }
 
     @Bean("internalObjectQueryRepository")
@@ -539,9 +587,12 @@ public class MsmAutoConfiguration {
             @Qualifier("internalQueryService") ObjectQuery internalQueryService,
             GenericObjectMetadataService genericObjectMetadataService,
             StrategyResolver<String, AuditStrategy> auditStrategyFactory,
-            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory
+            StrategyResolver<String, CustomValueMappingStrategy> objectMappingStrategyFactory,
+            ChangeLogRecorder changeLogRecorder,
+            UniqueConstraintColumns uniqueConstraintColumns
     ) {
-        return new InternalObjectQueryRepository(internalQueryService, genericObjectMetadataService, auditStrategyFactory, objectMappingStrategyFactory);
+        return new InternalObjectQueryRepository(internalQueryService, genericObjectMetadataService, auditStrategyFactory,
+                objectMappingStrategyFactory, changeLogRecorder, uniqueConstraintColumns);
     }
 
     @Bean

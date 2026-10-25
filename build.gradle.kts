@@ -94,6 +94,8 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // ChangeLogPostgresIT, run only with CHANGELOG_PG_URL set
+    testRuntimeOnly("org.postgresql:postgresql")
 
 //    implementation(files("/Users/danhnh/Infomation/Development/Lib/common/build/libs/commons-1.0.0.jar"))
     implementation("com.github.msm-lib:commons:${msmCommonVersion}") { exclude(group = "org.slf4j") }
