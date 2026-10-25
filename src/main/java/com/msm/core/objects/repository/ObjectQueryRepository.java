@@ -2,6 +2,7 @@ package com.msm.core.objects.repository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.msm.core.action.context.ActionContext;
+import com.msm.core.dynamicquery.command.ExpressionUpdate;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.filter.domain.pageable.Sort;
@@ -78,6 +79,15 @@ public interface ObjectQueryRepository {
     int[] insertBatch(String objectName, List<Map<String, Object>> payload);
     int updateWithCondition(String objectName, Condition condition, Map<String, Object> newData);
     int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData);
+
+    /**
+     * Updates many rows by id in one JDBC batch, each with its own values / expressions and optional guard
+     * ({@link ExpressionUpdate}); every updated row gets {@code version + 1}. A row not updated (unknown id, guard not
+     * met) has count 0 and is not an error. With a change log the rows are read once before and once after the batch.
+     *
+     * @return rows updated by each update (0 or 1), in the order of {@code updates}
+     */
+    int[] updateWithExpressions(String objectName, List<ExpressionUpdate> updates);
     List<Map<String, Object>> findByCondition(String objectName,
                                               Condition condition,
                                               int limit,

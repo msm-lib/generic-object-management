@@ -7,6 +7,7 @@ import com.msm.core.dynamicquery.ObjectQuery;
 import com.msm.core.dynamicquery.command.DefaultDynamicDelete;
 import com.msm.core.dynamicquery.command.DefaultDynamicInsert;
 import com.msm.core.dynamicquery.command.DefaultDynamicUpdate;
+import com.msm.core.dynamicquery.command.ExpressionUpdate;
 import com.msm.core.dynamicquery.internal.InternalFilterQuery;
 import com.msm.core.dynamicquery.internal.InternalQueryService;
 import com.msm.core.metadata.Attribute;
@@ -19,6 +20,7 @@ import com.msm.core.objects.repository.ObjectQueryRepository;
 import com.msm.core.objects.service.GenericObjectMetadataService;
 import com.sun.net.httpserver.HttpServer;
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.AfterEach;
@@ -300,6 +302,26 @@ class ChangeLogPostgresIT {
                 "uk_test_order_note"));
 
         assertThat(outbox()).extracting(entry -> entry.get("entity_code") + ":" + entry.get("action")).containsExactly("K1:CREATE");
+    }
+
+    @Test
+    void batchOfExpressionsLogsEachUpdatedRowOnceFromBeforeTheBatchToAfterIt() {
+        Map<String, Object> a = repository.save(ORDER, row("code", "E1", "quantity", new BigDecimal("10")));
+        Map<String, Object> b = repository.save(ORDER, row("code", "E2", "quantity", new BigDecimal("1")));
+        clearOutbox();
+        Field<BigDecimal> quantity = DSL.field(DSL.name("quantity"), BigDecimal.class);
+
+        int[] counts = tx.execute(status -> repository.updateWithExpressions(ORDER, List.of(
+                ExpressionUpdate.of(a.get("id"), row("quantity", quantity.plus(new BigDecimal("2")))),
+                new ExpressionUpdate(b.get("id"), row("quantity", quantity.plus(new BigDecimal("5"))), quantity.gt(new BigDecimal("3"))),
+                ExpressionUpdate.of(a.get("id"), row("quantity", quantity.plus(new BigDecimal("3")))))));
+
+        assertThat(counts).containsExactly(1, 0, 1);
+        assertThat(value("select quantity::text from test_order where code = 'E1'", String.class)).isEqualTo("15.000");
+        assertThat(value("select version from test_order where code = 'E1'", Integer.class)).isEqualTo(2);
+        List<Map<String, Object>> outbox = outbox();
+        assertThat(outbox).extracting(entry -> entry.get("entity_code") + ":" + entry.get("action")).containsExactly("E1:UPDATE");
+        assertThat(fields(outbox.get(0))).containsExactly(Map.of("name", "quantity", "before", 10.0, "after", 15.0, "dataType", "number"));
     }
 
     @Test

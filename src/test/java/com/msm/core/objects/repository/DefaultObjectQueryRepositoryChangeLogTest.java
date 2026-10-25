@@ -1,6 +1,7 @@
 package com.msm.core.objects.repository;
 
 import com.msm.core.dynamicquery.ObjectQuery;
+import com.msm.core.dynamicquery.command.ExpressionUpdate;
 import com.msm.core.metadata.Attribute;
 import com.msm.core.metadata.ObjectMetadata;
 import com.msm.core.objects.audit.AuditStrategy;
@@ -184,6 +185,36 @@ class DefaultObjectQueryRepositoryChangeLogTest {
         repository.bulkUpsertReturning(OBJECT, rows, "uk_missing");
 
         verify(query).upsertReturning(meta, rows, "uk_missing");
+    }
+
+    @Test
+    void batchOfExpressionsReadsOnceBeforeAndOnceAfterAndLogsOnlyUpdatedRows() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        List<ExpressionUpdate> updates = List.of(ExpressionUpdate.of(a, row("note", "x")),
+                ExpressionUpdate.of(b, row("note", "y")), ExpressionUpdate.of(a, row("code", "z")));
+        when(changeLogQuery.findByIds(meta, List.of(a, b))).thenReturn(List.of(row("id", a, "note", "1"), row("id", b, "note", "2")));
+        when(query.batchUpdateWithExpressions(meta, updates)).thenReturn(new int[]{1, 0, 1});
+        when(changeLogQuery.findByIds(meta, List.of(a))).thenReturn(List.of(row("id", a, "note", "x", "code", "z")));
+
+        int[] counts = repository.updateWithExpressions(OBJECT, updates);
+
+        assertThat(counts).containsExactly(1, 0, 1);
+        ArgumentCaptor<List<Map<String, Object>>> befores = rows();
+        ArgumentCaptor<List<Map<String, Object>>> afters = rows();
+        verify(recorder).recordUpdate(eq(meta), befores.capture(), afters.capture());
+        assertThat(befores.getValue()).extracting(r -> r.get("id")).containsExactly(a);
+        assertThat(afters.getValue()).extracting(r -> r.get("code")).containsExactly("z");
+    }
+
+    @Test
+    void batchOfExpressionsWithoutChangeLogOnlyRunsTheBatch() {
+        when(recorder.isEnabled(meta)).thenReturn(false);
+        List<ExpressionUpdate> updates = List.of(ExpressionUpdate.of(UUID.randomUUID(), row("note", "x")));
+        when(query.batchUpdateWithExpressions(meta, updates)).thenReturn(new int[]{1});
+
+        assertThat(repository.updateWithExpressions(OBJECT, updates)).containsExactly(1);
+        verifyNoInteractions(changeLogQuery);
     }
 
     private static Map<String, Object> row(Object... keyValues) {

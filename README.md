@@ -220,6 +220,7 @@ public final class ImportJobMeta {
 - **Thứ tự xử lý khi ghi:** audit (`AuditStrategy`), rồi đóng gói `customValues`, rồi insert/update. Khi đọc: trải phẳng `customValues` ra map gốc.
 - **Update:** gộp dữ liệu mới vào bản ghi hiện có rồi **ghi đè cả dòng**, không phải partial patch. Nếu object có `version`, payload phải gửi kèm `version`.
 - **Giá trị mặc định và chuẩn hóa text** (populate) chỉ chạy khi **create**.
+- **Cập nhật nhiều dòng bằng biểu thức** (`updateWithExpressions(objectName, List<ExpressionUpdate>)`, cần commons 2.4.2): mỗi phần tử là một dòng theo id, giá trị có thể là biểu thức jOOQ (`quantity + 5`) và điều kiện chặn riêng (`guard`). Tất cả chạy trong một batch JDBC, mỗi dòng `version + 1`. Dòng không được cập nhật (sai id, không qua guard) có count 0, không ném lỗi. Có change log thì chỉ đọc các dòng một lần trước và một lần sau batch; một id cập nhật nhiều lần trong batch chỉ ghi một entry, từ giá trị trước batch tới giá trị cuối.
 - **Delete:** xóa mềm nếu metadata có `isDeleted`/`deletedAt`/`deletedBy`/`deletedById`, nếu không thì xóa thật.
 - **`code` bị thiếu khi create:** tự sinh ngẫu nhiên. Nếu object có trong `ObjectConstants.PREFIX_OBJECT_CODE` thì sinh theo tiền tố.
 - **Nguồn metadata:** `ObjectMetadataFactory` (từ JPA) trước, sau đó đến bảng `object_metadata` (được cache).

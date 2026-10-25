@@ -6,6 +6,7 @@ import com.msm.core.action.context.ActionContext;
 import com.msm.core.commons.Constants;
 import com.msm.core.commons.Utils;
 import com.msm.core.dynamicquery.ObjectQuery;
+import com.msm.core.dynamicquery.command.ExpressionUpdate;
 import com.msm.core.filter.domain.ObjectFilterRequest;
 import com.msm.core.filter.domain.PageResponse;
 import com.msm.core.filter.domain.pageable.Sort;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -495,6 +497,43 @@ public class DefaultObjectQueryRepository implements ObjectQueryRepository {
     public int updateWithExpressions(String objectName, Condition condition, Map<String, Object> newData) {
         ObjectMetadata objectMetadata = getObjectMetadata(objectName);
         return updateLogged(objectMetadata, condition, () -> defaultQueryService.updateWithExpressions(objectMetadata, newData, condition));
+    }
+
+    @Override
+    public int[] updateWithExpressions(String objectName, List<ExpressionUpdate> updates) {
+        ObjectMetadata objectMetadata = getObjectMetadata(objectName);
+        if (Utils.CL.isEmpty(updates)) {
+            return new int[]{};
+        }
+        if (!changeLogRecorder.isEnabled(objectMetadata)) {
+            return defaultQueryService.batchUpdateWithExpressions(objectMetadata, updates);
+        }
+        Attribute idAttribute = objectMetadata.getIdAttribute();
+        List<Object> ids = updates.stream()
+                .map(ExpressionUpdate::id)
+                .filter(Objects::nonNull)
+                .map(idAttribute::cast)
+                .distinct()
+                .collect(Collectors.toList());
+        List<Map<String, Object>> befores = rowsBefore(objectMetadata, ids);
+        int[] counts = defaultQueryService.batchUpdateWithExpressions(objectMetadata, updates);
+
+        // one entry per updated row, before the whole batch -> after it (an id updated twice is logged once)
+        Set<String> updatedIds = new LinkedHashSet<>();
+        for (int i = 0; i < updates.size(); i++) {
+            if (written(counts, i) && updates.get(i).id() != null) {
+                updatedIds.add(String.valueOf(idAttribute.<Object>cast(updates.get(i).id())));
+            }
+        }
+        if (!updatedIds.isEmpty()) {
+            String idFieldName = idAttribute.getFieldName();
+            List<Map<String, Object>> updatedBefores = befores.stream()
+                    .filter(row -> updatedIds.contains(String.valueOf(row.get(idFieldName))))
+                    .toList();
+            List<Object> afterIds = ids.stream().filter(id -> updatedIds.contains(String.valueOf(id))).toList();
+            changeLogRecorder.recordUpdate(objectMetadata, updatedBefores, rowsBefore(objectMetadata, afterIds));
+        }
+        return counts;
     }
 
     @Override
