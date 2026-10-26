@@ -33,6 +33,7 @@ import com.msm.core.objects.audit.changelog.ChangeLogProperties;
 import com.msm.core.objects.audit.changelog.ChangeLogRecorder;
 import com.msm.core.objects.audit.changelog.ChangeLogRelay;
 import com.msm.core.objects.audit.changelog.DefaultChangeLogRecorder;
+import com.msm.core.objects.audit.changelog.ManualChangeLog;
 import com.msm.core.objects.audit.changelog.UniqueConstraintColumns;
 import com.msm.core.objects.cache.InMemoryCaches;
 import com.msm.core.objects.cache.RedisCacheOperator;
@@ -550,6 +551,13 @@ public class MsmAutoConfiguration {
     @ConditionalOnMissingBean
     public ChangeLogRecorder changeLogRecorder(ChangeLogProperties changeLogProperties, ChangeLogCollector changeLogCollector) {
         return new DefaultChangeLogRecorder(changeLogProperties, changeLogCollector, new ChangeLogDiff());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ManualChangeLog manualChangeLog(ChangeLogRecorder changeLogRecorder,
+                                           GenericObjectMetadataService genericObjectMetadataService) {
+        return new ManualChangeLog(changeLogRecorder, genericObjectMetadataService);
     }
 
     @Bean

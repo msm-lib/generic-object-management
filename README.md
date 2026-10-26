@@ -291,7 +291,35 @@ create index if not exists idx_audit_log_outbox_entity on audit_log_outbox (enti
 - **Method không đọc dòng cũ** (`updateWithCondition`, `updateWithExpressions`, `upsert`, `bulkUpsertReturning`, `delete` / `batchDelete` theo danh sách): khi object được bật, repository đọc các dòng bị ảnh hưởng trước và sau khi ghi bằng `internalQueryService` (không lọc data scope). Upsert theo tên constraint tra cột của constraint trong `pg_constraint` (cache khi tìm thấy; không tìm thấy thì không cache và lần sau tra lại); không tra được cột (sai tên, constraint không thuộc bảng trong `search_path`, cột không có trong metadata) thì upsert bị từ chối bằng `IllegalStateException`, để không ghi nhầm thành CREATE. `insertBatch*` tự gán `id` cho dòng chưa có, vì insert không trả dòng về.
 - **Người ghi** lấy từ `RequestContextHolder`; không có user (job, lời gọi nội bộ) thì actor là `SYSTEM`. `txId` là trace id của request, không có thì là id chung của transaction.
 - **Relay** chạy trên thread riêng của lib (service không cần `@EnableScheduling`), nhiều instance chạy cùng lúc được (`FOR UPDATE SKIP LOCKED`). Batch bị notification từ chối (4xx) được gửi lại từng entry; entry lỗi thử lại với độ trễ tăng dần (tối đa 1 giờ), quá `max-attempts` thì ở trạng thái `FAILED` để xử lý tay. Giao **ít nhất một lần**: gửi thành công mà chưa kịp đánh dấu SENT thì lần sau gửi lại.
-- **Không được ghi log:** dòng ghi bằng JPA, jOOQ / SQL viết tay, `@Modifying` của service (không đi qua repository của lib).
+- **Không được ghi log tự động:** dòng ghi bằng JPA, jOOQ / SQL viết tay, `@Modifying` của service (không đi qua repository của lib). Ghi tay bằng `ManualChangeLog` (dưới).
+
+**Ghi tay (`ManualChangeLog`)**: cho lệnh ghi không đi qua repository. Bean có sẵn; truyền dòng trước / sau ở dạng field name, entry đi cùng recorder, outbox, transaction và relay với ghi qua repository (cùng diff, mask, actor, `txId`). Object không bật change log thì không ghi gì, nên lời gọi để nguyên được dù tắt hay bật.
+
+```java
+private final ManualChangeLog manualChangeLog;
+
+@Transactional
+public void markTaxChecked(UUID accountId, boolean checked) {
+    Account account = accountRepository.findById(accountId).orElseThrow();
+    Map<String, Object> before = taxState(account);          // chụp trước khi sửa
+    account.setTaxChecked(checked);
+    accountRepository.save(account);                        // JPA: repository của lib không thấy
+    manualChangeLog.update("account", before, taxState(account));
+}
+
+/** Chỉ field lệnh ghi đụng tới, kèm id và field mã / cha của object. */
+private Map<String, Object> taxState(Account account) {
+    return DataRecord.of().with(AccountMeta.ID, account.getId()).with(AccountMeta.CODE, account.getCode())
+            .with(AccountMeta.TAX_CHECKED, account.getTaxChecked()).getValues();
+}
+```
+
+- `create(object, after)`, `update(object, before, after)`, `delete(object, before, soft)`, mỗi method có bản nhận danh sách (dòng khớp nhau theo id).
+- Gọi **sau** lệnh ghi, **trong** transaction của lệnh ghi: entry được insert trong `beforeCommit`, nên dòng và log cùng commit / rollback; không có transaction thì entry được insert ngay.
+- Dòng chỉ cần các field bị ghi, kèm `id` (thiếu thì `IllegalArgumentException`) và field `code-field` / `parent-field` của object. Field không có ở cả trước lẫn sau không bị coi là đổi; giá trị không đổi thì không có entry. `before` phải là bản chụp, không phải chính map bị sửa sau đó.
+- Tên object không có metadata thì báo lỗi `notFound` (như repository).
+- Không gọi cho lệnh ghi đã đi qua repository: sẽ có hai entry.
+- Entry luôn là `DATA_CHANGE` với CREATE / UPDATE / DELETE; chưa có `subAction` hay `metadata` tùy ý.
 
 ## Import / Export
 
